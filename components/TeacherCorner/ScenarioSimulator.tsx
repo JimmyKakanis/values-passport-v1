@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { SCENARIOS, Scenario } from '../../data/teacherResources';
-import { Check, X, RefreshCw, ChevronRight, PlayCircle } from 'lucide-react';
-import { CoreValue } from '../../types';
+import { SCENARIOS } from '../../data/teacherResources';
+import { Check, X, ChevronRight, PlayCircle } from 'lucide-react';
 
 export const ScenarioSimulator: React.FC = () => {
   const [activeScenarioIndex, setActiveScenarioIndex] = useState<number>(0);
@@ -82,7 +81,6 @@ export const ScenarioSimulator: React.FC = () => {
                 const isCorrect = option.isCorrect;
                 
                 let containerClass = "border-2 border-gray-100 hover:border-indigo-200 hover:bg-indigo-50";
-                let icon = null;
 
                 if (showFeedback) {
                     if (isSelected) {

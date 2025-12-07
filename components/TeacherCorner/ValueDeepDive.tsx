@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { CoreValue, ValueDefinition } from '../../types';
+import { CoreValue } from '../../types';
 import { CORE_VALUES } from '../../constants';
 import { VALUE_DEEP_DIVES } from '../../data/teacherResources';
-import { BookOpen, GraduationCap, Lightbulb, MessageCircle, CheckCircle2 } from 'lucide-react';
+import { BookOpen, MessageCircle, CheckCircle2 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 
 export const ValueDeepDive: React.FC = () => {

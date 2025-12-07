@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { getAllSignatures } from '../../services/dataService';
 import { Signature, CoreValue } from '../../types';
-import { CORE_VALUES, SUBJECTS } from '../../constants';
-import { BarChart2, PieChart, TrendingUp, Award } from 'lucide-react';
+import { CORE_VALUES } from '../../constants';
+import { PieChart, Award } from 'lucide-react';
 
 export const TeacherInsights: React.FC = () => {
   const [signatures, setSignatures] = useState<Signature[]>([]);
