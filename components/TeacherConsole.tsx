@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
-import { getStudents, addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent } from '../services/dataService';
+import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent } from '../services/dataService';
 import { Student, Subject, CoreValue, Nomination } from '../types';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Check, X, Send, Users, Loader2, ThumbsUp, MessageSquare, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck } from 'lucide-react';
 
-export const TeacherConsole: React.FC = () => {
+
+const TeacherConsole: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   
   const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX'>('AWARD');
   
