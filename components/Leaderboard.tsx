@@ -43,7 +43,7 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
 
   const handleRowClick = (studentId: string) => {
     if (isTeacher) {
-      navigate(`/student-achievements/${studentId}`);
+      navigate(`/student/${studentId}`);
     }
   };
 
