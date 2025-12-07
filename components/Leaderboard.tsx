@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Crown, Filter, Star, Loader2, Award, ArrowRight } from 'lucide-react';
+import { Trophy, Crown, Loader2, Award, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchLeaderboardData, LeaderboardEntry } from '../services/dataService';
 import { CORE_VALUES } from '../constants';

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { getSignaturesForStudent, calculateStudentAchievements, getStudent } from '../services/dataService';
 import { StudentAchievement, AchievementDifficulty } from '../types';
 

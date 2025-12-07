@@ -8,7 +8,6 @@ import {
   getDocs, 
   query, 
   where, 
-  orderBy, 
   doc, 
   updateDoc,
   setDoc
@@ -92,7 +91,7 @@ export const addSignature = async (
       teacherName,
       subject,
       value,
-      subValue: subValue || null,
+      subValue: subValue || undefined, // Changed from null to undefined
       timestamp: Date.now(),
       note: note || ''
     };

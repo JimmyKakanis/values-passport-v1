@@ -22,7 +22,7 @@ import {
 import { StudentPassport } from './StudentPassport';
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, PenTool, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb } from 'lucide-react';
-import { Subject, CoreValue, Signature, StudentAchievement } from '../types';
+import { Subject, CoreValue, Signature, Student } from '../types';
 
 interface Props {
   studentId: string;

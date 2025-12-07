@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Award, Star, CheckCircle2, Loader2, BookOpen, MapPin } from 'lucide-react';
+import { Star, Loader2, BookOpen, MapPin } from 'lucide-react';
 import { SUBJECTS, CORE_VALUES } from '../constants';
 import { getSignaturesForStudent } from '../services/dataService';
 import { CoreValue, Subject, Signature } from '../types';

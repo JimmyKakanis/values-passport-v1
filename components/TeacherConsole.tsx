@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserCheck, Check, Send, Inbox, User, X, CheckCircle2, Clock, Search, Users, Loader2, Tag } from 'lucide-react';
+import { getStudents, addSignature, getPendingNominations, approveNomination, rejectNomination } from '../services/dataService';
+import { Student, Subject, CoreValue, Nomination } from '../types';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { getStudents, addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent } from '../services/dataService';
-import { CoreValue, Subject, Student, Nomination } from '../types';
+import { Book, Check, X, PlusCircle, Send, Users, Bell, Loader2, Star, ThumbsUp, MessageSquare } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export const TeacherConsole: React.FC = () => {
   const students = getStudents();
