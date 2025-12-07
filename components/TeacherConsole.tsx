@@ -7,9 +7,6 @@ import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock
 
 
 export const TeacherConsole: React.FC = () => {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  
   const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX'>('AWARD');
   
   // Award Form State
