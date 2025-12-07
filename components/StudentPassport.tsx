@@ -92,18 +92,18 @@ export const StudentPassport: React.FC<Props> = ({ studentId }) => {
       </h3>
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto scrollbar-hide">
-          <table className="w-full text-sm text-left">
+          <table className="w-full text-sm text-left table-fixed">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 font-bold text-gray-900 w-32 sticky left-0 bg-gray-50 z-20">Subject</th>
+                <th className="px-4 py-3 font-bold text-gray-900 sticky left-0 bg-gray-50 z-20 w-[14.28%]">Subject</th>
                 {Object.values(CORE_VALUES).map((val) => (
-                  <th key={val.id} className="px-2 py-3 text-center">
+                  <th key={val.id} className="px-2 py-3 text-center w-[14.28%]">
                     <div className={`inline-flex flex-col items-center gap-1 px-2 py-1 rounded-lg border ${val.color} bg-opacity-20 w-full`}>
                       <span className="font-bold truncate text-[10px] md:text-xs">{val.id}</span>
                     </div>
                   </th>
                 ))}
-                <th className="px-2 py-3 text-center w-24">Mastery</th>
+                <th className="px-2 py-3 text-center w-[14.28%]">Mastery</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
