@@ -12,9 +12,16 @@ export const Logo: React.FC<{ className?: string }> = ({ className }) => {
       strokeLinejoin="round"
       className={className}
     >
-      <path d="M12 6C11 4 9.5 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35" />
-      <path d="M12 6C13 4 14.5 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35" />
-      <path d="M12 6V21.35" />
+      {/* Outer pages, forming a heart-like shape */}
+      <path d="M12 6 C10 5, 7 4, 4 4.5 L4 18 C7 20, 10 21, 12 21.35" />
+      <path d="M12 6 C14 5, 17 4, 20 4.5 L20 18 C17 20, 14 21, 12 21.35" />
+      
+      {/* Spine */}
+      <path d="M12 6 L12 21.35" />
+
+      {/* Inner lines to suggest pages */}
+      <path d="M12 6.5 C 11.5 6, 10 5.5, 8 5.5 L 8 18.5 C 10 19.5, 11.5 20, 12 20" />
+      <path d="M12 6.5 C 12.5 6, 14 5.5, 16 5.5 L 16 18.5 C 14 19.5, 12.5 20, 12 20" />
     </svg>
   );
 };
