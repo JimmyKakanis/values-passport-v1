@@ -6,7 +6,7 @@ import { CORE_VALUES, SUBJECTS } from '../constants';
 import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck } from 'lucide-react';
 
 
-const TeacherConsole: React.FC = () => {
+export const TeacherConsole: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   
