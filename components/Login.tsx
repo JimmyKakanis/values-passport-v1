@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as firebaseAuth from 'firebase/auth';
 import { auth } from '../firebaseConfig';
-import { Book, Loader2, AlertCircle, Key } from 'lucide-react';
+import { Loader2, AlertCircle, Key } from 'lucide-react';
 import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN, TEACHER_TEMP_PASSWORD, STUDENT_TEMP_PASSWORD } from '../constants';
 import { isApprovedTeacher, getStudentByEmail } from '../services/dataService';
 import { Logo } from './Logo';
