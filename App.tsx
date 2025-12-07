@@ -11,6 +11,7 @@ import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN } from './constants';
 import { auth } from './firebaseConfig';
 import * as firebaseAuth from 'firebase/auth';
 import { getStudentByEmail } from './services/dataService';
+import { Logo } from './components/Logo';
 
 // Layout Component
 const Layout: React.FC<{ 
@@ -32,7 +33,7 @@ const Layout: React.FC<{
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex justify-between h-20">
             <div className="flex items-center gap-4">
-              <div className="bg-white p-1 rounded-full shadow-md overflow-hidden h-12 w-12 flex items-center justify-center">
+              <div className="bg-white p-2 rounded-full shadow-md overflow-hidden h-14 w-14 flex items-center justify-center">
                  {/* Use Logo URL or fallback to Book icon (Passport) */}
                  {SCHOOL_LOGO_URL && !imgError ? (
                    <img 
@@ -42,7 +43,7 @@ const Layout: React.FC<{
                     onError={() => setImgError(true)}
                    />
                  ) : (
-                   <Book size={24} className="text-emerald-800" fill="currentColor" />
+                   <Logo className="text-emerald-800" />
                  )}
               </div>
               <div className="flex flex-col">

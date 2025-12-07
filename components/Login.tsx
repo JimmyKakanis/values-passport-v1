@@ -4,6 +4,7 @@ import { auth } from '../firebaseConfig';
 import { Book, Loader2, AlertCircle, Key } from 'lucide-react';
 import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN, TEACHER_TEMP_PASSWORD, STUDENT_TEMP_PASSWORD } from '../constants';
 import { isApprovedTeacher, getStudentByEmail } from '../services/dataService';
+import { Logo } from './Logo';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -88,7 +89,7 @@ export const Login: React.FC = () => {
                  onError={() => setImgError(true)}
                />
              ) : (
-               <Book className="w-12 h-12 text-emerald-800" />
+               <Logo className="w-16 h-16 text-emerald-800" />
              )}
            </div>
            <h1 className="text-2xl font-bold text-white">Values Passport</h1>
