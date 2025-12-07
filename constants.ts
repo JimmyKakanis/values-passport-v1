@@ -1,8 +1,8 @@
 
 import { CoreValue, ValueDefinition, Subject, AchievementDefinition, Student, Teacher } from './types';
 
-// Updated to a likely valid URL for Sathya Sai College
-export const SCHOOL_LOGO_URL = 'https://sathyasai.nsw.edu.au/wp-content/uploads/2016/11/logo-1.png';
+// Updated to a local path. Place the logo in /public/school-logo.png
+export const SCHOOL_LOGO_URL = '/school-logo.png';
 
 // Domain Locking
 export const SCHOOL_EMAIL_DOMAIN = 'sathyasai.nsw.edu.au';
