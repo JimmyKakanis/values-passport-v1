@@ -1,0 +1,169 @@
+import React, { useState } from 'react';
+import * as firebaseAuth from 'firebase/auth';
+import { auth } from '../firebaseConfig';
+import { Book, Loader2, AlertCircle, Key } from 'lucide-react';
+import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN, TEACHER_TEMP_PASSWORD, STUDENT_TEMP_PASSWORD } from '../constants';
+import { isApprovedTeacher, getStudentByEmail } from '../services/dataService';
+
+export const Login: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    // Basic Validation
+    if (!email.toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN)) {
+      setError(`Only emails ending in @${SCHOOL_EMAIL_DOMAIN} are allowed.`);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Try to login normally first
+      await firebaseAuth.signInWithEmailAndPassword(auth, email, password);
+    } catch (err: any) {
+      // 2. If login fails, check if we should auto-provision a new account
+      // This happens if the user is in our "approved list" and uses the CORRECT TEMP PASSWORD for their role
+      const isTeacher = isApprovedTeacher(email);
+      const isStudent = !!getStudentByEmail(email);
+
+      let canProvision = false;
+
+      if (isTeacher && password === TEACHER_TEMP_PASSWORD) {
+        canProvision = true;
+      } else if (isStudent && password === STUDENT_TEMP_PASSWORD) {
+        canProvision = true;
+      }
+
+      if (canProvision) {
+         try {
+            await firebaseAuth.createUserWithEmailAndPassword(auth, email, password);
+            setSuccessMsg('Account activated! Logging you in...');
+            // Login happens automatically after creation
+            return;
+         } catch (createError: any) {
+            // If they try to provision an existing account, just tell them to use their real password
+            if (createError.code === 'auth/email-already-in-use') {
+               setError('Account already active. Please use your personal password (not the temp one).');
+            } else {
+               console.error("Provisioning error:", createError);
+               setError('Failed to activate account. Please contact support.');
+            }
+         }
+      } else {
+        // Standard error handling
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+           setError('Invalid email or password.');
+        } else if (err.code === 'auth/too-many-requests') {
+           setError('Too many attempts. Please try again later.');
+        } else {
+           setError('Failed to authenticate. Please check your connection.');
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-emerald-900 flex items-center justify-center p-4">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+        
+        {/* Header */}
+        <div className="bg-emerald-800 p-8 text-center border-b-4 border-yellow-400">
+           <div className="bg-white p-3 rounded-full shadow-lg inline-block mb-4 h-24 w-24 flex items-center justify-center">
+             {SCHOOL_LOGO_URL && !imgError ? (
+               <img 
+                 src={SCHOOL_LOGO_URL} 
+                 alt="Logo" 
+                 className="h-full w-full object-contain" 
+                 onError={() => setImgError(true)}
+               />
+             ) : (
+               <Book className="w-12 h-12 text-emerald-800" />
+             )}
+           </div>
+           <h1 className="text-2xl font-bold text-white">Values Passport</h1>
+           <p className="text-emerald-200 text-sm font-medium mt-1">Sathya Sai College</p>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+           <div className="text-center mb-6">
+             <h2 className="text-xl font-bold text-gray-800">Sign In</h2>
+             <p className="text-gray-500 text-sm">Please enter your school email.</p>
+           </div>
+
+           {error && (
+             <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm flex items-center gap-2">
+               <AlertCircle size={16} /> {error}
+             </div>
+           )}
+
+           {successMsg && (
+             <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm flex items-center gap-2">
+               <Loader2 size={16} className="animate-spin" /> {successMsg}
+             </div>
+           )}
+
+           <div>
+             <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+             <input
+               type="email"
+               required
+               value={email}
+               onChange={(e) => setEmail(e.target.value)}
+               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+               placeholder={`name@${SCHOOL_EMAIL_DOMAIN}`}
+             />
+           </div>
+
+           <div>
+             <label className="block text-sm font-bold text-gray-700 mb-1">Password</label>
+             <input
+               type="password"
+               required
+               value={password}
+               onChange={(e) => setPassword(e.target.value)}
+               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+               placeholder="••••••••"
+               minLength={6}
+             />
+           </div>
+
+           <button
+             type="submit"
+             disabled={loading}
+             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow-md transition-all flex items-center justify-center gap-2 disabled:bg-gray-400"
+           >
+             {loading ? <Loader2 className="animate-spin" /> : 'Sign In'}
+           </button>
+           
+           <div className="bg-blue-50 p-4 rounded-lg text-xs text-blue-800 border border-blue-100 flex gap-3 mt-4">
+              <Key size={24} className="flex-shrink-0 text-blue-600 mt-1" />
+              <div>
+                <strong className="block mb-1 text-sm text-blue-900">First time logging in?</strong>
+                <p className="mb-1">Use your email and the code below:</p>
+                <div className="grid grid-cols-1 gap-1">
+                   <div className="flex justify-between bg-white px-2 py-1 rounded border border-blue-200">
+                     <span>Teachers:</span> <code className="font-bold text-emerald-600">{TEACHER_TEMP_PASSWORD}</code>
+                   </div>
+                   <div className="flex justify-between bg-white px-2 py-1 rounded border border-blue-200">
+                     <span>Students:</span> <code className="font-bold text-blue-600">{STUDENT_TEMP_PASSWORD}</code>
+                   </div>
+                </div>
+              </div>
+           </div>
+        </form>
+      </div>
+    </div>
+  );
+};
