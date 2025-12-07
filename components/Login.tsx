@@ -152,11 +152,8 @@ export const Login: React.FC = () => {
               <Key size={24} className="flex-shrink-0 text-blue-600 mt-1" />
               <div>
                 <strong className="block mb-1 text-sm text-blue-900">First time logging in?</strong>
-                <p className="mb-1">Use your email and the code below:</p>
+                <p className="mb-1">Use your email and the student code below:</p>
                 <div className="grid grid-cols-1 gap-1">
-                   <div className="flex justify-between bg-white px-2 py-1 rounded border border-blue-200">
-                     <span>Teachers:</span> <code className="font-bold text-emerald-600">{TEACHER_TEMP_PASSWORD}</code>
-                   </div>
                    <div className="flex justify-between bg-white px-2 py-1 rounded border border-blue-200">
                      <span>Students:</span> <code className="font-bold text-blue-600">{STUDENT_TEMP_PASSWORD}</code>
                    </div>
