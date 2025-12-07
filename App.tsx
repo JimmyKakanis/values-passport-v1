@@ -12,6 +12,7 @@ import { auth } from './firebaseConfig';
 import * as firebaseAuth from 'firebase/auth';
 import { getStudentByEmail } from './services/dataService';
 import { Logo } from './components/Logo';
+import { StudentDetailView } from './components/StudentDetailView';
 
 // Layout Component
 const Layout: React.FC<{ 
@@ -310,13 +311,6 @@ const ChangePasswordModal: React.FC<{ isOpen: boolean, onClose: () => void }> = 
   );
 };
 
-// Wrapper for Student Achievements Route for Teachers
-const StudentAchievementsRoute = () => {
-  const { id } = useParams();
-  if (!id) return <Navigate to="/leaderboard" />;
-  return <Achievements studentId={id} isTeacherView={true} />;
-};
-
 const App: React.FC = () => {
   const [user, setUser] = useState<any | null>(null);
   const [userRole, setUserRole] = useState<'STUDENT' | 'TEACHER' | null>(null);
@@ -404,8 +398,8 @@ const App: React.FC = () => {
                {/* Redirect root to teacher console for teachers */}
                <Route path="/" element={<Navigate to="/teacher" />} />
                
-               {/* Teacher viewing a student's achievements */}
-               <Route path="/student-achievements/:id" element={<StudentAchievementsRoute />} />
+               {/* Teacher viewing a student's details */}
+               <Route path="/student/:id" element={<StudentDetailView />} />
                
                {/* Regular achievements route redirects to console for teachers */}
                <Route path="/achievements" element={<Navigate to="/teacher" />} />

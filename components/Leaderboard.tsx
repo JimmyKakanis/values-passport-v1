@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { fetchLeaderboardData, LeaderboardEntry } from '../services/dataService';
 import { CORE_VALUES } from '../constants';
 import { CoreValue } from '../types';
+import { Link } from 'react-router-dom';
 
 interface Props {
   userRole?: 'STUDENT' | 'TEACHER' | null;
