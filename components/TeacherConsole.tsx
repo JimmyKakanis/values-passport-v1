@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent } from '../services/dataService';
+import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent, getStudents } from '../services/dataService';
 import { Student, Subject, CoreValue, Nomination } from '../types';
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck } from 'lucide-react';
 
 
 export const TeacherConsole: React.FC = () => {
+  const [students, setStudents] = useState<Student[]>([]);
   const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX'>('AWARD');
   
   // Award Form State
@@ -25,6 +26,11 @@ export const TeacherConsole: React.FC = () => {
   const [pendingNominations, setPendingNominations] = useState<Nomination[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0); 
   
+  useEffect(() => {
+    const studentData = getStudents();
+    setStudents(studentData);
+  }, []);
+
   useEffect(() => {
     const fetchNominations = async () => {
        const noms = await getPendingNominations();
