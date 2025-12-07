@@ -6,9 +6,13 @@ import { CORE_VALUES, SUBJECTS } from '../constants';
 import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck } from 'lucide-react';
 
 
-export const TeacherConsole: React.FC = () => {
+interface TeacherConsoleProps {
+  initialTab?: 'AWARD' | 'INBOX';
+}
+
+export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AWARD' }) => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX'>('AWARD');
+  const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX'>(initialTab);
   
   // Award Form State
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);

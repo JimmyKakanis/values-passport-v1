@@ -14,6 +14,8 @@ import { getStudentByEmail } from './services/dataService';
 import { Logo } from './components/Logo';
 import { StudentDetailView } from './components/StudentDetailView';
 
+import { TeacherCorner } from './components/TeacherCorner/TeacherCorner';
+
 // Layout Component
 const Layout: React.FC<{ 
   children: React.ReactNode, 
@@ -72,11 +74,16 @@ const Layout: React.FC<{
               <Link to="/leaderboard" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/leaderboard')}`}>
                 <BarChart2 size={18} /> Leaderboard
               </Link>
-              
+
               {userRole === 'TEACHER' && (
-                <Link to="/teacher" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/teacher')}`}>
-                  <PenTool size={18} /> Teacher Console
-                </Link>
+                <>
+                  <Link to="/values-development" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/values-development')}`}>
+                    <BrainCircuit size={18} /> Values Development
+                  </Link>
+                  <Link to="/teacher" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/teacher')}`}>
+                    <PenTool size={18} /> Teacher Console
+                  </Link>
+                </>
               )}
               
               <div className="h-6 w-px bg-emerald-600 mx-2"></div>
@@ -395,6 +402,8 @@ const App: React.FC = () => {
             // TEACHER ROUTES
             <>
                <Route path="/teacher" element={<TeacherConsole />} />
+               {/* Separate route for Values Development now */}
+               <Route path="/values-development" element={<TeacherCorner />} /> 
                {/* Redirect root to teacher console for teachers */}
                <Route path="/" element={<Navigate to="/teacher" />} />
                
