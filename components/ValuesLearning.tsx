@@ -227,7 +227,12 @@ const ValuesQuiz: React.FC = () => {
   const handleAnswer = (answer: CoreValue) => {
     if (!currentQuestion) return;
 
-    if (answer === currentQuestion.correctValue) {
+    // Check if the answer is correct by seeing if the selected Value contains the sub-value
+    // This handles cases where a sub-value might appear in multiple Core Values (e.g. 'Honesty' in Truth & Peace)
+    const selectedValueDef = CORE_VALUES[answer];
+    const isCorrect = selectedValueDef.subValues.includes(currentQuestion.subValue);
+
+    if (isCorrect) {
       setFeedback('CORRECT');
       setScore(s => s + 10);
       setStreak(s => s + 1);
