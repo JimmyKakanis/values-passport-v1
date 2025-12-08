@@ -9,6 +9,10 @@
 - [x] Leaderboard Implementation
 - [x] Achievements System
 - [x] Student Detail View for Teachers
+- [x] **Real-time Notification System** (Toasts, Modals, Confetti)
+- [x] **Offline/Welcome Back Summary Logic**
+- [x] **Real-time Passport Updates** (Live Subscriptions)
+- [x] **Stamp History & Comments View**
 
 ## In Progress
 - [ ] Mobile Responsiveness Refinements
@@ -16,5 +20,5 @@
 ## Planned / Future
 - [ ] PDF Export for Passports
 - [ ] Advanced Analytics for Admin
-- [ ] Push Notifications
-
+- [ ] Push Notifications (Native/PWA)
+- [ ] School Year / Term Rollover Logic
