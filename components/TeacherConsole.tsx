@@ -83,7 +83,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
       setIsSubmitting(false);
 
       const count = selectedStudentIds.length;
-      setSuccessMsg(`Awarded ${selectedValue} point to ${count} student${count > 1 ? 's' : ''}!`);
+      setSuccessMsg(`Awarded ${selectedValue} stamp to ${count} student${count > 1 ? 's' : ''}!`);
       
       // Reset form
       setNote('');
@@ -118,7 +118,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
           }`}
         >
           <UserCheck className="w-5 h-5" />
-          Award Signatures
+          Award Stamps
         </button>
         <button
           onClick={() => setActiveTab('INBOX')}
@@ -143,7 +143,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
               <Users className="w-6 h-6" />
               Teacher Console
             </h2>
-            <p className="text-emerald-100 mt-1">Award signatures for positive behavior</p>
+            <p className="text-emerald-100 mt-1">Award stamps for positive behavior</p>
           </div>
           
           <form onSubmit={handleSubmit} className="p-6 space-y-6 rounded-b-xl">
@@ -276,7 +276,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
             {selectedValue && (
                <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
                  <h4 className="font-bold text-blue-900 mb-3 text-sm uppercase tracking-wide flex items-center gap-2">
-                   <Tag size={16} /> Specific Behavior (Optional Tag)
+                   <Tag size={16} /> Sub-value (Optional Tag)
                  </h4>
                  
                  <div className="flex flex-wrap gap-2">
@@ -319,8 +319,8 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
             >
               {isSubmitting ? <Loader2 className="animate-spin" /> : <Send className="w-5 h-5" />}
               {selectedStudentIds.length > 1 
-                ? `Award Signature to ${selectedStudentIds.length} Students` 
-                : 'Award Signature'}
+                ? `Award Stamps to ${selectedStudentIds.length} Students` 
+                : 'Award Stamp'}
             </button>
           </form>
         </div>

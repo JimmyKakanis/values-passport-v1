@@ -29,22 +29,22 @@ interface Props {
 }
 
 const DID_YOU_KNOW_TIPS = [
-  "You can earn a **Gold Star** in a subject by getting at least one signature in all 5 values for that class!",
+  "You can earn a **Gold Star** in a subject by getting at least one stamp in all 5 values for that class!",
   "Check out the **Values Lab** to spin the wheel and get ideas for how to demonstrate values in different locations.",
-  "You can **Self-Nominate**! If you did something good and no one saw, use the Request Signature button to tell your teacher.",
-  "See a friend doing something great? Use the **'For a Friend'** option in the Request Signature form to advocate for them.",
+  "You can **Self-Nominate**! If you did something good and no one saw, use the Request Stamp button to tell your teacher.",
+  "See a friend doing something great? Use the **'For a Friend'** option in the Request Stamp form to advocate for them.",
   "Check your **Achievements** page to see special badges you can unlock, like 'The Optimist' or 'Guardian of Nature'.",
   "The **Leaderboard** has filters! You can see who is leading specifically in 'Truth' or 'Non-Violence'.",
-  "Teachers can tag your signatures with specific behaviors like **'Curiosity'** or **'Leadership'**. Check your Recent History to see them!",
-  "The **'Head, Heart, Hand'** achievement requires you to earn points in Academic, Creative, and Active subjects.",
+  "Teachers can tag your stamps with specific behaviors like **'Curiosity'** or **'Leadership'**. Check your Recent History to see them!",
+  "The **'Head, Heart, Hand'** achievement requires you to earn stamps in Academic, Creative, and Active subjects.",
   "You can change your password at any time by clicking the **Key icon** in the top navigation bar.",
   "Earning 5 stars in a subject means you have completed the full set of values **5 times**! That is true mastery.",
-  "The **'Hat Trick'** achievement is unlocked by earning 3 signatures in a single day. Can you do it?",
+  "The **'Hat Trick'** achievement is unlocked by earning 3 stamps in a single day. Can you do it?",
   "Your **Passport** is split into Subjects (like Math) and Locations (like Playground). Make sure to show values everywhere!",
   "The **'Values Explorer'** in the Values Lab can help you understand the deeper meaning behind each Core Value.",
-  "Earning **3 signatures** in a single value unlocks the 'Collector' achievement for that value!",
+  "Earning **3 stamps** in a single value unlocks the 'Collector' achievement for that value!",
   "The **'Subject Explorer'** badge is for students who show their values across 3 different subjects.",
-  "Participating in **Sports Carnivals** and showing good sportsmanship can earn you signatures for the 'Team Spirit' award.",
+  "Participating in **Sports Carnivals** and showing good sportsmanship can earn you stamps for the 'Team Spirit' award.",
   "Helping others in the playground is a great way to earn the **'Hand of Help'** achievement.",
   "Showing respect for the environment by picking up litter can get you recognized as a **'Guardian of Nature'**.",
   "Practice **'Inner Silence'** during assembly or homeroom to work towards the 'Mindful Master' badge.",
@@ -200,14 +200,14 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
           <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-3">
              <div className="bg-emerald-900/30 backdrop-blur-sm px-4 py-2 rounded-lg border border-emerald-500/30">
                 <span className="block text-2xl font-bold text-yellow-400">{stats.total}</span>
-                <span className="text-xs uppercase tracking-wider opacity-90">Total Signatures</span>
+                <span className="text-xs uppercase tracking-wider opacity-90">Total Stamps</span>
              </div>
              
              <button 
                 onClick={() => setIsNominationModalOpen(true)}
                 className="bg-yellow-400 hover:bg-yellow-300 text-blue-900 px-5 py-2 rounded-lg font-bold shadow-lg transform transition hover:scale-105 flex items-center gap-2"
              >
-                <PenTool size={18} /> Request Signature
+                <PenTool size={18} /> Request Stamp
              </button>
           </div>
         </div>
@@ -228,7 +228,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
               ></div>
            </div>
            <div className="text-xs opacity-90 text-center text-emerald-100">
-             {nextRewardThreshold - stats.total} more signatures to go!
+             {nextRewardThreshold - stats.total} more stamps to go!
            </div>
         </div>
       </div>
@@ -345,7 +345,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                    );
                  })
                ) : (
-                 <p className="text-sm text-gray-500 text-center italic py-4">No signatures yet!</p>
+                 <p className="text-sm text-gray-500 text-center italic py-4">No stamps yet!</p>
                )}
              </div>
            </div>
@@ -370,7 +370,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div className="bg-emerald-700 p-4 flex justify-between items-center text-white">
               <h3 className="font-bold text-lg flex items-center gap-2">
-                <PenTool size={20} /> Request Signature
+                <PenTool size={20} /> Request Stamp
               </h3>
               <button onClick={() => setIsNominationModalOpen(false)} className="hover:bg-white/20 p-1 rounded-full">
                 <X size={20} />
