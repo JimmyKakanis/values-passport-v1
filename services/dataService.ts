@@ -11,8 +11,7 @@ import {
   doc, 
   updateDoc,
   setDoc,
-  onSnapshot,
-  increment
+  onSnapshot
 } from 'firebase/firestore';
 
 // We keep students hardcoded for now as the "Directory", 
