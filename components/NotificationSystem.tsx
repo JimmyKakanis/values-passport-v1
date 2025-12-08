@@ -18,6 +18,12 @@ export interface NotificationItem {
   message: string;
   icon?: React.ReactNode;
   duration?: number;
+  metadata?: {
+    subValue?: string;
+    note?: string;
+    teacher?: string;
+    timestamp?: number;
+  };
 }
 
 interface NotificationContextType {
@@ -65,18 +71,37 @@ const Toast: React.FC<{ item: NotificationItem; onRemove: (id: string) => void }
       layout
       className={`${getBgColor()} text-white p-4 rounded-lg shadow-xl flex items-start gap-3 w-80 md:w-96 relative overflow-hidden`}
     >
-      <div className="bg-white/20 p-2 rounded-full">
+      <div className="bg-white/20 p-2 rounded-full mt-1">
         {item.icon || <CheckCircle size={20} />}
       </div>
       <div className="flex-1">
         <h4 className="font-bold text-sm uppercase tracking-wide opacity-90">{item.title}</h4>
-        <p className="text-sm font-medium mt-1">{item.message}</p>
+        <p className="text-sm font-medium mt-1 leading-snug">{item.message}</p>
+        
+        {/* Detail View for Metadata */}
+        {(item.metadata?.subValue || item.metadata?.note) && (
+          <div className="mt-3 bg-black/10 rounded-lg p-2 text-xs space-y-1">
+             {item.metadata.subValue && (
+                <div className="flex items-center gap-2">
+                   <span className="font-bold bg-white/20 px-1.5 py-0.5 rounded text-white">{item.metadata.subValue}</span>
+                </div>
+             )}
+             {item.metadata.note && (
+                <div className="mt-1">
+                  <span className="text-[10px] uppercase font-bold opacity-75 block mb-0.5">Teacher Comment:</span>
+                  <div className="italic opacity-90 border-l-2 border-white/30 pl-2 py-0.5">
+                    "{item.metadata.note}"
+                  </div>
+                </div>
+             )}
+          </div>
+        )}
       </div>
       <button 
         onClick={() => onRemove(item.id)}
-        className="text-white/70 hover:text-white transition-colors"
+        className="text-white/70 hover:text-white transition-colors bg-black/10 hover:bg-black/20 p-1 rounded-full absolute top-2 right-2"
       >
-        <X size={16} />
+        <X size={14} />
       </button>
     </motion.div>
   );
@@ -302,7 +327,13 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
                 title: 'New Stamp!',
                 message: `You earned a stamp for ${sig.value} in ${sig.subject}`,
                 icon: <Star className="w-5 h-5" />,
-                duration: 5000
+                // No duration, persistent until dismissed
+                metadata: {
+                  subValue: sig.subValue,
+                  note: sig.note,
+                  teacher: sig.teacherName,
+                  timestamp: sig.timestamp
+                }
              });
           }, 500);
         });
