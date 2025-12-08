@@ -134,7 +134,8 @@ export const addNomination = async (
   type: NominationType,
   subject: Subject,
   value: CoreValue,
-  reason: string
+  reason: string,
+  subValue?: string
 ): Promise<Nomination | null> => {
   try {
     const newNomination = {
@@ -144,6 +145,7 @@ export const addNomination = async (
       type,
       subject,
       value,
+      subValue: subValue || undefined,
       reason,
       status: 'PENDING',
       timestamp: Date.now()
@@ -167,7 +169,8 @@ export const approveNomination = async (nomination: Nomination, teacherName: str
       teacherName,
       nomination.subject,
       nomination.value,
-      `${nomination.type === 'SELF' ? 'Self-Advocacy' : 'Nominated by ' + nomination.nominatorName}: ${nomination.reason}`
+      `${nomination.type === 'SELF' ? 'Self-Advocacy' : 'Nominated by ' + nomination.nominatorName}: ${nomination.reason}`,
+      nomination.subValue
     );
   } catch (error) {
     console.error("Error approving nomination:", error);

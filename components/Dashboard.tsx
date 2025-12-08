@@ -21,7 +21,7 @@ import {
 } from '../services/dataService';
 import { StudentPassport } from './StudentPassport';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, PenTool, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb } from 'lucide-react';
+import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, PenTool, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search } from 'lucide-react';
 import { Subject, CoreValue, Signature } from '../types';
 
 interface Props {
@@ -65,6 +65,8 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   const [nomineeId, setNomineeId] = useState(studentId);
   const [nomSubject, setNomSubject] = useState<Subject | ''>('');
   const [nomValue, setNomValue] = useState<CoreValue | ''>('');
+  const [nomSubValue, setNomSubValue] = useState('');
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [nomReason, setNomReason] = useState('');
   const [nomSuccess, setNomSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -103,9 +105,13 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   // Get recent 5 signatures for timeline
   const recentSignatures = signatures.slice(0, 5);
 
+  useEffect(() => {
+    setNomSubValue('');
+  }, [nomValue]);
+
   const handleNominationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (nomSubject && nomValue && nomReason && nomineeId) {
+    if (nomSubject && nomValue && nomSubValue && nomReason && nomineeId) {
       setIsSubmitting(true);
       await addNomination(
         nomineeId,
@@ -114,7 +120,8 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
         nominationType,
         nomSubject,
         nomValue,
-        nomReason
+        nomReason,
+        nomSubValue
       );
       setIsSubmitting(false);
       setNomSuccess(true);
@@ -124,6 +131,9 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
         setNomReason('');
         setNomSubject('');
         setNomValue('');
+        setNomSubValue('');
+        setStudentSearchTerm('');
+        setNomineeId(studentId);
       }, 2000);
     }
   };
@@ -401,21 +411,62 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                 {nominationType === 'PEER' && (
                   <div>
                     <label className="block text-sm font-bold text-blue-900 mb-1">Who deserves this?</label>
-                    <select
-                      required
-                      value={nomineeId}
-                      onChange={(e) => setNomineeId(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                    >
-                      <option value="">Select Student...</option>
-                      {allStudents.filter(s => s.id !== studentId).map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
+                    {nomineeId !== studentId ? (
+                         <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                           <div className="flex items-center gap-3">
+                             <div className="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold">
+                               {allStudents.find(s => s.id === nomineeId)?.name.charAt(0)}
+                             </div>
+                             <span className="font-bold text-blue-900">{allStudents.find(s => s.id === nomineeId)?.name}</span>
+                           </div>
+                           <button 
+                             type="button"
+                             onClick={() => { setNomineeId(studentId); setStudentSearchTerm(''); }}
+                             className="text-gray-400 hover:text-red-500"
+                           >
+                             <X size={18} />
+                           </button>
+                         </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="relative">
+                          <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search by name..."
+                            value={studentSearchTerm}
+                            onChange={(e) => setStudentSearchTerm(e.target.value)}
+                            className="w-full pl-9 p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                          />
+                        </div>
+                        {studentSearchTerm.length > 1 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {allStudents
+                              .filter(s => s.id !== studentId && (s.name.toLowerCase().includes(studentSearchTerm.toLowerCase())))
+                              .map(s => (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => { setNomineeId(s.id); setStudentSearchTerm(''); }}
+                                  className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2 border-b last:border-0 border-gray-100"
+                                >
+                                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs">
+                                    {s.name.charAt(0)}
+                                  </div>
+                                  <span className="text-sm text-gray-700">{s.name}</span>
+                                </button>
+                            ))}
+                            {allStudents.filter(s => s.id !== studentId && (s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()))).length === 0 && (
+                              <div className="p-3 text-center text-xs text-gray-400">No students found</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-blue-900 mb-1">Subject/Area</label>
                     <select
@@ -430,19 +481,37 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-bold text-blue-900 mb-1">Value</label>
-                    <select
-                      required
-                      value={nomValue}
-                      onChange={(e) => setNomValue(e.target.value as CoreValue)}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                    >
-                      <option value="">Select Value...</option>
-                      {Object.values(CORE_VALUES).map(v => (
-                        <option key={v.id} value={v.id}>{v.id}</option>
-                      ))}
-                    </select>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-blue-900 mb-1">Value</label>
+                      <select
+                        required
+                        value={nomValue}
+                        onChange={(e) => setNomValue(e.target.value as CoreValue)}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                      >
+                        <option value="">Select Value...</option>
+                        {Object.values(CORE_VALUES).map(v => (
+                          <option key={v.id} value={v.id}>{v.id}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-blue-900 mb-1">Specific Behavior</label>
+                      <select
+                        required
+                        value={nomSubValue}
+                        onChange={(e) => setNomSubValue(e.target.value)}
+                        disabled={!nomValue}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        <option value="">Select Behavior...</option>
+                        {nomValue && CORE_VALUES[nomValue].subValues.map(sub => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 

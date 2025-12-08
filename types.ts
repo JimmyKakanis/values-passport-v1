@@ -71,6 +71,7 @@ export interface Nomination {
   type: NominationType;
   subject: Subject;
   value: CoreValue;
+  subValue?: string;
   reason: string;
   status: NominationStatus;
   timestamp: number;
