@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Confetti from 'react-confetti';
 import { X, Award, Star, Gift, CheckCircle } from 'lucide-react';
 import { subscribeToSignatures, subscribeToClaimedRewards, calculateStudentAchievements, getStudentProfile, updateLastLogin } from '../services/dataService';
-import { Signature, StudentAchievement } from '../types';
+import { Signature } from '../types';
 import { ACHIEVEMENTS } from '../constants';
 
 // --- Types ---

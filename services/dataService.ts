@@ -357,7 +357,7 @@ export const calculateStudentAchievements = (signatures: Signature[], claimedRew
         if (ach.id.startsWith('master-')) {
           // Logic for VALUE MASTER: Get this value in EVERY subject
           // Format: master-truth, master-love, etc.
-          const valueName = ach.id.replace('master-', '').replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
+          // const valueName = ach.id.replace('master-', '').replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase());
           
           // Map back to CoreValue enum (Handle slightly different casing if needed, but 'Truth' -> 'Truth' works)
           // The IDs in constants are: master-truth, master-love, master-peace, master-right-conduct, master-non-violence
