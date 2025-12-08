@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Loader2, BookOpen, MapPin, X, Calendar, User, MessageSquare } from 'lucide-react';
 import { SUBJECTS, CORE_VALUES } from '../constants';
-import { getSignaturesForStudent, subscribeToSignatures } from '../services/dataService';
+import { subscribeToSignatures } from '../services/dataService';
 import { CoreValue, Subject, Signature } from '../types';
 import { AnimatePresence, motion } from 'framer-motion';
 
