@@ -102,7 +102,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
     return bPercent - aPercent;
   }).slice(0, 3);
   
-  // Get recent 5 signatures for timeline
+  // Get recent 5 stamps for timeline
   const recentSignatures = signatures.slice(0, 5);
 
   useEffect(() => {

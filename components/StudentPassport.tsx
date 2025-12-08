@@ -30,7 +30,7 @@ export const StudentPassport: React.FC<Props> = ({ studentId }) => {
      return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-emerald-600"/></div>;
   }
 
-  // Helper to count signatures for a specific cell
+  // Helper to count stamps for a specific cell
   const getCount = (subject: Subject, value: CoreValue) => {
     return signatures.filter(s => s.subject === subject && s.value === value).length;
   };

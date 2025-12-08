@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState } from 'react';
 import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getSignaturesForStudent, calculateStudentAchievements, getStudent } from '../services/dataService';
+import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards } from '../services/dataService';
 import { StudentAchievement, AchievementDifficulty } from '../types';
 
 interface Props {
@@ -27,10 +26,18 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const sigs = await getSignaturesForStudent(studentId);
-      const calculated = calculateStudentAchievements(sigs);
-      setAchievements(calculated);
-      setLoading(false);
+      try {
+        const [sigs, claimedIds] = await Promise.all([
+          getSignaturesForStudent(studentId),
+          getClaimedRewards(studentId)
+        ]);
+        const calculated = calculateStudentAchievements(sigs, claimedIds);
+        setAchievements(calculated);
+      } catch (error) {
+        console.error("Failed to load achievements", error);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, [studentId]);
@@ -64,7 +71,7 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
     return (
       <div className={`relative p-5 rounded-xl border-2 transition-all duration-300 ${cardBg} ${item.isUnlocked ? 'hover:shadow-lg transform hover:-translate-y-1' : 'grayscale-[0.5] opacity-90'}`}>
         {item.isUnlocked && (
-           <div className="absolute -top-3 -right-3 bg-emerald-500 text-white rounded-full p-1 shadow-md z-10">
+           <div className={`absolute -top-3 -right-3 rounded-full p-1 shadow-md z-10 ${item.isClaimed ? 'bg-gray-400 text-white' : 'bg-emerald-500 text-white'}`}>
              <CheckCircle size={16} />
            </div>
         )}
@@ -103,10 +110,19 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
 
             {item.reward && (
               <div className={`mt-3 pt-2 border-t border-dashed ${item.isUnlocked ? 'border-gray-200' : 'border-gray-200'} flex items-center gap-1.5`}>
-                 <Gift size={12} className={item.isUnlocked ? 'text-purple-600' : 'text-gray-400'} />
+                 {item.reward === 'Achievement Unlocked' ? (
+                   <Medal size={12} className={item.isUnlocked ? 'text-purple-600' : 'text-gray-400'} />
+                 ) : (
+                   <Gift size={12} className={item.isUnlocked ? 'text-purple-600' : 'text-gray-400'} />
+                 )}
                  <span className={`text-[10px] uppercase font-bold tracking-wide ${item.isUnlocked ? 'text-purple-700' : 'text-gray-400'}`}>
-                   {item.reward}
+                   {item.isClaimed ? "Reward Claimed" : item.reward}
                  </span>
+                 {item.isUnlocked && !item.isClaimed && item.reward.startsWith("Reward:") && (
+                    <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold animate-pulse">
+                      Pending
+                    </span>
+                 )}
               </div>
             )}
           </div>
@@ -184,7 +200,7 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
                 <p className="mt-2 text-blue-100 max-w-xl font-medium">
                   {isTeacherView 
                     ? `Viewing progress for ${student?.name}.`
-                    : "Rise through the ranks from Beginner to Absolute Legend. Every signature counts!"
+                    : "Rise through the ranks from Beginner to Absolute Legend. Every stamp counts!"
                   }
                 </p>
              </div>

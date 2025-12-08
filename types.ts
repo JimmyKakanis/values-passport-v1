@@ -42,6 +42,7 @@ export interface Student {
   email: string;
   grade: string;
   avatar: string;
+  lastLoginAt?: number;
 }
 
 export interface Teacher {
@@ -92,9 +93,18 @@ export interface AchievementDefinition {
   threshold?: number; // Count required for VALUE, TOTAL, or Mastery Level
 }
 
+export interface ClaimedReward {
+  id: string;
+  studentId: string;
+  achievementId: string;
+  teacherName: string;
+  timestamp: number;
+}
+
 export interface StudentAchievement extends AchievementDefinition {
   isUnlocked: boolean;
   currentProgress: number;
   maxProgress: number;
   unlockedAt?: number;
+  isClaimed?: boolean;
 }

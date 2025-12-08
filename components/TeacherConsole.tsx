@@ -1,18 +1,18 @@
-
 import React, { useState, useEffect } from 'react';
 import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent, getStudents } from '../services/dataService';
 import { Student, Subject, CoreValue, Nomination } from '../types';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck } from 'lucide-react';
+import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck, Gift } from 'lucide-react';
+import { TeacherRewards } from './TeacherRewards';
 
 
 interface TeacherConsoleProps {
-  initialTab?: 'AWARD' | 'INBOX';
+  initialTab?: 'AWARD' | 'INBOX' | 'REWARDS';
 }
 
 export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AWARD' }) => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX' | 'REWARDS'>(initialTab);
   
   // Award Form State
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
@@ -134,9 +134,22 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
             </span>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab('REWARDS')}
+          className={`flex-1 py-3 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'REWARDS' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:bg-gray-50'
+          }`}
+        >
+          <Gift className="w-5 h-5" />
+          Rewards
+        </button>
       </div>
 
-      {activeTab === 'AWARD' ? (
+      {activeTab === 'REWARDS' && (
+          <TeacherRewards />
+      )}
+
+      {activeTab === 'AWARD' && (
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 relative">
           <div className="bg-emerald-700 p-6 rounded-t-xl">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -324,7 +337,9 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
             </button>
           </form>
         </div>
-      ) : (
+      )} 
+      
+      {activeTab === 'INBOX' && (
         <div className="space-y-4">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <h2 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">

@@ -13,6 +13,7 @@ import * as firebaseAuth from 'firebase/auth';
 import { getStudentByEmail } from './services/dataService';
 import { Logo } from './components/Logo';
 import { StudentDetailView } from './components/StudentDetailView';
+import { NotificationProvider, NotificationController } from './components/NotificationSystem';
 
 import { TeacherCorner } from './components/TeacherCorner/TeacherCorner';
 
@@ -383,12 +384,14 @@ const App: React.FC = () => {
   }
 
   return (
-    <Router>
-      <Layout 
-        userRole={userRole!} 
-        onLogout={handleLogout}
-        onChangePassword={() => setIsChangePasswordOpen(true)}
-      >
+    <NotificationProvider>
+      <NotificationController studentId={studentId} />
+      <Router>
+        <Layout 
+          userRole={userRole!} 
+          onLogout={handleLogout}
+          onChangePassword={() => setIsChangePasswordOpen(true)}
+        >
         <Routes>
           {userRole === 'STUDENT' && studentId ? (
              <>
@@ -424,7 +427,8 @@ const App: React.FC = () => {
         isOpen={isChangePasswordOpen} 
         onClose={() => setIsChangePasswordOpen(false)} 
       />
-    </Router>
+      </Router>
+    </NotificationProvider>
   );
 };
 
