@@ -498,7 +498,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-blue-900 mb-1">Specific Behavior</label>
+                      <label className="block text-sm font-bold text-blue-900 mb-1">Sub-value</label>
                       <select
                         required
                         value={nomSubValue}
@@ -506,7 +506,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                         disabled={!nomValue}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:text-gray-400"
                       >
-                        <option value="">Select Behavior...</option>
+                        <option value="">Select Sub-value...</option>
                         {nomValue && CORE_VALUES[nomValue].subValues.map(sub => (
                           <option key={sub} value={sub}>{sub}</option>
                         ))}

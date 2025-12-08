@@ -354,7 +354,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
                              </span>
                            </div>
                            <div className="text-sm text-gray-600 mb-2">
-                             Requesting <strong>{nom.value}</strong> in <strong>{nom.subject}</strong>
+                             Requesting <strong>{nom.value}</strong> {nom.subValue && <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-bold ml-1">{nom.subValue}</span>} in <strong>{nom.subject}</strong>
                            </div>
                            <div className="bg-gray-50 p-3 rounded text-sm text-gray-700 italic border-l-2 border-emerald-200">
                              "{nom.reason}"
