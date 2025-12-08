@@ -60,7 +60,7 @@ const Layout: React.FC<{
               {userRole === 'STUDENT' && (
                 <>
                   <Link to="/" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/')}`}>
-                    <LayoutDashboard size={18} /> Student View
+                    <LayoutDashboard size={18} /> My Passport
                   </Link>
                   <Link to="/learning" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/learning')}`}>
                     <BrainCircuit size={18} /> Values Lab
@@ -127,7 +127,7 @@ const Layout: React.FC<{
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/')}`}
                 >
-                  <LayoutDashboard size={20} /> Student View
+                  <LayoutDashboard size={20} /> My Passport
                 </Link>
                 <Link 
                   to="/learning" 
