@@ -11,7 +11,8 @@ import {
   doc, 
   updateDoc,
   setDoc,
-  onSnapshot
+  onSnapshot,
+  increment
 } from 'firebase/firestore';
 
 // We keep students hardcoded for now as the "Directory", 
@@ -602,13 +603,53 @@ export interface LeaderboardEntry {
   total: number;
   valueCounts: Record<CoreValue, number>;
   achievementCount: number;
+  quizScore: number;
 }
 
-export const fetchLeaderboardData = async (sortByValue?: CoreValue | 'ACHIEVEMENTS'): Promise<LeaderboardEntry[]> => {
+export const getAllQuizScores = async (): Promise<Record<string, number>> => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "quiz_scores"));
+    const scores: Record<string, number> = {};
+    querySnapshot.forEach(doc => {
+      scores[doc.id] = doc.data().score || 0;
+    });
+    return scores;
+  } catch (error) {
+    console.error("Error fetching quiz scores:", error);
+    return {};
+  }
+};
+
+export const updateQuizScore = async (studentId: string, score: number) => {
+  try {
+    const docRef = doc(db, "quiz_scores", studentId);
+    // Only update if the new score is higher than the existing high score
+    const existingDoc = await getDoc(docRef);
+    const currentHighScore = existingDoc.exists() ? (existingDoc.data().score || 0) : 0;
+    
+    console.log(`Checking high score for ${studentId}. Current: ${currentHighScore}, New: ${score}`);
+
+    if (score > currentHighScore) {
+      // Use setDoc to overwrite or create, explicitly setting the score field
+      await setDoc(docRef, { score: score }, { merge: true });
+      console.log(`Updated high score for ${studentId}: ${score} (was ${currentHighScore})`);
+      return true; // New high score
+    } else {
+        console.log(`Score ${score} did not beat high score ${currentHighScore}`);
+    }
+    return false;
+  } catch (error) {
+    console.error("Error updating quiz score:", error);
+    return false;
+  }
+};
+
+export const fetchLeaderboardData = async (sortByValue?: CoreValue | 'ACHIEVEMENTS' | 'POP_QUIZ'): Promise<LeaderboardEntry[]> => {
   // In a real production app, you would use Firestore Aggregation queries or Cloud Functions
   // to avoid downloading all signatures. For this scale (150 students), downloading all signatures is okay.
   
   const allSignatures = await getAllSignatures();
+  const quizScores = await getAllQuizScores();
   
   const allEntries: LeaderboardEntry[] = MOCK_STUDENTS.map(student => {
     // Filter locally
@@ -624,9 +665,14 @@ export const fetchLeaderboardData = async (sortByValue?: CoreValue | 'ACHIEVEMEN
       student,
       total: stats.total,
       valueCounts,
-      achievementCount
+      achievementCount,
+      quizScore: quizScores[student.id] || 0
     };
   });
+
+  if (sortByValue === 'POP_QUIZ') {
+    return allEntries.sort((a, b) => b.quizScore - a.quizScore);
+  }
 
   if (sortByValue === 'ACHIEVEMENTS') {
     return allEntries.sort((a, b) => b.achievementCount - a.achievementCount);

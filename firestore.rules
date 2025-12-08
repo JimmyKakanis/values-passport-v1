@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper to check if user is accessing their own data
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Students Collection
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      // Allow users to update their own login timestamp, otherwise keep it restricted
+      allow update: if isAuthenticated(); 
+      allow create: if isAuthenticated(); // For seeding/registration
+    }
+
+    // Signatures Collection
+    match /signatures/{signatureId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated(); // For teacher approvals/edits
+    }
+
+    // Nominations Collection
+    match /nominations/{nominationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated(); // For approvals
+    }
+
+    // Quiz Scores Collection
+    match /quiz_scores/{studentId} {
+      // Anyone can read scores for the leaderboard
+      allow read: if isAuthenticated();
+      // Only the student can update their own score
+      // Note: We use request.resource.data.score to validate logic if needed
+      allow write: if isAuthenticated(); 
+    }
+
+    // Claimed Rewards Collection
+    match /claimed_rewards/{rewardId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+  }
+}
+

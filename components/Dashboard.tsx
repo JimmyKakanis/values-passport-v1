@@ -21,7 +21,7 @@ import {
 } from '../services/dataService';
 import { StudentPassport } from './StudentPassport';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, PenTool, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search } from 'lucide-react';
+import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search } from 'lucide-react';
 import { Subject, CoreValue, Signature } from '../types';
 
 interface Props {
@@ -207,7 +207,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                 onClick={() => setIsNominationModalOpen(true)}
                 className="bg-yellow-400 hover:bg-yellow-300 text-blue-900 px-5 py-2 rounded-lg font-bold shadow-lg transform transition hover:scale-105 flex items-center gap-2"
              >
-                <PenTool size={18} /> Request Stamp
+                <Stamp size={18} /> Request Stamp
              </button>
           </div>
         </div>
@@ -370,7 +370,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div className="bg-emerald-700 p-4 flex justify-between items-center text-white">
               <h3 className="font-bold text-lg flex items-center gap-2">
-                <PenTool size={20} /> Request Stamp
+                <Stamp size={20} /> Request Stamp
               </h3>
               <button onClick={() => setIsNominationModalOpen(false)} className="hover:bg-white/20 p-1 rounded-full">
                 <X size={20} />

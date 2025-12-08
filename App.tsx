@@ -396,7 +396,7 @@ const App: React.FC = () => {
           {userRole === 'STUDENT' && studentId ? (
              <>
                <Route path="/" element={<Dashboard studentId={studentId} />} />
-               <Route path="/learning" element={<ValuesLearning />} />
+               <Route path="/learning" element={<ValuesLearning studentId={studentId} />} />
                <Route path="/achievements" element={<Achievements studentId={studentId} />} />
                {/* Redirect teacher routes to home */}
                <Route path="/teacher" element={<Navigate to="/" />} />

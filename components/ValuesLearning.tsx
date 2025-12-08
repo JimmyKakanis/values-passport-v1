@@ -3,8 +3,14 @@ import React, { useState } from 'react';
 import { BookOpen, RefreshCw, Lightbulb, CheckCircle2, XCircle, BrainCircuit, GraduationCap, ArrowRight } from 'lucide-react';
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { CoreValue } from '../types';
+import { updateQuizScore } from '../services/dataService';
 
-export const ValuesLearning: React.FC = () => {
+interface Props {
+  studentId?: string | null;
+  onQuizComplete?: () => void;
+}
+
+export const ValuesLearning: React.FC<Props> = ({ studentId, onQuizComplete }) => {
   const [activeTab, setActiveTab] = useState<'EXPLORE' | 'SPIN' | 'QUIZ'>('EXPLORE');
 
   return (
@@ -53,7 +59,7 @@ export const ValuesLearning: React.FC = () => {
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden min-h-[500px]">
         {activeTab === 'EXPLORE' && <ValuesExplorer />}
         {activeTab === 'SPIN' && <IdeaGenerator />}
-        {activeTab === 'QUIZ' && <ValuesQuiz />}
+        {activeTab === 'QUIZ' && <ValuesQuiz studentId={studentId} onComplete={onQuizComplete} />}
       </div>
     </div>
   );
@@ -201,11 +207,14 @@ const IdeaGenerator: React.FC = () => {
 };
 
 // --- SUB-COMPONENT: QUIZ ---
-const ValuesQuiz: React.FC = () => {
+const ValuesQuiz: React.FC<{ studentId?: string | null, onComplete?: () => void }> = ({ studentId, onComplete }) => {
   const [currentQuestion, setCurrentQuestion] = useState<{ subValue: string, correctValue: CoreValue } | null>(null);
   const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
+  const [streak, setStreak] = useState(0); // This is essentially "points per question" now (1, 2, 3...)
+  const [lives, setLives] = useState(4);
+  const [gameOver, setGameOver] = useState(false);
   const [feedback, setFeedback] = useState<'CORRECT' | 'WRONG' | null>(null);
+  const [newHighScore, setNewHighScore] = useState(false);
 
   // Initialize first question
   React.useEffect(() => {
@@ -224,22 +233,63 @@ const ValuesQuiz: React.FC = () => {
     setFeedback(null);
   };
 
+  const handleRestart = () => {
+    setScore(0);
+    setStreak(0);
+    setLives(4);
+    setGameOver(false);
+    setNewHighScore(false);
+    generateQuestion();
+  };
+
   const handleAnswer = (answer: CoreValue) => {
-    if (!currentQuestion) return;
+    if (!currentQuestion || gameOver) return;
 
     // Check if the answer is correct by seeing if the selected Value contains the sub-value
-    // This handles cases where a sub-value might appear in multiple Core Values (e.g. 'Honesty' in Truth & Peace)
     const selectedValueDef = CORE_VALUES[answer];
     const isCorrect = selectedValueDef.subValues.includes(currentQuestion.subValue);
 
     if (isCorrect) {
       setFeedback('CORRECT');
-      setScore(s => s + 10);
+      
+      const pointsToAdd = streak + 1;
+      setScore(s => s + pointsToAdd);
       setStreak(s => s + 1);
+      
       setTimeout(generateQuestion, 1500);
     } else {
       setFeedback('WRONG');
-      setStreak(0);
+      const newLives = lives - 1;
+      setLives(newLives);
+      setStreak(0); // Reset streak on wrong answer? Or just penalty? Request said "streak goes to 1" for next right answer implying reset.
+
+      if (newLives <= 0) {
+        handleGameOver();
+      } else {
+         // Continue game if lives remain
+         setTimeout(() => {
+            setFeedback(null); 
+            // Optional: skip to next question or let them retry same? Usually skip or retry. 
+            // Let's generate new question to prevent spamming guessing.
+            generateQuestion(); 
+         }, 1500);
+      }
+    }
+  };
+
+  const handleGameOver = async () => {
+    setGameOver(true);
+    if (studentId) {
+      try {
+        const isNewHigh = await updateQuizScore(studentId, score);
+        if (isNewHigh) {
+          setNewHighScore(true);
+          // Trigger refresh of leaderboard data if available
+          if (onComplete) onComplete();
+        }
+      } catch (e) {
+        console.error("Failed to save high score", e);
+      }
     }
   };
 
@@ -250,62 +300,96 @@ const ValuesQuiz: React.FC = () => {
       <div className="w-full max-w-2xl">
         {/* Score Board */}
         <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm">
-          <div className="text-gray-500 font-bold text-sm">Score: <span className="text-blue-900 text-xl">{score}</span></div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 font-bold text-sm">Streak:</span>
-            <div className="flex">
-              {[...Array(streak)].map((_, i) => (
-                <StarIcon key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-              ))}
-              {streak === 0 && <span className="text-gray-300">-</span>}
-            </div>
+          <div className="flex flex-col">
+             <div className="text-gray-500 font-bold text-xs uppercase">Score</div>
+             <div className="text-blue-900 text-3xl font-bold">{score}</div>
+          </div>
+          
+          <div className="flex flex-col items-center">
+             <div className="text-gray-500 font-bold text-xs uppercase">Multiplier</div>
+             <div className="flex items-center gap-1 text-yellow-600 font-bold">
+               x{streak + 1}
+             </div>
+          </div>
+
+          <div className="flex flex-col items-end">
+             <div className="text-gray-500 font-bold text-xs uppercase">Lives</div>
+             <div className="flex gap-1">
+               {[...Array(4)].map((_, i) => (
+                 <div key={i} className={`w-6 h-6 rounded-full border-2 border-red-500 flex items-center justify-center transition-all ${i < lives ? 'bg-red-500 text-white' : 'bg-transparent text-gray-200'}`}>
+                   {i < lives && <span className="text-[10px]">❤️</span>}
+                 </div>
+               ))}
+             </div>
           </div>
         </div>
 
-        {/* Question Card */}
-        <div className="bg-white rounded-2xl shadow-xl border-b-8 border-blue-900 overflow-hidden text-center p-12 mb-8 relative">
-           {feedback === 'CORRECT' && (
-             <div className="absolute inset-0 bg-green-100/90 flex items-center justify-center z-10 animate-in fade-in zoom-in duration-200">
-               <div className="text-green-700 font-bold text-2xl flex flex-col items-center gap-2">
-                 <CheckCircle2 size={64} />
-                 Correct!
+        {gameOver ? (
+             <div className="bg-white rounded-2xl shadow-xl p-12 text-center animate-in zoom-in duration-300">
+               <h2 className="text-4xl font-bold text-blue-900 mb-2">Game Over!</h2>
+               <p className="text-gray-500 mb-8">You ran out of lives.</p>
+               
+               <div className="bg-gray-100 p-6 rounded-xl mb-8 inline-block min-w-[200px]">
+                 <div className="text-sm text-gray-500 font-bold uppercase mb-1">Final Score</div>
+                 <div className="text-5xl font-bold text-blue-900">{score}</div>
+                 {newHighScore && (
+                   <div className="mt-2 bg-yellow-400 text-blue-900 text-xs font-bold px-2 py-1 rounded-full inline-block animate-bounce">
+                     🏆 NEW HIGH SCORE!
+                   </div>
+                 )}
+               </div>
+
+               <div>
+                 <button 
+                   onClick={handleRestart}
+                   className="px-8 py-3 bg-emerald-600 text-white font-bold rounded-full shadow-lg hover:bg-emerald-700 transition-transform transform hover:scale-105"
+                 >
+                   Play Again
+                 </button>
                </div>
              </div>
-           )}
-           {feedback === 'WRONG' && (
-             <div className="absolute inset-0 bg-red-100/90 flex items-center justify-center z-10 animate-in fade-in zoom-in duration-200">
-               <div className="text-red-700 font-bold text-2xl flex flex-col items-center gap-2">
-                 <XCircle size={64} />
-                 Try Again!
-               </div>
-               <button 
-                onClick={() => setFeedback(null)}
-                className="absolute bottom-10 px-6 py-2 bg-white rounded-full shadow text-sm font-bold text-red-700 hover:bg-red-50"
-               >
-                 Retry
-               </button>
-             </div>
-           )}
+        ) : (
+          <>
+            {/* Question Card */}
+            <div className="bg-white rounded-2xl shadow-xl border-b-8 border-blue-900 overflow-hidden text-center p-12 mb-8 relative">
+               {feedback === 'CORRECT' && (
+                 <div className="absolute inset-0 bg-green-100/90 flex items-center justify-center z-10 animate-in fade-in zoom-in duration-200">
+                   <div className="text-green-700 font-bold text-2xl flex flex-col items-center gap-2">
+                     <CheckCircle2 size={64} />
+                     Correct! (+{streak})
+                   </div>
+                 </div>
+               )}
+               {feedback === 'WRONG' && (
+                 <div className="absolute inset-0 bg-red-100/90 flex items-center justify-center z-10 animate-in fade-in zoom-in duration-200">
+                   <div className="text-red-700 font-bold text-2xl flex flex-col items-center gap-2">
+                     <XCircle size={64} />
+                     Wrong!
+                   </div>
+                 </div>
+               )}
 
-           <h3 className="text-gray-400 uppercase tracking-widest font-bold text-xs mb-4">Where does this belong?</h3>
-           <div className="text-4xl md:text-5xl font-bold text-blue-900 mb-2">{currentQuestion.subValue}</div>
-        </div>
+               <h3 className="text-gray-400 uppercase tracking-widest font-bold text-xs mb-4">Where does this belong?</h3>
+               <div className="text-4xl md:text-5xl font-bold text-blue-900 mb-2">{currentQuestion.subValue}</div>
+            </div>
 
-        {/* Options */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Object.values(CORE_VALUES).map(val => (
-            <button
-              key={val.id}
-              onClick={() => handleAnswer(val.id)}
-              disabled={feedback !== null}
-              className={`p-4 rounded-xl font-bold text-lg shadow-sm border-2 transition-all hover:-translate-y-1 hover:shadow-md ${
-                val.color.replace('text-', 'border-').replace('bg-', 'hover:bg-')
-              } bg-white text-gray-700`}
-            >
-              {val.id}
-            </button>
-          ))}
-        </div>
+            {/* Options */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.values(CORE_VALUES).map(val => (
+                <button
+                  key={val.id}
+                  onClick={() => handleAnswer(val.id)}
+                  disabled={feedback !== null}
+                  className={`p-4 rounded-xl font-bold text-lg shadow-sm border-2 transition-all hover:-translate-y-1 hover:shadow-md ${
+                    val.color.replace('text-', 'border-').replace('bg-', 'hover:bg-')
+                  } bg-white text-gray-700`}
+                >
+                  {val.id}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

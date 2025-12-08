@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, Crown, Loader2, Award, ArrowRight } from 'lucide-react';
+import { Trophy, Crown, Loader2, Award, ArrowRight, GraduationCap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchLeaderboardData, LeaderboardEntry } from '../services/dataService';
 import { CORE_VALUES } from '../constants';
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export const Leaderboard: React.FC<Props> = ({ userRole }) => {
-  const [filter, setFilter] = useState<CoreValue | 'ALL' | 'ACHIEVEMENTS'>('ALL');
+  const [filter, setFilter] = useState<CoreValue | 'ALL' | 'ACHIEVEMENTS' | 'POP_QUIZ'>('ALL');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -35,11 +35,16 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
 
   const getScore = (entry: LeaderboardEntry) => {
     if (filter === 'ACHIEVEMENTS') return entry.achievementCount;
+    if (filter === 'POP_QUIZ') return entry.quizScore;
     if (filter === 'ALL') return entry.total;
     return entry.valueCounts[filter as CoreValue];
   };
 
-  const getUnit = () => filter === 'ACHIEVEMENTS' ? 'badges' : 'pts';
+  const getUnit = () => {
+    if (filter === 'ACHIEVEMENTS') return 'badges';
+    if (filter === 'POP_QUIZ') return 'pts';
+    return 'pts';
+  };
 
   const handleRowClick = (studentId: string) => {
     if (isTeacher) {
@@ -61,7 +66,7 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
         </h1>
         <p className="text-gray-500 max-w-lg mx-auto">
           Celebrating the students who consistently embody our school values. 
-          {filter !== 'ALL' && <span className="font-bold text-emerald-600 block mt-1">Current Leaderboard: {filter === 'ACHIEVEMENTS' ? 'Achievement Hunters' : filter}</span>}
+          {filter !== 'ALL' && <span className="font-bold text-emerald-600 block mt-1">Current Leaderboard: {filter === 'ACHIEVEMENTS' ? 'Achievement Hunters' : (filter === 'POP_QUIZ' ? 'Pop Quiz Masters' : filter)}</span>}
           {isTeacher && <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded ml-2 font-bold">TEACHER VIEW: FULL ACCESS</span>}
         </p>
       </div>
@@ -88,6 +93,17 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
           }`}
         >
           <Award size={16} /> Achievement Hunters
+        </button>
+
+        <button 
+          onClick={() => setFilter('POP_QUIZ')}
+          className={`px-4 py-2 rounded-full text-sm font-bold transition-all border flex items-center gap-2 ${
+            filter === 'POP_QUIZ' 
+              ? 'bg-blue-600 text-white border-blue-600 transform scale-105' 
+              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          <GraduationCap size={16} /> Pop Quiz Masters
         </button>
 
         {Object.values(CORE_VALUES).map(val => (
