@@ -352,7 +352,7 @@ const generateSubjectAchievements = (): AchievementDefinition[] => {
     achievements.push({
       id: `mastery-${subject.toLowerCase().replace(/ /g, '-')}-1`,
       title: `${subject} Starter`,
-      description: `Earn 1 Star in ${subject} (1 signature in all 5 values).`,
+      description: `Earn 1 Star in ${subject} (1 stamp in all 5 values).`,
       reward: 'Badge Unlocked',
       icon: 'Star',
       type: 'SUBJECT_MASTERY',
@@ -384,7 +384,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'milestone-10',
     title: 'Bronze Starter',
-    description: 'Collect 10 total signatures.',
+    description: 'Collect 10 total stamps.',
     reward: 'Badge Unlocked',
     icon: 'Trophy',
     type: 'TOTAL',
@@ -394,7 +394,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'first-truth',
     title: 'First Truth',
-    description: 'Earn your first signature in Truth.',
+    description: 'Earn your first stamp in Truth.',
     reward: 'Badge Unlocked',
     icon: 'ShieldCheck',
     type: 'VALUE',
@@ -405,7 +405,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'first-love',
     title: 'First Love',
-    description: 'Earn your first signature in Love.',
+    description: 'Earn your first stamp in Love.',
     reward: 'Badge Unlocked',
     icon: 'Heart',
     type: 'VALUE',
@@ -416,7 +416,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'first-peace',
     title: 'First Peace',
-    description: 'Earn your first signature in Peace.',
+    description: 'Earn your first stamp in Peace.',
     reward: 'Badge Unlocked',
     icon: 'Sun',
     type: 'VALUE',
@@ -427,7 +427,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'first-right-conduct',
     title: 'First Right Conduct',
-    description: 'Earn your first signature in Right Conduct.',
+    description: 'Earn your first stamp in Right Conduct.',
     reward: 'Badge Unlocked',
     icon: 'Scale',
     type: 'VALUE',
@@ -438,7 +438,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'first-non-violence',
     title: 'First Non-Violence',
-    description: 'Earn your first signature in Non-Violence.',
+    description: 'Earn your first stamp in Non-Violence.',
     reward: 'Badge Unlocked',
     icon: 'Hand',
     type: 'VALUE',
@@ -451,7 +451,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'hat-trick',
     title: 'The Hat Trick',
-    description: 'Earn 3 signatures in a single day.',
+    description: 'Earn 3 stamps in a single day.',
     reward: 'Badge Unlocked',
     icon: 'Zap',
     type: 'CUSTOM',
@@ -478,7 +478,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'truth-collector',
     title: 'Truth Collector',
-    description: 'Earn 3 signatures in Truth.',
+    description: 'Earn 3 stamps in Truth.',
     reward: 'Badge Unlocked',
     icon: 'ShieldCheck',
     type: 'VALUE',
@@ -489,7 +489,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'love-collector',
     title: 'Love Collector',
-    description: 'Earn 3 signatures in Love.',
+    description: 'Earn 3 stamps in Love.',
     reward: 'Badge Unlocked',
     icon: 'Heart',
     type: 'VALUE',
@@ -500,7 +500,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'peace-collector',
     title: 'Peace Collector',
-    description: 'Earn 3 signatures in Peace.',
+    description: 'Earn 3 stamps in Peace.',
     reward: 'Badge Unlocked',
     icon: 'Sun',
     type: 'VALUE',
@@ -511,7 +511,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'right-conduct-collector',
     title: 'Right Conduct Collector',
-    description: 'Earn 3 signatures in Right Conduct.',
+    description: 'Earn 3 stamps in Right Conduct.',
     reward: 'Badge Unlocked',
     icon: 'Scale',
     type: 'VALUE',
@@ -522,7 +522,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'non-violence-collector',
     title: 'Non-Violence Collector',
-    description: 'Earn 3 signatures in Non-Violence.',
+    description: 'Earn 3 stamps in Non-Violence.',
     reward: 'Badge Unlocked',
     icon: 'Hand',
     type: 'VALUE',
@@ -533,7 +533,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'subject-explorer',
     title: 'Subject Explorer',
-    description: 'Earn signatures in 3 different subjects.',
+    description: 'Earn stamps in 3 different subjects.',
     reward: 'Badge Unlocked',
     icon: 'Globe',
     type: 'CUSTOM',
@@ -542,7 +542,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'value-explorer',
     title: 'Value Explorer',
-    description: 'Earn signatures in 3 different values.',
+    description: 'Earn stamps in 3 different values.',
     reward: 'Badge Unlocked',
     icon: 'Shapes',
     type: 'CUSTOM',
@@ -553,7 +553,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'milestone-25',
     title: 'Silver Collector',
-    description: 'Collect 25 total signatures.',
+    description: 'Collect 25 total stamps.',
     reward: 'Badge Unlocked',
     icon: 'Medal',
     type: 'TOTAL',
@@ -563,7 +563,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'seva-star',
     title: 'Hand of Help',
-    description: 'Earn 5 Love signatures in Playground or Excursions.',
+    description: 'Earn 5 Love stamps in Playground or Excursions.',
     reward: 'Badge Unlocked',
     icon: 'HandHeart',
     type: 'CUSTOM',
@@ -572,7 +572,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'tech-virtue',
     title: 'Tech Virtue',
-    description: 'Earn 3 Right Conduct signatures in Technology.',
+    description: 'Earn 3 Right Conduct stamps in Technology.',
     reward: 'Badge Unlocked',
     icon: 'Laptop',
     type: 'CUSTOM',
@@ -581,7 +581,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'creative-spirit',
     title: 'Creative Spirit',
-    description: 'Earn 3 signatures in Art or Music.',
+    description: 'Earn 3 stamps in Art or Music.',
     reward: 'Badge Unlocked',
     icon: 'Palette',
     type: 'CUSTOM',
@@ -604,7 +604,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'milestone-50',
     title: 'Gold Master',
-    description: 'Collect 50 total signatures.',
+    description: 'Collect 50 total stamps.',
     reward: 'Badge Unlocked',
     icon: 'Gift',
     type: 'TOTAL',
@@ -614,7 +614,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'head-heart-hand',
     title: 'Head, Heart, Hand',
-    description: 'Earn 1 signature in Academic, 1 in Creative, and 1 in Active subjects.',
+    description: 'Earn 1 stamp in Academic, 1 in Creative, and 1 in Active subjects.',
     reward: 'Badge Unlocked',
     icon: 'Shapes',
     type: 'CUSTOM',
@@ -641,7 +641,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'truth-seeker',
     title: 'Truth Seeker',
-    description: 'Collect 5 signatures in Truth.',
+    description: 'Collect 5 stamps in Truth.',
     reward: 'Badge Unlocked',
     icon: 'ShieldCheck',
     type: 'VALUE',
@@ -652,7 +652,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'love-ambassador',
     title: 'Love Ambassador',
-    description: 'Collect 5 signatures in Love.',
+    description: 'Collect 5 stamps in Love.',
     reward: 'Badge Unlocked',
     icon: 'Heart',
     type: 'VALUE',
@@ -669,7 +669,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'milestone-100',
     title: 'Values Legend',
-    description: 'Collect 100 total signatures.',
+    description: 'Collect 100 total stamps.',
     reward: 'Badge Unlocked',
     icon: 'Crown',
     type: 'TOTAL',
