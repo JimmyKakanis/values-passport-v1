@@ -13,6 +13,7 @@
 - [x] **Offline/Welcome Back Summary Logic**
 - [x] **Real-time Passport Updates** (Live Subscriptions)
 - [x] **Stamp History & Comments View**
+- [x] **Production Deployment & Build Fixes** (Vercel)
 
 ## In Progress
 - [ ] Mobile Responsiveness Refinements

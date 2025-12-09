@@ -261,6 +261,23 @@ export const getClaimedRewards = async (studentId: string): Promise<string[]> =>
   }
 };
 
+export const getStudentClaimedRewards = async (studentId: string): Promise<ClaimedReward[]> => {
+  try {
+    const q = query(
+      collection(db, "claimed_rewards"),
+      where("studentId", "==", studentId)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as ClaimedReward)).sort((a, b) => b.timestamp - a.timestamp);
+  } catch (error) {
+    console.error("Error fetching student claimed rewards:", error);
+    return [];
+  }
+};
+
 export const getAllClaimedRewards = async (): Promise<ClaimedReward[]> => {
   try {
     const querySnapshot = await getDocs(collection(db, "claimed_rewards"));

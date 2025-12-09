@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, Crown, Loader2, Award, ArrowRight, GraduationCap } from 'lucide-react';
+import { Trophy, Crown, Loader2, Award, ArrowRight, GraduationCap, ShieldCheck, Heart, Sun, Scale, Hand } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { fetchLeaderboardData, LeaderboardEntry } from '../services/dataService';
 import { CORE_VALUES } from '../constants';
@@ -9,6 +9,91 @@ import { CoreValue } from '../types';
 interface Props {
   userRole?: 'STUDENT' | 'TEACHER' | null;
 }
+
+const getFilterStyle = (filter: string, isActive: boolean) => {
+  // Default / Fallback
+  let activeClass = 'bg-gray-600 border-gray-600 text-white';
+  let inactiveClass = 'bg-white border-gray-200 text-gray-600 hover:border-gray-300';
+  let iconInactive = 'text-gray-600';
+
+  switch (filter) {
+    case 'ALL':
+      activeClass = 'bg-blue-900 border-blue-900 text-white';
+      inactiveClass = 'bg-white border-blue-100 text-blue-900 hover:border-blue-300';
+      iconInactive = 'text-blue-900';
+      break;
+    case 'ACHIEVEMENTS':
+      activeClass = 'bg-purple-900 border-purple-900 text-white';
+      inactiveClass = 'bg-white border-purple-100 text-purple-900 hover:border-purple-300';
+      iconInactive = 'text-purple-900';
+      break;
+    case 'POP_QUIZ':
+      activeClass = 'bg-emerald-600 border-emerald-600 text-white';
+      inactiveClass = 'bg-white border-emerald-100 text-emerald-900 hover:border-emerald-300';
+      iconInactive = 'text-emerald-900';
+      break;
+    case CoreValue.TRUTH:
+      activeClass = 'bg-blue-500 border-blue-500 text-white';
+      inactiveClass = 'bg-white border-blue-100 text-blue-600 hover:border-blue-300';
+      iconInactive = 'text-blue-500';
+      break;
+    case CoreValue.LOVE:
+      activeClass = 'bg-pink-600 border-pink-600 text-white';
+      inactiveClass = 'bg-white border-pink-100 text-pink-600 hover:border-pink-300';
+      iconInactive = 'text-pink-600';
+      break;
+    case CoreValue.PEACE:
+      activeClass = 'bg-teal-600 border-teal-600 text-white';
+      inactiveClass = 'bg-white border-teal-100 text-teal-600 hover:border-teal-300';
+      iconInactive = 'text-teal-600';
+      break;
+    case CoreValue.RIGHT_CONDUCT:
+      activeClass = 'bg-emerald-600 border-emerald-600 text-white';
+      inactiveClass = 'bg-white border-emerald-100 text-emerald-600 hover:border-emerald-300';
+      iconInactive = 'text-emerald-600';
+      break;
+    case CoreValue.NON_VIOLENCE:
+      activeClass = 'bg-orange-500 border-orange-500 text-white';
+      inactiveClass = 'bg-white border-orange-100 text-orange-600 hover:border-orange-300';
+      iconInactive = 'text-orange-500';
+      break;
+  }
+
+  return {
+    container: isActive 
+      ? `${activeClass} shadow-md transform scale-105` 
+      : `${inactiveClass} hover:shadow-sm`,
+    icon: isActive ? 'text-white' : iconInactive
+  };
+};
+
+const FilterCard: React.FC<{
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  isActive: boolean;
+  onClick: () => void;
+}> = ({ id, title, subtitle, icon, isActive, onClick }) => {
+  const styles = getFilterStyle(id, isActive);
+
+  return (
+    <button 
+      onClick={onClick}
+      className={`px-3 py-2 rounded-lg border transition-all flex items-center justify-center gap-2 group w-full ${styles.container}`}
+    >
+      <div className={`flex-shrink-0`}>
+        {React.cloneElement(icon as React.ReactElement, { 
+          size: 16, 
+          className: styles.icon
+        })}
+      </div>
+      <div className="text-left min-w-0">
+        <h3 className="font-bold text-xs truncate leading-tight">{title}</h3>
+      </div>
+    </button>
+  );
+};
 
 export const Leaderboard: React.FC<Props> = ({ userRole }) => {
   const [filter, setFilter] = useState<CoreValue | 'ALL' | 'ACHIEVEMENTS' | 'POP_QUIZ'>('ALL');
@@ -56,8 +141,16 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-emerald-600 w-10 h-10"/></div>;
   }
 
+  const iconMap: Record<string, React.ReactNode> = {
+    [CoreValue.TRUTH]: <ShieldCheck />,
+    [CoreValue.LOVE]: <Heart />,
+    [CoreValue.PEACE]: <Sun />,
+    [CoreValue.RIGHT_CONDUCT]: <Scale />,
+    [CoreValue.NON_VIOLENCE]: <Hand />,
+  };
+
   return (
-    <div className="max-w-5xl mx-auto p-4 space-y-8">
+    <div className="max-w-6xl mx-auto p-4 space-y-8">
       
       <div className="text-center space-y-4 mb-8">
         <h1 className="text-4xl font-bold text-blue-900 flex items-center justify-center gap-3">
@@ -66,59 +159,53 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
         </h1>
         <p className="text-gray-500 max-w-lg mx-auto">
           Celebrating the students who consistently embody our school values. 
-          {filter !== 'ALL' && <span className="font-bold text-emerald-600 block mt-1">Current Leaderboard: {filter === 'ACHIEVEMENTS' ? 'Achievement Hunters' : (filter === 'POP_QUIZ' ? 'Pop Quiz Masters' : filter)}</span>}
-          {isTeacher && <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded ml-2 font-bold">TEACHER VIEW: FULL ACCESS</span>}
+          {isTeacher && <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded ml-2 font-bold">TEACHER VIEW</span>}
         </p>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap justify-center gap-2">
-        <button 
-          onClick={() => setFilter('ALL')}
-          className={`px-4 py-2 rounded-full text-sm font-bold transition-all border ${
-            filter === 'ALL' 
-              ? 'bg-blue-900 text-white border-blue-900 transform scale-105' 
-              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-          }`}
-        >
-          Overall Legends
-        </button>
-        
-        <button 
-          onClick={() => setFilter('ACHIEVEMENTS')}
-          className={`px-4 py-2 rounded-full text-sm font-bold transition-all border flex items-center gap-2 ${
-            filter === 'ACHIEVEMENTS' 
-              ? 'bg-purple-900 text-white border-purple-900 transform scale-105' 
-              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-          }`}
-        >
-          <Award size={16} /> Achievement Hunters
-        </button>
+      {/* Top Filter Cards */}
+      <div className="max-w-2xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
+          <FilterCard 
+            id="ALL" 
+            title="Overall" 
+            subtitle="" 
+            icon={<Crown />} 
+            isActive={filter === 'ALL'} 
+            onClick={() => setFilter('ALL')} 
+          />
+          <FilterCard 
+            id="ACHIEVEMENTS" 
+            title="Badges" 
+            subtitle="" 
+            icon={<Award />} 
+            isActive={filter === 'ACHIEVEMENTS'} 
+            onClick={() => setFilter('ACHIEVEMENTS')} 
+          />
+          <FilterCard 
+            id="POP_QUIZ" 
+            title="Quiz" 
+            subtitle="" 
+            icon={<GraduationCap />} 
+            isActive={filter === 'POP_QUIZ'} 
+            onClick={() => setFilter('POP_QUIZ')} 
+          />
+        </div>
 
-        <button 
-          onClick={() => setFilter('POP_QUIZ')}
-          className={`px-4 py-2 rounded-full text-sm font-bold transition-all border flex items-center gap-2 ${
-            filter === 'POP_QUIZ' 
-              ? 'bg-blue-600 text-white border-blue-600 transform scale-105' 
-              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-          }`}
-        >
-          <GraduationCap size={16} /> Pop Quiz Masters
-        </button>
-
-        {Object.values(CORE_VALUES).map(val => (
-          <button
-            key={val.id}
-            onClick={() => setFilter(val.id)}
-            className={`px-4 py-2 rounded-full text-sm font-bold transition-all border flex items-center gap-2 ${
-              filter === val.id
-                ? `${val.color} border-current transform scale-105 ring-2 ring-offset-2 ring-emerald-100`
-                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            {val.id}
-          </button>
-        ))}
+        {/* Value Filters Row */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-8">
+          {Object.values(CORE_VALUES).map(val => (
+            <FilterCard 
+              key={val.id}
+              id={val.id}
+              title={val.id}
+              subtitle=""
+              icon={iconMap[val.id]}
+              isActive={filter === val.id}
+              onClick={() => setFilter(val.id)}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Podium View (Top 3) */}

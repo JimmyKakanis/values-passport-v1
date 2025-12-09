@@ -17,12 +17,13 @@ import {
   calculateStats, 
   calculateStudentAchievements, 
   addNomination, 
-  getStudents 
+  getStudents,
+  getStudentClaimedRewards
 } from '../services/dataService';
 import { StudentPassport } from './StudentPassport';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search } from 'lucide-react';
-import { Subject, CoreValue, Signature } from '../types';
+import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search, Gift, Sparkles } from 'lucide-react';
+import { Subject, CoreValue, Signature, ClaimedReward, StudentAchievement } from '../types';
 
 interface Props {
   studentId: string;
@@ -56,6 +57,7 @@ const DID_YOU_KNOW_TIPS = [
 export const Dashboard: React.FC<Props> = ({ studentId }) => {
   const student = getStudent(studentId);
   const [signatures, setSignatures] = useState<Signature[]>([]);
+  const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTip, setCurrentTip] = useState('');
   
@@ -76,8 +78,12 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const sigs = await getSignaturesForStudent(studentId);
+      const [sigs, claimed] = await Promise.all([
+        getSignaturesForStudent(studentId),
+        getStudentClaimedRewards(studentId)
+      ]);
       setSignatures(sigs);
+      setClaimedRewards(claimed);
       setLoading(false);
       
       // Set random tip
@@ -91,16 +97,44 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
 
   // Calculate derived state
   const stats = calculateStats(signatures);
-  const achievements = calculateStudentAchievements(signatures);
+  const achievements = calculateStudentAchievements(signatures, claimedRewards.map(c => c.achievementId));
 
-  // Get next 3 achievements
-  const sortedAchievements = [...achievements].sort((a, b) => {
-    if (a.isUnlocked && !b.isUnlocked) return -1;
-    if (!a.isUnlocked && b.isUnlocked) return 1;
-    const aPercent = a.currentProgress / a.maxProgress;
-    const bPercent = b.currentProgress / b.maxProgress;
-    return bPercent - aPercent;
-  }).slice(0, 3);
+  // 1. Close Call: Highest progress % that is NOT unlocked
+  const closeCall = achievements
+    .filter(a => !a.isUnlocked)
+    .sort((a, b) => (b.currentProgress / b.maxProgress) - (a.currentProgress / a.maxProgress))[0];
+
+  // 2. Recent Achievement: Unlocked but NOT Claimed (Available)
+  const availableAchievement = achievements
+    .filter(a => a.isUnlocked && !a.isClaimed)[0]; // Just take the first one available
+
+  // 3. Recent Reward: Most recently claimed
+  const recentRewardClaim = claimedRewards[0];
+  const recentReward = recentRewardClaim 
+    ? achievements.find(a => a.id === recentRewardClaim.achievementId)
+    : undefined;
+
+  // Prepare the 3 cards to display
+  const progressCards = [
+    {
+      title: "Almost There!",
+      data: closeCall,
+      type: "progress",
+      emptyText: "Keep collecting stamps!"
+    },
+    {
+      title: "Recent Achievement",
+      data: availableAchievement,
+      type: "unlocked",
+      emptyText: "No new achievements yet."
+    },
+    {
+      title: "Recent Reward",
+      data: recentReward,
+      type: "claimed",
+      emptyText: "No rewards claimed yet."
+    }
+  ];
   
   // Get recent 5 stamps for timeline
   const recentSignatures = signatures.slice(0, 5);
@@ -251,31 +285,47 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {sortedAchievements.map(ach => (
-            <div key={ach.id} className={`bg-white p-5 rounded-xl shadow-md border ${ach.isUnlocked ? 'border-emerald-200' : 'border-gray-100'} hover:shadow-lg transition-shadow relative overflow-hidden`}>
-               {ach.isUnlocked && <div className="absolute top-0 right-0 bg-emerald-500 text-white px-2 py-1 text-xs font-bold rounded-bl-lg">UNLOCKED</div>}
-               
-               <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-3 ${ach.isUnlocked ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
-                 {ach.isUnlocked ? <CheckCircle size={20} /> : <Lock size={20} />}
-               </div>
-               
-               <h3 className="font-bold text-blue-900 truncate">{ach.title}</h3>
-               <p className="text-xs text-gray-500 mt-1 line-clamp-1">{ach.reward}</p>
-               
-               <div className="mt-3">
-                  <div className="flex justify-between text-xs mb-1 text-gray-400">
-                    <span>Progress</span>
-                    <span>{Math.round((ach.currentProgress / ach.maxProgress) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5">
-                    <div 
-                      className={`h-1.5 rounded-full ${ach.isUnlocked ? 'bg-emerald-500' : 'bg-blue-500'}`} 
-                      style={{ width: `${Math.min(100, (ach.currentProgress / ach.maxProgress) * 100)}%` }} 
-                    />
-                  </div>
-               </div>
-            </div>
-          ))}
+          {progressCards.map((card, idx) => {
+            const ach = card.data;
+            if (!ach) {
+              return (
+                <div key={idx} className="bg-gray-50 p-5 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-center h-full min-h-[160px]">
+                   <span className="text-gray-400 font-bold mb-1">{card.title}</span>
+                   <span className="text-xs text-gray-400">{card.emptyText}</span>
+                </div>
+              );
+            }
+
+            return (
+              <div key={`${ach.id}-${idx}`} className={`bg-white p-5 rounded-xl shadow-md border ${ach.isUnlocked ? 'border-emerald-200' : 'border-gray-100'} hover:shadow-lg transition-shadow relative overflow-hidden flex flex-col h-full`}>
+                 {card.type === 'unlocked' && <div className="absolute top-0 right-0 bg-emerald-500 text-white px-2 py-1 text-xs font-bold rounded-bl-lg flex items-center gap-1"><Sparkles size={10} /> UNLOCKED</div>}
+                 {card.type === 'claimed' && <div className="absolute top-0 right-0 bg-blue-500 text-white px-2 py-1 text-xs font-bold rounded-bl-lg flex items-center gap-1"><Gift size={10} /> CLAIMED</div>}
+                 {card.type === 'progress' && <div className="absolute top-0 right-0 bg-yellow-500 text-white px-2 py-1 text-xs font-bold rounded-bl-lg">CLOSE CALL</div>}
+                 
+                 <div className="mb-1 text-xs font-bold text-gray-400 uppercase tracking-wider">{card.title}</div>
+
+                 <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-3 ${ach.isUnlocked ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-400'}`}>
+                   {ach.isUnlocked ? <CheckCircle size={20} /> : <Lock size={20} />}
+                 </div>
+                 
+                 <h3 className="font-bold text-blue-900 truncate">{ach.title}</h3>
+                 <p className="text-xs text-gray-500 mt-1 line-clamp-2">{ach.reward}</p>
+                 
+                 <div className="mt-auto pt-3">
+                    <div className="flex justify-between text-xs mb-1 text-gray-400">
+                      <span>Progress</span>
+                      <span>{Math.round(Math.min(100, (ach.currentProgress / ach.maxProgress) * 100))}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5">
+                      <div 
+                        className={`h-1.5 rounded-full ${ach.isUnlocked ? 'bg-emerald-500' : 'bg-blue-500'}`} 
+                        style={{ width: `${Math.min(100, (ach.currentProgress / ach.maxProgress) * 100)}%` }} 
+                      />
+                    </div>
+                 </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

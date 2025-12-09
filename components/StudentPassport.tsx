@@ -205,9 +205,9 @@ export const StudentPassport: React.FC<Props> = ({ studentId }) => {
               <tr>
                 <th className="px-4 py-3 font-bold text-gray-900 sticky left-0 bg-gray-50 z-20 w-[14.28%]">Subject</th>
                 {Object.values(CORE_VALUES).map((val) => (
-                  <th key={val.id} className="px-2 py-3 text-center w-[14.28%]">
-                    <div className={`inline-flex flex-col items-center gap-1 px-2 py-1 rounded-lg border ${val.color} bg-opacity-20 w-full`}>
-                      <span className="font-bold truncate text-[10px] md:text-xs">{val.id}</span>
+                  <th key={val.id} className="px-1 py-3 text-center w-[14.28%] align-middle">
+                    <div className={`flex flex-col items-center justify-center gap-1 px-1 py-1.5 rounded-lg border ${val.color} bg-opacity-20 w-full min-h-[40px]`}>
+                      <span className="font-bold text-[10px] md:text-xs text-center leading-tight break-words w-full">{val.id}</span>
                     </div>
                   </th>
                 ))}
