@@ -70,11 +70,10 @@ const getFilterStyle = (filter: string, isActive: boolean) => {
 const FilterCard: React.FC<{
   id: string;
   title: string;
-  subtitle: string;
   icon: React.ReactNode;
   isActive: boolean;
   onClick: () => void;
-}> = ({ id, title, subtitle, icon, isActive, onClick }) => {
+}> = ({ id, title, icon, isActive, onClick }) => {
   const styles = getFilterStyle(id, isActive);
 
   return (
@@ -169,7 +168,6 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
           <FilterCard 
             id="ALL" 
             title="Overall" 
-            subtitle="" 
             icon={<Crown />} 
             isActive={filter === 'ALL'} 
             onClick={() => setFilter('ALL')} 
@@ -177,7 +175,6 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
           <FilterCard 
             id="ACHIEVEMENTS" 
             title="Badges" 
-            subtitle="" 
             icon={<Award />} 
             isActive={filter === 'ACHIEVEMENTS'} 
             onClick={() => setFilter('ACHIEVEMENTS')} 
@@ -185,7 +182,6 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
           <FilterCard 
             id="POP_QUIZ" 
             title="Quiz" 
-            subtitle="" 
             icon={<GraduationCap />} 
             isActive={filter === 'POP_QUIZ'} 
             onClick={() => setFilter('POP_QUIZ')} 
@@ -199,7 +195,6 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
               key={val.id}
               id={val.id}
               title={val.id}
-              subtitle=""
               icon={iconMap[val.id]}
               isActive={filter === val.id}
               onClick={() => setFilter(val.id)}
