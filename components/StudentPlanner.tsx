@@ -14,7 +14,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, eachDayOfInterval } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, eachDayOfInterval } from 'date-fns';
 import { PlannerItem, PlannerCategory } from '../types';
 import { subscribeToPlannerItems, addPlannerItem, updatePlannerItem, deletePlannerItem } from '../services/dataService';
 import { motion, AnimatePresence } from 'framer-motion';
