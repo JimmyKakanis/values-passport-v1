@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
-import * as firebaseAuth from 'firebase/auth';
-import { auth } from '../firebaseConfig';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  signOut 
+} from 'firebase/auth';
+import { auth, microsoftProvider } from '../firebaseConfig';
 import { Loader2, AlertCircle, Key } from 'lucide-react';
 import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN, TEACHER_TEMP_PASSWORD, STUDENT_TEMP_PASSWORD } from '../constants';
 import { isApprovedTeacher, getStudentByEmail } from '../services/dataService';
@@ -29,7 +34,7 @@ export const Login: React.FC = () => {
 
     try {
       // 1. Try to login normally first
-      await firebaseAuth.signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
       // 2. If login fails, check if we should auto-provision a new account
       // This happens if the user is in our "approved list" and uses the CORRECT TEMP PASSWORD for their role
@@ -46,7 +51,7 @@ export const Login: React.FC = () => {
 
       if (canProvision) {
          try {
-            await firebaseAuth.createUserWithEmailAndPassword(auth, email, password);
+            await createUserWithEmailAndPassword(auth, email, password);
             setSuccessMsg('Account activated! Logging you in...');
             // Login happens automatically after creation
             return;
@@ -68,6 +73,36 @@ export const Login: React.FC = () => {
         } else {
            setError('Failed to authenticate. Please check your connection.');
         }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMicrosoftLogin = async () => {
+    setError('');
+    setSuccessMsg('');
+    setLoading(true);
+
+    try {
+      const result = await signInWithPopup(auth, microsoftProvider);
+      const user = result.user;
+
+      if (user.email && user.email.toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN)) {
+        setSuccessMsg('Microsoft account verified! Logging you in...');
+      } else {
+        // Domain mismatch - sign out immediately
+        await signOut(auth);
+        setError(`Access denied. Please use your @${SCHOOL_EMAIL_DOMAIN} account.`);
+      }
+    } catch (err: any) {
+      console.error("Microsoft login error:", err);
+      if (err.code === 'auth/configuration-not-found') {
+        setError('Microsoft login is not yet configured in the Firebase Console.');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        // Do nothing, user closed the popup
+      } else {
+        setError('Failed to sign in with Microsoft. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -122,7 +157,7 @@ export const Login: React.FC = () => {
                required
                value={email}
                onChange={(e) => setEmail(e.target.value)}
-               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-gray-900 bg-white"
                placeholder={`name@${SCHOOL_EMAIL_DOMAIN}`}
              />
            </div>
@@ -134,7 +169,7 @@ export const Login: React.FC = () => {
                required
                value={password}
                onChange={(e) => setPassword(e.target.value)}
-               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-gray-900 bg-white"
                placeholder="••••••••"
                minLength={6}
              />
@@ -146,6 +181,37 @@ export const Login: React.FC = () => {
              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow-md transition-all flex items-center justify-center gap-2 disabled:bg-gray-400"
            >
              {loading ? <Loader2 className="animate-spin" /> : 'Sign In'}
+           </button>
+
+           <div className="relative my-6">
+             <div className="absolute inset-0 flex items-center">
+               <div className="w-full border-t border-gray-300"></div>
+             </div>
+             <div className="relative flex justify-center text-sm">
+               <span className="px-2 bg-white text-gray-500 font-medium">Or continue with</span>
+             </div>
+           </div>
+
+           <button
+             type="button"
+             onClick={handleMicrosoftLogin}
+             disabled={loading}
+             className="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-4 border border-gray-300 rounded-lg shadow-sm transition-all flex items-center justify-center gap-3 disabled:bg-gray-50 disabled:text-gray-400"
+           >
+             {loading ? (
+               <Loader2 className="animate-spin" />
+             ) : (
+               <>
+                 <svg className="w-5 h-5" viewBox="0 0 23 23">
+                   <path fill="#f3f3f3" d="M0 0h23v23H0z"/>
+                   <path fill="#f35325" d="M1 1h10v10H1z"/>
+                   <path fill="#81bc06" d="M12 1h10v10H12z"/>
+                   <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+                   <path fill="#ffba08" d="M12 12h10v10H12z"/>
+                 </svg>
+                 Sign in with Microsoft 365
+               </>
+             )}
            </button>
            
            <div className="bg-blue-50 p-4 rounded-lg text-xs text-blue-800 border border-blue-100 flex gap-3 mt-4">

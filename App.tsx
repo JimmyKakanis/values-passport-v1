@@ -9,7 +9,11 @@ import { ValuesLearning } from './components/ValuesLearning';
 import { Login } from './components/Login';
 import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN } from './constants';
 import { auth } from './firebaseConfig';
-import * as firebaseAuth from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  signOut, 
+  updatePassword 
+} from 'firebase/auth';
 import { getStudentByEmail } from './services/dataService';
 import { Logo } from './components/Logo';
 import { StudentDetailView } from './components/StudentDetailView';
@@ -249,7 +253,7 @@ const ChangePasswordModal: React.FC<{ isOpen: boolean, onClose: () => void }> = 
     setLoading(true);
     try {
       if (auth.currentUser) {
-        await firebaseAuth.updatePassword(auth.currentUser, newPassword);
+        await updatePassword(auth.currentUser, newPassword);
         setSuccess(true);
         setTimeout(() => {
           onClose();
@@ -328,7 +332,7 @@ const App: React.FC = () => {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = firebaseAuth.onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setLoading(true);
       if (currentUser && currentUser.email) {
         // 1. Check Domain Security
@@ -365,7 +369,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogout = () => {
-    firebaseAuth.signOut(auth);
+    signOut(auth);
   };
 
   if (loading) {
