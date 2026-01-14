@@ -347,7 +347,7 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
         </div>
         <div className="divide-y divide-gray-100">
           {listToDisplay.length > 0 ? (
-            listToDisplay.map((entry, idx) => {
+            listToDisplay.map((entry) => {
               // Calculate rank: if searching, we need to find the actual rank in the original leaderboard
               const actualRank = leaderboard.findIndex(e => e.student.id === entry.student.id) + 1;
               
