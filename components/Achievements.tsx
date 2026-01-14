@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft } from 'lucide-react';
+import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft, Calendar, ListChecks, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards } from '../services/dataService';
+import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards, getPlannerItems } from '../services/dataService';
 import { StudentAchievement, AchievementDifficulty } from '../types';
 
 interface Props {
@@ -14,7 +14,8 @@ const IconMap: Record<string, React.FC<any>> = {
   Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, 
   Calculator, FlaskConical, Pizza, Crown, Star,
   Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield,
-  Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake
+  Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake,
+  Calendar, ListChecks, CheckCircle2
 };
 
 export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false }) => {
@@ -27,11 +28,12 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
     const load = async () => {
       setLoading(true);
       try {
-        const [sigs, claimedIds] = await Promise.all([
+        const [sigs, claimedIds, plannerItems] = await Promise.all([
           getSignaturesForStudent(studentId),
-          getClaimedRewards(studentId)
+          getClaimedRewards(studentId),
+          getPlannerItems(studentId)
         ]);
-        const calculated = calculateStudentAchievements(sigs, claimedIds);
+        const calculated = calculateStudentAchievements(sigs, claimedIds, plannerItems);
         setAchievements(calculated);
       } catch (error) {
         console.error("Failed to load achievements", error);

@@ -446,6 +446,15 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     threshold: 1,
     difficulty: 'BEGINNER'
   },
+  {
+    id: 'planner-first',
+    title: 'Organizer Apprentice',
+    description: 'Add your first item to the planner.',
+    reward: 'Achievement Unlocked',
+    icon: 'Calendar',
+    type: 'CUSTOM',
+    difficulty: 'BEGINNER'
+  },
 
   // --- EASY ---
   {
@@ -454,6 +463,24 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     description: 'Earn 3 stamps in a single day.',
     reward: 'Achievement Unlocked',
     icon: 'Zap',
+    type: 'CUSTOM',
+    difficulty: 'EASY'
+  },
+  {
+    id: 'planner-10',
+    title: 'Master Planner',
+    description: 'Add 10 items to your planner.',
+    reward: 'Achievement Unlocked',
+    icon: 'ListChecks',
+    type: 'CUSTOM',
+    difficulty: 'EASY'
+  },
+  {
+    id: 'planner-complete-5',
+    title: 'Goal Getter',
+    description: 'Complete 5 tasks or assignments in your planner.',
+    reward: 'Achievement Unlocked',
+    icon: 'CheckCircle2',
     type: 'CUSTOM',
     difficulty: 'EASY'
   },

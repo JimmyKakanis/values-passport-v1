@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Confetti from 'react-confetti';
 import { X, Award, Star, Gift, CheckCircle } from 'lucide-react';
-import { subscribeToSignatures, subscribeToClaimedRewards, calculateStudentAchievements, getStudentProfile, updateLastLogin } from '../services/dataService';
-import { Signature } from '../types';
+import { subscribeToSignatures, subscribeToClaimedRewards, calculateStudentAchievements, getStudentProfile, updateLastLogin, subscribeToPlannerItems } from '../services/dataService';
+import { Signature, PlannerItem } from '../types';
 import { ACHIEVEMENTS } from '../constants';
 
 // --- Types ---
@@ -247,6 +247,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
   const prevSignaturesRef = useRef<Signature[]>([]);
   const prevClaimedRef = useRef<string[]>([]);
   const prevUnlockedRef = useRef<string[]>([]);
+  const prevPlannerItemsRef = useRef<PlannerItem[]>([]);
   const lastLoginRef = useRef<number | undefined>(undefined);
   const isInitialLoad = useRef(true);
 
@@ -271,6 +272,40 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
     loadProfile();
   }, [studentId]);
 
+  // Logic Handler
+  const checkAchievements = (signatures: Signature[], claimedIds: string[], plannerItems: PlannerItem[]) => {
+    const achievements = calculateStudentAchievements(signatures, claimedIds, plannerItems);
+    const unlockedIds = achievements.filter(a => a.isUnlocked).map(a => a.id);
+    
+    if (isInitialLoad.current) {
+      prevUnlockedRef.current = unlockedIds;
+      return;
+    }
+
+    const prevUnlockedSet = new Set(prevUnlockedRef.current);
+    const newUnlocked = unlockedIds.filter(id => !prevUnlockedSet.has(id));
+
+    // HEURISTIC SAFEGUARD: If we are unlocking a huge number of achievements at once (>5) AND it matches the total count,
+    // it's likely a bug where prevRef was lost. Suppress it.
+    const isSuspiciousUpdate = newUnlocked.length > 5 && newUnlocked.length === unlockedIds.length;
+
+    if (!isSuspiciousUpdate) {
+        newUnlocked.forEach(achId => {
+           const achDef = ACHIEVEMENTS.find(a => a.id === achId);
+           if (achDef) {
+             addNotification({
+               type: 'ACHIEVEMENT',
+               title: 'Achievement Unlocked!',
+               message: `You've unlocked: ${achDef.title}`,
+               icon: <Award className="w-5 h-5" />,
+             });
+           }
+        });
+    }
+    
+    prevUnlockedRef.current = unlockedIds;
+  };
+
   // 2. Subscriptions & Logic
   useEffect(() => {
     if (!studentId || loadingProfile) {
@@ -278,27 +313,20 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
       prevSignaturesRef.current = [];
       prevClaimedRef.current = [];
       prevUnlockedRef.current = [];
+      prevPlannerItemsRef.current = [];
       isInitialLoad.current = true;
       return;
     }
 
     // Subscribe to Signatures
     const unsubSig = subscribeToSignatures(studentId, (signatures) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/96e9d262-6711-49d1-a895-83baabb3cd28',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationSystem.tsx:289',message:'Signatures Updated',data:{count: signatures.length, isInitial: isInitialLoad.current},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
+      const claimedIds = prevClaimedRef.current;
+      const plannerItems = prevPlannerItemsRef.current;
       
-      // Calculate derived achievements
-      const claimedIds = prevClaimedRef.current; // Use current claimed ref
-      const achievements = calculateStudentAchievements(signatures, claimedIds);
-      const unlockedIds = achievements.filter(a => a.isUnlocked).map(a => a.id);
-
       if (isInitialLoad.current) {
         // --- WELCOME BACK LOGIC ---
-        // Only run if we have a lastLogin timestamp (meaning they've logged in before)
         if (lastLoginRef.current) {
            const newSinceLogin = signatures.filter(s => s.timestamp > (lastLoginRef.current || 0));
-           
            if (newSinceLogin.length > 0) {
              addNotification({
                 type: 'INFO',
@@ -309,22 +337,9 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
              });
            }
         }
-        
-        isInitialLoad.current = false;
-        
-        // Initialize prevUnlockedRef with currently unlocked achievements so they aren't detected as "new" on next pass
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/96e9d262-6711-49d1-a895-83baabb3cd28',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationSystem.tsx:313',message:'Initial Load - Setting Refs',data:{unlockedCount: unlockedIds.length, sigCount: signatures.length, unlockedIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-        // #endregion
-        prevUnlockedRef.current = unlockedIds;
-        prevSignaturesRef.current = signatures;
-        prevClaimedRef.current = claimedIds;
-        
         updateLastLogin(studentId);
-
       } else {
-        // --- REAL-TIME LOGIC ---
-        // 1. Detect New Signatures
+        // Detect New Signatures
         const prevSigIds = new Set(prevSignaturesRef.current.map(s => s.id));
         const newSigs = signatures.filter(s => !prevSigIds.has(s.id));
         
@@ -335,7 +350,6 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
                 title: 'New Stamp!',
                 message: `You earned a stamp for ${sig.value} in ${sig.subject}`,
                 icon: <Star className="w-5 h-5" />,
-                // No duration, persistent until dismissed
                 metadata: {
                   subValue: sig.subValue,
                   note: sig.note,
@@ -345,82 +359,31 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
              });
           }, 500);
         });
-
-        // 2. Detect New Achievements
-        const prevUnlockedSet = new Set(prevUnlockedRef.current);
-        const newUnlocked = unlockedIds.filter(id => !prevUnlockedSet.has(id));
-
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/96e9d262-6711-49d1-a895-83baabb3cd28',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationSystem.tsx:355',message:'Achievements Updated',data:{prevUnlockedCount: prevUnlockedRef.current.length, newUnlockedCount: newUnlocked.length, newUnlocked},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-        // #endregion
-
-        // HEURISTIC SAFEGUARD: If we are unlocking a huge number of achievements at once (>5) AND it matches the total count,
-        // it's likely a bug where prevRef was lost. Suppress it.
-        const isSuspiciousUpdate = newUnlocked.length > 5 && newUnlocked.length === unlockedIds.length;
-
-        if (isSuspiciousUpdate) {
-             console.warn("Suspicious achievement update detected (all achievements new). Suppressing notifications.");
-             // #region agent log
-             fetch('http://127.0.0.1:7242/ingest/96e9d262-6711-49d1-a895-83baabb3cd28',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationSystem.tsx:365',message:'Suppressed Suspicious Update',data:{count: newUnlocked.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-             // #endregion
-        } else {
-            newUnlocked.forEach(achId => {
-               const achDef = ACHIEVEMENTS.find(a => a.id === achId);
-               if (achDef) {
-                 addNotification({
-                   type: 'ACHIEVEMENT',
-                   title: 'Achievement Unlocked!',
-                   message: `You've unlocked: ${achDef.title}`,
-                   icon: <Award className="w-5 h-5" />,
-                 });
-               }
-            });
-        }
-        
-        // Update Refs for next pass
-        prevSignaturesRef.current = signatures;
-        prevUnlockedRef.current = unlockedIds;
       }
+
+      prevSignaturesRef.current = signatures;
+      checkAchievements(signatures, claimedIds, plannerItems);
+      
+      // If this was the first load of signatures, we might want to check if all data is in
+      if (isInitialLoad.current) {
+        setTimeout(() => { isInitialLoad.current = false; }, 1000);
+      }
+    });
+
+    // Subscribe to Planner Items
+    const unsubPlanner = subscribeToPlannerItems(studentId, (items) => {
+      const sigs = prevSignaturesRef.current;
+      const claimedIds = prevClaimedRef.current;
+      
+      prevPlannerItemsRef.current = items;
+      checkAchievements(sigs, claimedIds, items);
     });
 
     // Subscribe to Claimed Rewards
     const unsubClaimed = subscribeToClaimedRewards(studentId, (claimedIds) => {
-        // We only care about real-time claims, not offline ones (since they were claimed by teacher, maybe in front of student)
-        // But if we want to show "Reward Claimed" summary? 
-        // Usually rewards are claimed manually so realtime notification is fine.
-        
-        // --- FIX: Prevent race condition where rewards load AFTER signatures flip isInitialLoad ---
-        // If we haven't initialized our own tracking ref yet, do so now and skip notification
-        if (prevClaimedRef.current.length === 0 && claimedIds.length > 0) {
-             // Check if this is truly the first load of this data source
-             // We can use a heuristic: if we have never seen any claims before, treat this as init.
-             // But what if user really has 0 claims? Then claimedIds is empty and we do nothing.
-             // If user has claims, we load them. If we notify now, we spam.
-             // So, we should ALWAYS skip notification if prevClaimedRef was empty (initial state).
-             // EXCEPT: What if the user had 0 claims, and just claimed one in real-time?
-             // In that case, prevClaimedRef is empty, claimedIds has 1.
-             // We need to distinguish "Page Load" from "Real-time Update".
-             
-             // We can use the global isInitialLoad.current BUT we know it might be false already.
-             // So we rely on a separate ref for "rewards loaded" or just assume if signatures are still loading, we are loading.
-             
-             // BETTER FIX: If isInitialLoad is true, definitely suppress.
-             // If isInitialLoad is FALSE, but we suspect this is the first time WE are running (because prev is empty and current is big list),
-             // we might want to suppress. But that's risky.
-             
-             // SAFEST FIX: Only notify if the *difference* is small (e.g. 1 item). 
-             // If we suddenly "claimed" 10 items, it's a data load.
-             
-             // Even better: Use a local ref to track if *this subscription* has run once.
-        }
-
         if (!isInitialLoad.current) {
             const prevClaimedSet = new Set(prevClaimedRef.current);
             const newClaims = claimedIds.filter(id => !prevClaimedSet.has(id));
-
-            // Only notify if we have previous history (meaning not first load) OR if the change is small (real-time)
-            // If prevClaimedRef is empty, and we loaded > 0 items, and isInitialLoad is false... this is the race condition case.
-            // We should suppress it.
             const isLikelyInitialLoadRace = prevClaimedRef.current.length === 0 && newClaims.length > 0;
 
             if (!isLikelyInitialLoadRace) {
@@ -438,14 +401,15 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
             }
         }
         prevClaimedRef.current = claimedIds;
+        checkAchievements(prevSignaturesRef.current, claimedIds, prevPlannerItemsRef.current);
     });
 
     return () => {
       unsubSig();
+      unsubPlanner();
       unsubClaimed();
     };
   }, [studentId, loadingProfile, addNotification]);
 
   return null;
 };
-

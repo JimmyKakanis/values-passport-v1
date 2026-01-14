@@ -18,12 +18,13 @@ import {
   calculateStudentAchievements, 
   addNomination, 
   getStudents,
-  getStudentClaimedRewards
+  getStudentClaimedRewards,
+  getPlannerItems
 } from '../services/dataService';
 import { StudentPassport } from './StudentPassport';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search, Gift, Sparkles } from 'lucide-react';
-import { Subject, CoreValue, Signature, ClaimedReward } from '../types';
+import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search, Gift, Sparkles, Calendar, CheckSquare } from 'lucide-react';
+import { Subject, CoreValue, Signature, ClaimedReward, PlannerItem } from '../types';
 
 interface Props {
   studentId: string;
@@ -58,6 +59,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   const student = getStudent(studentId);
   const [signatures, setSignatures] = useState<Signature[]>([]);
   const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([]);
+  const [plannerItems, setPlannerItems] = useState<PlannerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTip, setCurrentTip] = useState('');
   
@@ -78,12 +80,14 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const [sigs, claimed] = await Promise.all([
+      const [sigs, claimed, planner] = await Promise.all([
         getSignaturesForStudent(studentId),
-        getStudentClaimedRewards(studentId)
+        getStudentClaimedRewards(studentId),
+        getPlannerItems(studentId)
       ]);
       setSignatures(sigs);
       setClaimedRewards(claimed);
+      setPlannerItems(planner);
       setLoading(false);
       
       // Set random tip
@@ -97,7 +101,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
 
   // Calculate derived state
   const stats = calculateStats(signatures);
-  const achievements = calculateStudentAchievements(signatures, claimedRewards.map(c => c.achievementId));
+  const achievements = calculateStudentAchievements(signatures, claimedRewards.map(c => c.achievementId), plannerItems);
 
   // 1. Close Call: Highest progress % that is NOT unlocked
   const closeCall = achievements
@@ -344,6 +348,42 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
 
         {/* Stats & Timeline Sidebar */}
         <div className="space-y-6">
+           {/* Next Up / Planner Widget */}
+           <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+             <div className="flex items-center justify-between mb-4">
+               <h3 className="font-bold text-blue-900 flex items-center gap-2">
+                 <Calendar size={18} className="text-emerald-600" /> Next Up
+               </h3>
+               <Link to="/planner" className="text-xs font-bold text-emerald-600 hover:text-emerald-800">
+                 View All
+               </Link>
+             </div>
+             
+             <div className="space-y-3">
+               {plannerItems.filter(item => !item.isCompleted).slice(0, 3).length > 0 ? (
+                 plannerItems.filter(item => !item.isCompleted).slice(0, 3).map(item => (
+                   <div key={item.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                     <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
+                       item.category === 'ASSIGNMENT' ? 'bg-red-500' : 
+                       item.category === 'HOMEWORK' ? 'bg-blue-500' : 'bg-emerald-500'
+                     }`} />
+                     <div className="flex-1 min-w-0">
+                       <p className="text-xs font-bold text-gray-800 truncate">{item.title}</p>
+                       <p className="text-[10px] text-gray-400">Due {new Date(item.dueDate).toLocaleDateString()}</p>
+                     </div>
+                   </div>
+                 ))
+               ) : (
+                 <div className="py-4 text-center space-y-2">
+                   <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300">
+                     <CheckSquare size={18} />
+                   </div>
+                   <p className="text-xs text-gray-400 italic">All caught up!</p>
+                 </div>
+               )}
+             </div>
+           </div>
+
            <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
              <h3 className="font-bold text-blue-900 mb-6">Value Breakdown</h3>
              <div className="h-64">

@@ -1,4 +1,4 @@
-import { Signature, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward } from '../types';
+import { Signature, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory } from '../types';
 import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS } from '../constants';
 import { db } from '../firebaseConfig';
 import { 
@@ -11,7 +11,8 @@ import {
   doc, 
   updateDoc,
   setDoc,
-  onSnapshot
+  onSnapshot,
+  deleteDoc
 } from 'firebase/firestore';
 
 // We keep students hardcoded for now as the "Directory", 
@@ -323,7 +324,7 @@ export const calculateStats = (signatures: Signature[]) => {
   return { total, byValue, bySubject };
 };
 
-export const calculateStudentAchievements = (signatures: Signature[], claimedRewardIds: string[] = []): StudentAchievement[] => {
+export const calculateStudentAchievements = (signatures: Signature[], claimedRewardIds: string[] = [], plannerItems: PlannerItem[] = []): StudentAchievement[] => {
   const stats = calculateStats(signatures);
   const sigs = signatures;
 
@@ -546,6 +547,24 @@ export const calculateStudentAchievements = (signatures: Signature[], claimedRew
                 isUnlocked = currentProgress >= maxProgress;
                 break;
 
+            case 'planner-first':
+                maxProgress = 1;
+                currentProgress = plannerItems.length >= 1 ? 1 : 0;
+                isUnlocked = currentProgress >= maxProgress;
+                break;
+
+            case 'planner-10':
+                maxProgress = 10;
+                currentProgress = plannerItems.length;
+                isUnlocked = currentProgress >= maxProgress;
+                break;
+
+            case 'planner-complete-5':
+                maxProgress = 5;
+                currentProgress = plannerItems.filter(item => item.isCompleted).length;
+                isUnlocked = currentProgress >= maxProgress;
+                break;
+
             case 'dependable-deputy':
                 maxProgress = 3;
                 currentProgress = sigs.filter(s => s.subValue === 'Dependability').length;
@@ -596,7 +615,7 @@ export const getPendingRewardsForTeacher = async (): Promise<RewardEntry[]> => {
         .filter(c => c.studentId === student.id)
         .map(c => c.achievementId);
     
-    const achievements = calculateStudentAchievements(studentSigs, studentClaimedIds);
+    const achievements = calculateStudentAchievements(studentSigs, studentClaimedIds, []);
     
     achievements.forEach(ach => {
       // Check if unlocked, not claimed, and has a reward text
@@ -674,7 +693,7 @@ export const fetchLeaderboardData = async (sortByValue?: CoreValue | 'ACHIEVEMEN
     const valueCounts = stats.byValue as unknown as Record<CoreValue, number>;
     
     // Calculate achievements for sorting
-    const achievements = calculateStudentAchievements(studentSigs);
+    const achievements = calculateStudentAchievements(studentSigs, [], []);
     const achievementCount = achievements.filter(a => a.isUnlocked).length;
 
     return {
@@ -698,5 +717,87 @@ export const fetchLeaderboardData = async (sortByValue?: CoreValue | 'ACHIEVEMEN
     return allEntries.sort((a, b) => (b.valueCounts[sortByValue] || 0) - (a.valueCounts[sortByValue] || 0));
   }
 
-  return allEntries.sort((a, b) => b.total - a.total);
+    return allEntries.sort((a, b) => b.total - a.total);
+};
+
+// --- PLANNER (Database) ---
+
+export const subscribeToPlannerItems = (studentId: string, callback: (items: PlannerItem[]) => void) => {
+  const q = query(
+    collection(db, "planner"),
+    where("studentId", "==", studentId)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const items = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as PlannerItem)).sort((a, b) => a.dueDate - b.dueDate);
+    callback(items);
+  }, (error) => {
+    console.error("Error subscribing to planner items:", error);
+    callback([]);
+  });
+};
+
+export const getPlannerItems = async (studentId: string): Promise<PlannerItem[]> => {
+  try {
+    const q = query(
+      collection(db, "planner"),
+      where("studentId", "==", studentId)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as PlannerItem)).sort((a, b) => a.dueDate - b.dueDate);
+  } catch (error) {
+    console.error("Error fetching planner items:", error);
+    return [];
+  }
+};
+
+export const addPlannerItem = async (
+  studentId: string,
+  title: string,
+  dueDate: number,
+  category: PlannerCategory
+): Promise<PlannerItem | null> => {
+  try {
+    const newItem = {
+      studentId,
+      title,
+      dueDate,
+      category,
+      isCompleted: false,
+      createdAt: Date.now()
+    };
+    const docRef = await addDoc(collection(db, "planner"), newItem);
+    return { id: docRef.id, ...newItem };
+  } catch (error) {
+    console.error("Error adding planner item:", error);
+    return null;
+  }
+};
+
+export const updatePlannerItem = async (itemId: string, updates: Partial<PlannerItem>) => {
+  try {
+    const itemRef = doc(db, "planner", itemId);
+    await updateDoc(itemRef, updates);
+    return true;
+  } catch (error) {
+    console.error("Error updating planner item:", error);
+    return false;
+  }
+};
+
+export const deletePlannerItem = async (itemId: string) => {
+  try {
+    const itemRef = doc(db, "planner", itemId);
+    await deleteDoc(itemRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting planner item:", error);
+    return false;
+  }
 };

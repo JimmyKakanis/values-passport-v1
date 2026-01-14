@@ -108,3 +108,15 @@ export interface StudentAchievement extends AchievementDefinition {
   unlockedAt?: number;
   isClaimed?: boolean;
 }
+
+export type PlannerCategory = 'ASSIGNMENT' | 'HOMEWORK' | 'TASK';
+
+export interface PlannerItem {
+  id: string;
+  studentId: string;
+  title: string;
+  dueDate: number; // timestamp
+  category: PlannerCategory;
+  isCompleted: boolean;
+  createdAt: number;
+}

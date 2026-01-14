@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, Key, Check, BrainCircuit } from 'lucide-react';
+import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, Key, Check, BrainCircuit, Calendar } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { TeacherConsole } from './components/TeacherConsole';
 import { Achievements } from './components/Achievements';
 import { Leaderboard } from './components/Leaderboard';
 import { ValuesLearning } from './components/ValuesLearning';
+import { StudentPlanner } from './components/StudentPlanner';
 import { Login } from './components/Login';
 import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN } from './constants';
 import { auth } from './firebaseConfig';
@@ -69,6 +70,9 @@ const Layout: React.FC<{
                   </Link>
                   <Link to="/learning" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/learning')}`}>
                     <BrainCircuit size={18} /> Values Lab
+                  </Link>
+                  <Link to="/planner" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/planner')}`}>
+                    <Calendar size={18} /> My Planner
                   </Link>
                   <Link to="/achievements" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/achievements')}`}>
                     <Trophy size={18} /> Achievements
@@ -140,6 +144,13 @@ const Layout: React.FC<{
                   className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/learning')}`}
                 >
                   <BrainCircuit size={20} /> Values Lab
+                </Link>
+                <Link 
+                  to="/planner" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/planner')}`}
+                >
+                  <Calendar size={20} /> My Planner
                 </Link>
                 <Link 
                   to="/achievements" 
@@ -401,6 +412,7 @@ const App: React.FC = () => {
              <>
                <Route path="/" element={<Dashboard studentId={studentId} />} />
                <Route path="/learning" element={<ValuesLearning studentId={studentId} />} />
+               <Route path="/planner" element={<StudentPlanner studentId={studentId} />} />
                <Route path="/achievements" element={<Achievements studentId={studentId} />} />
                {/* Redirect teacher routes to home */}
                <Route path="/teacher" element={<Navigate to="/" />} />
