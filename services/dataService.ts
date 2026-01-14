@@ -45,9 +45,9 @@ export const getStudentProfile = async (studentId: string): Promise<Student | nu
 export const updateLastLogin = async (studentId: string) => {
   try {
     const docRef = doc(db, "students", studentId);
-    // Use setDoc with merge to ensure it works even if doc missing (though it shouldn't be)
-    // or just updateDoc if we are sure. updateDoc is safer to error if not found.
-    await updateDoc(docRef, { lastLoginAt: Date.now() });
+    // Use setDoc with merge to ensure it works even if doc missing
+    const now = Date.now();
+    await setDoc(docRef, { lastLoginAt: now }, { merge: true });
   } catch (error) {
     console.error("Error updating last login:", error);
   }

@@ -284,6 +284,10 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
 
     // Subscribe to Signatures
     const unsubSig = subscribeToSignatures(studentId, (signatures) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/96e9d262-6711-49d1-a895-83baabb3cd28',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationSystem.tsx:289',message:'Signatures Updated',data:{count: signatures.length, isInitial: isInitialLoad.current},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
+      // #endregion
+      
       // Calculate derived achievements
       const claimedIds = prevClaimedRef.current; // Use current claimed ref
       const achievements = calculateStudentAchievements(signatures, claimedIds);
@@ -306,12 +310,16 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
            }
         }
         
-        // We do NOT show missed achievements here because we don't know *when* they were unlocked relative to last login.
-        // The stamp summary is sufficient to prompt them to check.
-        
         isInitialLoad.current = false;
         
-        // Update last login now that we've processed the "Welcome Back"
+        // Initialize prevUnlockedRef with currently unlocked achievements so they aren't detected as "new" on next pass
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/96e9d262-6711-49d1-a895-83baabb3cd28',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationSystem.tsx:313',message:'Initial Load - Setting Refs',data:{unlockedCount: unlockedIds.length, sigCount: signatures.length, unlockedIds},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
+        prevUnlockedRef.current = unlockedIds;
+        prevSignaturesRef.current = signatures;
+        prevClaimedRef.current = claimedIds;
+        
         updateLastLogin(studentId);
 
       } else {
@@ -319,7 +327,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
         // 1. Detect New Signatures
         const prevSigIds = new Set(prevSignaturesRef.current.map(s => s.id));
         const newSigs = signatures.filter(s => !prevSigIds.has(s.id));
-
+        
         newSigs.forEach(sig => {
           setTimeout(() => {
              addNotification({
@@ -342,22 +350,37 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
         const prevUnlockedSet = new Set(prevUnlockedRef.current);
         const newUnlocked = unlockedIds.filter(id => !prevUnlockedSet.has(id));
 
-        newUnlocked.forEach(achId => {
-           const achDef = ACHIEVEMENTS.find(a => a.id === achId);
-           if (achDef) {
-             addNotification({
-               type: 'ACHIEVEMENT',
-               title: 'Achievement Unlocked!',
-               message: `You've unlocked: ${achDef.title}`,
-               icon: <Award className="w-5 h-5" />,
-             });
-           }
-        });
-      }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/96e9d262-6711-49d1-a895-83baabb3cd28',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationSystem.tsx:355',message:'Achievements Updated',data:{prevUnlockedCount: prevUnlockedRef.current.length, newUnlockedCount: newUnlocked.length, newUnlocked},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+        // #endregion
 
-      // Update Refs
-      prevSignaturesRef.current = signatures;
-      prevUnlockedRef.current = unlockedIds;
+        // HEURISTIC SAFEGUARD: If we are unlocking a huge number of achievements at once (>5) AND it matches the total count,
+        // it's likely a bug where prevRef was lost. Suppress it.
+        const isSuspiciousUpdate = newUnlocked.length > 5 && newUnlocked.length === unlockedIds.length;
+
+        if (isSuspiciousUpdate) {
+             console.warn("Suspicious achievement update detected (all achievements new). Suppressing notifications.");
+             // #region agent log
+             fetch('http://127.0.0.1:7242/ingest/96e9d262-6711-49d1-a895-83baabb3cd28',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'NotificationSystem.tsx:365',message:'Suppressed Suspicious Update',data:{count: newUnlocked.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+             // #endregion
+        } else {
+            newUnlocked.forEach(achId => {
+               const achDef = ACHIEVEMENTS.find(a => a.id === achId);
+               if (achDef) {
+                 addNotification({
+                   type: 'ACHIEVEMENT',
+                   title: 'Achievement Unlocked!',
+                   message: `You've unlocked: ${achDef.title}`,
+                   icon: <Award className="w-5 h-5" />,
+                 });
+               }
+            });
+        }
+        
+        // Update Refs for next pass
+        prevSignaturesRef.current = signatures;
+        prevUnlockedRef.current = unlockedIds;
+      }
     });
 
     // Subscribe to Claimed Rewards
@@ -366,21 +389,53 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
         // But if we want to show "Reward Claimed" summary? 
         // Usually rewards are claimed manually so realtime notification is fine.
         
+        // --- FIX: Prevent race condition where rewards load AFTER signatures flip isInitialLoad ---
+        // If we haven't initialized our own tracking ref yet, do so now and skip notification
+        if (prevClaimedRef.current.length === 0 && claimedIds.length > 0) {
+             // Check if this is truly the first load of this data source
+             // We can use a heuristic: if we have never seen any claims before, treat this as init.
+             // But what if user really has 0 claims? Then claimedIds is empty and we do nothing.
+             // If user has claims, we load them. If we notify now, we spam.
+             // So, we should ALWAYS skip notification if prevClaimedRef was empty (initial state).
+             // EXCEPT: What if the user had 0 claims, and just claimed one in real-time?
+             // In that case, prevClaimedRef is empty, claimedIds has 1.
+             // We need to distinguish "Page Load" from "Real-time Update".
+             
+             // We can use the global isInitialLoad.current BUT we know it might be false already.
+             // So we rely on a separate ref for "rewards loaded" or just assume if signatures are still loading, we are loading.
+             
+             // BETTER FIX: If isInitialLoad is true, definitely suppress.
+             // If isInitialLoad is FALSE, but we suspect this is the first time WE are running (because prev is empty and current is big list),
+             // we might want to suppress. But that's risky.
+             
+             // SAFEST FIX: Only notify if the *difference* is small (e.g. 1 item). 
+             // If we suddenly "claimed" 10 items, it's a data load.
+             
+             // Even better: Use a local ref to track if *this subscription* has run once.
+        }
+
         if (!isInitialLoad.current) {
             const prevClaimedSet = new Set(prevClaimedRef.current);
             const newClaims = claimedIds.filter(id => !prevClaimedSet.has(id));
 
-            newClaims.forEach(claimId => {
-               const achDef = ACHIEVEMENTS.find(a => a.id === claimId);
-               if (achDef) {
-                  addNotification({
-                    type: 'REWARD',
-                    title: 'Reward Claimed!',
-                    message: `You claimed the reward for: ${achDef.title}`,
-                    icon: <Gift className="w-5 h-5" />
-                  });
-               }
-            });
+            // Only notify if we have previous history (meaning not first load) OR if the change is small (real-time)
+            // If prevClaimedRef is empty, and we loaded > 0 items, and isInitialLoad is false... this is the race condition case.
+            // We should suppress it.
+            const isLikelyInitialLoadRace = prevClaimedRef.current.length === 0 && newClaims.length > 0;
+
+            if (!isLikelyInitialLoadRace) {
+                newClaims.forEach(claimId => {
+                   const achDef = ACHIEVEMENTS.find(a => a.id === claimId);
+                   if (achDef) {
+                      addNotification({
+                        type: 'REWARD',
+                        title: 'Reward Claimed!',
+                        message: `You claimed the reward for: ${achDef.title}`,
+                        icon: <Gift className="w-5 h-5" />
+                      });
+                   }
+                });
+            }
         }
         prevClaimedRef.current = claimedIds;
     });
