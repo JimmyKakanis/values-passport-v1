@@ -9,6 +9,7 @@
 - **Animations**: Framer Motion
 - **Visual Effects**: React Confetti
 - **Icons**: Lucide React
+- **Date Handling**: date-fns (v3)
 
 ## Data Models
 
@@ -17,9 +18,10 @@
 - **`Signature`**: Represents a "Stamp". Contains `studentId`, `teacherName`, `subject`, `value`, `subValue` (optional), `note` (optional), and `timestamp`.
 - **`Achievement`**: Defines milestones. Types include `TOTAL`, `VALUE`, `SUBJECT_MASTERY`, `FULL_PASSPORT`, and `CUSTOM`.
 - **`Nomination`**: A request for a stamp (Self or Peer). Has a status of `PENDING`, `APPROVED`, or `REJECTED`.
+- **`PlannerItem`**: Represents a task or event in the student planner. Contains `studentId`, `title`, `dueDate` (timestamp), `category` (TASK, HOMEWORK, ASSIGNMENT), and `isCompleted`.
 
 ### 2. Constants for Core Data
-Static, foundational data such as the list of subjects, core values, and achievement definitions are stored in `constants.ts`. This centralizes the application's core "business logic".
+Static, foundational data such as the list of subjects, core values, achievement definitions, and **School Term Dates** are stored in `constants.ts` (or local constants within components for specific configurations like `SCHOOL_TERMS`).
 
 ## Feature Implementations
 
@@ -39,6 +41,12 @@ The notification system is designed to be unobtrusive yet celebratory.
 ### Statistics & Achievements
 - **Client-Side Calculation**: Given the dataset size (~150 students, ~1000s of signatures), statistics and achievement progress are calculated client-side in `dataService.ts`.
 - **Efficiency**: Calculations are memoized or run only on data updates to prevent performance bottlenecks.
+
+### Student Planner
+- **View Logic**: Supported views include `Term`, `Month`, and `Week`.
+- **Term Navigation**: The planner defaults to the current term based on `SCHOOL_TERMS` configuration.
+- **Data Fetching**: Real-time subscription to `planner` collection in Firestore, filtered by `studentId`.
+- **UI Architecture**: Uses a Flexbox layout with a fixed sidebar for navigation and a main content area that expands to fit the screen height, avoiding internal scrollbars where possible.
 
 ## Security Rules (Firestore)
 *Current Implementation assumes a trusted environment or prototype phase. For production:*

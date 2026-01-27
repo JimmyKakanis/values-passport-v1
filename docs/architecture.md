@@ -18,6 +18,7 @@ The application's UI is built from a set of modular React components located in 
 - **`Achievements.tsx`**: Shows a student's earned achievements and progress bars.
 - **`Leaderboard.tsx`**: Displays student rankings based on stamps or achievements.
 - **`ValuesLearning.tsx`**: The "Values Lab" section containing educational resources for students.
+- **`StudentPlanner.tsx`**: A comprehensive calendar and task management tool. It features Term, Month, and Week views, allowing students to track homework and assignments aligned with the school term.
 
 ### Teacher Views
 - **`TeacherConsole.tsx`**: The main interface for teachers to award signatures and review nominations.
@@ -41,14 +42,15 @@ The application's UI is built from a set of modular React components located in 
 ### 1. Service Layer (`services/dataService.ts`)
 All interaction with Firebase Firestore is encapsulated in `dataService.ts`. This service provides:
 - **Fetch Functions**: `getDocs` wrappers for one-time data retrieval (e.g., `getStudents`, `getAllSignatures`).
-- **Subscription Functions**: `onSnapshot` wrappers for real-time data streams (e.g., `subscribeToSignatures`, `subscribeToClaimedRewards`).
-- **Mutation Functions**: Functions to write to the database (e.g., `addSignature`, `approveNomination`).
+- **Subscription Functions**: `onSnapshot` wrappers for real-time data streams (e.g., `subscribeToSignatures`, `subscribeToPlannerItems`).
+- **Mutation Functions**: Functions to write to the database (e.g., `addSignature`, `addPlannerItem`).
 - **Business Logic**: Calculations for stats, mastery levels, and achievement unlocking are performed here to ensure consistency across the app.
 
 ### 2. Real-Time Updates
 The application leverages Firestore's real-time capabilities for key features:
 - **Student Passport**: Subscribes to the signatures collection. When a teacher awards a stamp, the student's grid updates immediately without a refresh.
 - **Notifications**: The `NotificationController` listens to the same streams. When it detects a new item that wasn't there before (comparing IDs against a `useRef` cache), it triggers a notification.
+- **Student Planner**: Tasks added to the planner are immediately synced across devices.
 
 ### 3. "Welcome Back" Logic
 To handle offline activity:
@@ -62,5 +64,5 @@ To handle offline activity:
 
 - **Domain Restriction**: Access is restricted to emails ending in the school's domain (configured in `constants.ts`).
 - **Role-Based Access**:
-    - **Student**: Identified if their email exists in the `MOCK_STUDENTS` (or database students) list. Access to Passport, Learning, Achievements.
+    - **Student**: Identified if their email exists in the `MOCK_STUDENTS` (or database students) list. Access to Passport, Learning, Achievements, Planner.
     - **Teacher**: Identified if they are NOT in the student list (or explicitly in a teacher list). Access to Teacher Console, Values Development, Student Details.

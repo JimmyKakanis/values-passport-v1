@@ -14,9 +14,14 @@
 - [x] **Real-time Passport Updates** (Live Subscriptions)
 - [x] **Stamp History & Comments View**
 - [x] **Production Deployment & Build Fixes** (Vercel)
+- [x] **Student Planner v1**
+    - [x] Calendar View (Term, Month, Week)
+    - [x] Task Management (Add, Complete, Delete)
+    - [x] Integration with Firestore
+    - [x] Sidebar with Month & Week Indicators
 
 ## In Progress
-- [ ] Mobile Responsiveness Refinements
+- [ ] Mobile Responsiveness Refinements (Planner)
 
 ## Planned / Future
 - [ ] PDF Export for Passports
