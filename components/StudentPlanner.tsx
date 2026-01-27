@@ -246,7 +246,6 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
     
     let iterDate = termStartWeek;
     let weekNum = 1;
-    let lastMonth = -1;
 
     // Safety brake
     let loopCount = 0;
