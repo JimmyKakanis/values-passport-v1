@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -12,19 +11,47 @@ import {
   BookOpen, 
   CheckSquare,
   AlertCircle,
-  Loader2
+  Loader2,
+  LayoutDashboard,
+  CalendarRange,
+  List
 } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, eachDayOfInterval } from 'date-fns';
+import { 
+  format, 
+  addMonths, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  isSameMonth, 
+  isSameDay, 
+  eachDayOfInterval,
+  addWeeks,
+  differenceInCalendarWeeks,
+  isWithinInterval,
+  addDays
+} from 'date-fns';
 import { PlannerItem, PlannerCategory } from '../types';
 import { subscribeToPlannerItems, addPlannerItem, updatePlannerItem, deletePlannerItem } from '../services/dataService';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// School Term Dates (2026)
+const SCHOOL_TERMS = [
+  { id: 1, name: 'Term 1', start: new Date(2026, 1, 2), end: new Date(2026, 3, 2) },   // Feb 2 - Apr 2
+  { id: 2, name: 'Term 2', start: new Date(2026, 3, 21), end: new Date(2026, 6, 3) },  // Apr 21 - Jul 3
+  { id: 3, name: 'Term 3', start: new Date(2026, 6, 21), end: new Date(2026, 8, 25) }, // Jul 21 - Sep 25
+  { id: 4, name: 'Term 4', start: new Date(2026, 9, 13), end: new Date(2026, 11, 11) } // Oct 13 - Dec 11
+];
+
+type CalendarView = 'TERM' | 'MONTH' | 'WEEK';
 
 interface Props {
   studentId: string;
 }
 
 export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [view, setView] = useState<CalendarView>('TERM');
+  const [currentDate, setCurrentDate] = useState(new Date()); 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,15 +71,33 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
     return () => unsubscribe();
   }, [studentId]);
 
-  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  // Derived State: Current Term
+  // Note: We use useMemo to avoid recalculating on every render, though it's cheap.
+  const currentTerm = useMemo(() => {
+    return SCHOOL_TERMS.find(term => 
+      isWithinInterval(currentDate, { start: term.start, end: term.end })
+    ) || SCHOOL_TERMS.find(t => t.start > currentDate) || SCHOOL_TERMS[0];
+  }, [currentDate]);
+
+  const handleNavigate = (direction: 'PREV' | 'NEXT') => {
+    const modifier = direction === 'NEXT' ? 1 : -1;
+    
+    if (view === 'TERM') {
+      const currentIndex = SCHOOL_TERMS.findIndex(t => t.id === currentTerm.id);
+      const newIndex = Math.max(0, Math.min(SCHOOL_TERMS.length - 1, currentIndex + modifier));
+      setCurrentDate(SCHOOL_TERMS[newIndex].start);
+    } else if (view === 'MONTH') {
+      setCurrentDate(prev => addMonths(prev, modifier));
+    } else if (view === 'WEEK') {
+      setCurrentDate(prev => addWeeks(prev, modifier));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     setIsSubmitting(true);
-    // Set due date to 9am on the selected day to be consistent
     const dueDate = new Date(selectedDate);
     dueDate.setHours(9, 0, 0, 0);
 
@@ -74,22 +119,12 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
     }
   };
 
-  // Calendar Logic
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart);
-  const endDate = endOfWeek(monthEnd);
-  
-  const calendarDays = eachDayOfInterval({
-    start: startDate,
-    end: endDate
-  });
-
-  const selectedDateItems = items.filter(item => isSameDay(new Date(item.dueDate), selectedDate));
-  
+  // Helper to filter items for a specific date
   const getItemsForDate = (date: Date) => {
     return items.filter(item => isSameDay(new Date(item.dueDate), date));
   };
+
+  const selectedDateItems = items.filter(item => isSameDay(new Date(item.dueDate), selectedDate));
 
   const categoryColors = {
     ASSIGNMENT: 'bg-red-500',
@@ -109,70 +144,230 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
     TASK: 'text-emerald-700'
   };
 
+  // --- RENDERING HELPERS ---
+
+  const renderDayCell = (day: Date, isOutsideRange: boolean = false, heightClass: string = 'min-h-[80px]') => {
+    const dayItems = getItemsForDate(day);
+    const isSelected = isSameDay(day, selectedDate);
+    const isToday = isSameDay(day, new Date());
+
+    return (
+      <button
+        key={day.toISOString()}
+        onClick={() => setSelectedDate(day)}
+        className={`${heightClass} p-1 md:p-2 border-r border-b border-gray-100 transition-all relative flex flex-col items-center gap-1
+          ${isOutsideRange ? 'bg-gray-50/50 text-gray-300' : 'bg-white text-gray-700'}
+          ${isSelected ? '!bg-emerald-50 ring-2 ring-emerald-500 ring-inset z-10' : 'hover:bg-gray-50'}
+        `}
+      >
+        <span className={`text-xs md:text-sm font-bold w-6 h-6 md:w-7 md:h-7 flex items-center justify-center rounded-full
+          ${isToday ? 'bg-yellow-400 text-blue-900' : ''}
+        `}>
+          {format(day, 'd')}
+        </span>
+        
+        <div className="flex flex-wrap justify-center gap-1 mt-1 w-full">
+          {dayItems.slice(0, 4).map(item => (
+            <div 
+              key={item.id} 
+              className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${categoryColors[item.category] || 'bg-gray-400'} ${item.isCompleted ? 'opacity-30' : ''}`}
+              title={item.title}
+            />
+          ))}
+          {dayItems.length > 4 && (
+            <div className="text-[9px] text-gray-400 font-bold">+{dayItems.length - 4}</div>
+          )}
+        </div>
+      </button>
+    );
+  };
+
+  const renderWeekRow = (weekStart: Date, weekNum: string | number, monthLabel: string | null = null, minHeight: string = 'min-h-[100px]') => {
+    const days = eachDayOfInterval({
+      start: weekStart,
+      end: addDays(weekStart, 6)
+    });
+
+    return (
+      <div key={weekStart.toISOString()} className={`flex border-b border-gray-100 ${minHeight}`}>
+          {/* Week Sidebar */}
+          <div className="w-12 md:w-20 bg-emerald-50/30 flex flex-col items-center justify-center border-r border-gray-100 text-emerald-800 p-1 md:p-2 text-center shrink-0">
+            {monthLabel && (
+              <span className="text-[10px] uppercase font-bold text-emerald-600 mb-1">{monthLabel}</span>
+            )}
+            <span className="text-[10px] uppercase font-bold text-gray-400">Week</span>
+            <span className="text-xl font-bold">{weekNum}</span>
+          </div>
+          
+          {/* Days Grid */}
+          <div className="flex-1 grid grid-cols-7">
+            {days.map((day) => {
+              let isOutsideTerm = false;
+              if (view === 'TERM') {
+                isOutsideTerm = !isWithinInterval(day, { start: currentTerm.start, end: currentTerm.end });
+              } else if (view === 'MONTH') {
+                isOutsideTerm = !isSameMonth(day, currentDate);
+              }
+              
+              return renderDayCell(day, isOutsideTerm, 'h-full');
+            })}
+          </div>
+      </div>
+    );
+  };
+
+  const getSchoolWeekNumber = (date: Date) => {
+    // Find term that either contains this date OR starts in this week (for Week 1)
+    const term = SCHOOL_TERMS.find(t => {
+      if (isWithinInterval(date, { start: t.start, end: t.end })) return true;
+      
+      // Check if this week contains the term start
+      const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
+      return isWithinInterval(t.start, { start: weekStart, end: weekEnd });
+    });
+
+    if (term) {
+       const weekDiff = differenceInCalendarWeeks(date, term.start, { weekStartsOn: 1 });
+       // If the date is before term start (e.g. Monday vs Tuesday start), diff is 0, so Week 1.
+       // If date is later, diff increases.
+       return weekDiff + 1;
+    }
+    return "-";
+  };
+
+  // --- PREPARE DATA FOR VIEWS ---
+
+  const renderTermView = () => {
+    const weeks = [];
+    const termStartWeek = startOfWeek(currentTerm.start, { weekStartsOn: 1 });
+    // Ensure we capture the full end week
+    const termEndWeek = endOfWeek(currentTerm.end, { weekStartsOn: 1 });
+    
+    let iterDate = termStartWeek;
+    let weekNum = 1;
+    let lastMonth = -1;
+
+    // Safety brake
+    let loopCount = 0;
+    
+    while (iterDate <= termEndWeek && loopCount < 52) {
+      // Always show the month label for every week
+      const monthLabel = format(iterDate, 'MMM');
+
+      weeks.push({ start: iterDate, weekNum, monthLabel });
+      
+      iterDate = addWeeks(iterDate, 1);
+      weekNum++;
+      loopCount++;
+    }
+
+    return (
+      <div className="flex flex-col border-t border-gray-100">
+        {weeks.map(w => renderWeekRow(w.start, w.weekNum, w.monthLabel))}
+      </div>
+    );
+  };
+
+  const renderMonthView = () => {
+    const monthStart = startOfMonth(currentDate);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 1 });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+    const weeks = [];
+    let iterDate = startDate;
+    let loopCount = 0;
+
+    while (iterDate <= endDate && loopCount < 10) {
+      weeks.push(iterDate);
+      iterDate = addWeeks(iterDate, 1);
+      loopCount++;
+    }
+
+    return (
+      <div className="flex flex-col border-t border-gray-100">
+         {weeks.map(weekStart => {
+           const weekNum = getSchoolWeekNumber(weekStart);
+           return renderWeekRow(weekStart, weekNum, null, 'min-h-[120px]');
+         })}
+      </div>
+    );
+  };
+
+  const renderWeekView = () => {
+    const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const weekNum = getSchoolWeekNumber(weekStart);
+    return (
+      <div className="flex flex-col border-t border-gray-100">
+         {renderWeekRow(weekStart, weekNum, null, 'min-h-[200px]')}
+      </div>
+    );
+  };
+
   return (
-    <div className="max-w-6xl mx-auto p-4 space-y-6">
-      <div className="flex flex-col md:flex-row gap-6">
+    <div className="max-w-7xl mx-auto p-4 space-y-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         
         {/* Left Side: Calendar */}
-        <div className="flex-1 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-          <div className="bg-emerald-800 p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <CalendarIcon /> {format(currentMonth, 'MMMM yyyy')}
-              </h2>
+        <div className="flex-1 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col">
+          {/* Calendar Header */}
+          <div className="bg-emerald-800 p-4 md:p-6 text-white shrink-0">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <CalendarIcon /> 
+                  {view === 'TERM' && currentTerm.name}
+                  {view === 'MONTH' && format(currentDate, 'MMMM yyyy')}
+                  {view === 'WEEK' && `Week of ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d')}`}
+                </h2>
+                
+                {/* View Switcher */}
+                <div className="flex bg-emerald-900/50 p-1 rounded-lg">
+                  <button 
+                    onClick={() => setView('TERM')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'TERM' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-100 hover:bg-emerald-700/50'}`}
+                  >
+                    <List size={14} /> Term
+                  </button>
+                  <button 
+                    onClick={() => setView('MONTH')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'MONTH' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-100 hover:bg-emerald-700/50'}`}
+                  >
+                    <CalendarRange size={14} /> Month
+                  </button>
+                  <button 
+                    onClick={() => setView('WEEK')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'WEEK' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-100 hover:bg-emerald-700/50'}`}
+                  >
+                    <LayoutDashboard size={14} /> Week
+                  </button>
+                </div>
+              </div>
+
               <div className="flex gap-2">
-                <button onClick={handlePrevMonth} className="p-2 hover:bg-emerald-700 rounded-full transition-colors">
+                <button onClick={() => handleNavigate('PREV')} className="p-2 hover:bg-emerald-700 rounded-full transition-colors">
                   <ChevronLeft size={24} />
                 </button>
-                <button onClick={handleNextMonth} className="p-2 hover:bg-emerald-700 rounded-full transition-colors">
+                <button onClick={() => handleNavigate('NEXT')} className="p-2 hover:bg-emerald-700 rounded-full transition-colors">
                   <ChevronRight size={24} />
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-7 text-center text-xs font-bold uppercase tracking-widest text-emerald-200">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+
+            {/* Days Header */}
+            <div className="grid grid-cols-7 pl-12 md:pl-20 text-center text-xs font-bold uppercase tracking-widest text-emerald-200">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                 <div key={day} className="py-2">{day}</div>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-7 border-t border-gray-100">
-            {calendarDays.map((day, i) => {
-              const dayItems = getItemsForDate(day);
-              const isSelected = isSameDay(day, selectedDate);
-              const isToday = isSameDay(day, new Date());
-              const isCurrentMonth = isSameMonth(day, monthStart);
-
-              return (
-                <button
-                  key={i}
-                  onClick={() => setSelectedDate(day)}
-                  className={`min-h-[80px] md:min-h-[100px] p-2 border-r border-b border-gray-100 transition-all relative flex flex-col items-center gap-1
-                    ${!isCurrentMonth ? 'bg-gray-50 text-gray-300' : 'text-gray-700'}
-                    ${isSelected ? 'bg-emerald-50 ring-2 ring-emerald-500 ring-inset z-10' : 'hover:bg-gray-50'}
-                  `}
-                >
-                  <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full
-                    ${isToday ? 'bg-yellow-400 text-blue-900' : ''}
-                  `}>
-                    {format(day, 'd')}
-                  </span>
-                  
-                  <div className="flex flex-wrap justify-center gap-1 mt-1">
-                    {dayItems.slice(0, 3).map(item => (
-                      <div 
-                        key={item.id} 
-                        className={`w-2 h-2 rounded-full ${categoryColors[item.category]} ${item.isCompleted ? 'opacity-30' : ''}`}
-                        title={item.title}
-                      />
-                    ))}
-                    {dayItems.length > 3 && (
-                      <div className="text-[10px] text-gray-400 font-bold">+{dayItems.length - 3}</div>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+          {/* Calendar Body - Scrollable */}
+          <div className="flex-1">
+            {view === 'TERM' && renderTermView()}
+            {view === 'MONTH' && renderMonthView()}
+            {view === 'WEEK' && renderWeekView()}
           </div>
         </div>
 

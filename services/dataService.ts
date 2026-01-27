@@ -17,7 +17,7 @@ import {
 
 // We keep students hardcoded for now as the "Directory", 
 // but signatures and nominations go to the database.
-export const getStudents = (): Student[] => MOCK_STUDENTS;
+export const getStudents = (): Student[] => MOCK_STUDENTS.filter(s => !s.grade.startsWith('Graduated'));
 
 export const getStudent = (id: string): Student | undefined => MOCK_STUDENTS.find(s => s.id === id);
 
@@ -609,7 +609,7 @@ export const getPendingRewardsForTeacher = async (): Promise<RewardEntry[]> => {
   
   const pendingRewards: RewardEntry[] = [];
 
-  MOCK_STUDENTS.forEach(student => {
+  getStudents().forEach(student => {
     const studentSigs = allSignatures.filter(s => s.studentId === student.id);
     const studentClaimedIds = allClaimed
         .filter(c => c.studentId === student.id)
@@ -686,7 +686,7 @@ export const fetchLeaderboardData = async (sortByValue?: CoreValue | 'ACHIEVEMEN
   const allSignatures = await getAllSignatures();
   const quizScores = await getAllQuizScores();
   
-  const allEntries: LeaderboardEntry[] = MOCK_STUDENTS.map(student => {
+  const allEntries: LeaderboardEntry[] = getStudents().map(student => {
     // Filter locally
     const studentSigs = allSignatures.filter(s => s.studentId === student.id);
     const stats = calculateStats(studentSigs);
