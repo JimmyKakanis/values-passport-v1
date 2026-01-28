@@ -19,6 +19,13 @@
     - [x] Task Management (Add, Complete, Delete)
     - [x] Integration with Firestore
     - [x] Sidebar with Month & Week Indicators
+- [x] **Super Admin Console**
+    - [x] Dynamic Data Migration (Firestore-backed Students/Teachers)
+    - [x] Admin Dashboard (Tabs for Students, Teachers, Settings)
+    - [x] Manage Students (Add/Edit/Archive)
+    - [x] Manage Teachers (Add/Remove Access)
+    - [x] Manage Subjects (Dynamic Settings)
+    - [x] Role-Based Access Control (Admin Role)
 
 ## In Progress
 - [ ] Mobile Responsiveness Refinements (Planner)

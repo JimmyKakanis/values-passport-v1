@@ -30,6 +30,13 @@ The application's UI is built from a set of modular React components located in 
     - **`ScenarioSimulator.tsx`**: Interactive classroom scenarios for teacher training.
     - **`TeacherInsights.tsx`**: A personal dashboard for teachers to track their awarding habits.
 
+### Admin Views
+- **`AdminConsole.tsx`**: A protected dashboard for Super Admins.
+    - **Student Management**: CRUD operations for the student directory.
+    - **Teacher Management**: Add/Remove authorized teachers and admins.
+    - **System Settings**: Manage dynamic configuration like the active Subjects list.
+    - **Migration Tool**: Utilities to seed or migrate data from hardcoded constants to Firestore.
+
 ### Notification System
 - **`NotificationSystem.tsx`**: Contains the complete logic for the notification experience.
     - **`NotificationProvider`**: A Context Provider that manages the state of active toasts and the modal queue. It exposes `addNotification`.
@@ -64,5 +71,6 @@ To handle offline activity:
 
 - **Domain Restriction**: Access is restricted to emails ending in the school's domain (configured in `constants.ts`).
 - **Role-Based Access**:
-    - **Student**: Identified if their email exists in the `MOCK_STUDENTS` (or database students) list. Access to Passport, Learning, Achievements, Planner.
-    - **Teacher**: Identified if they are NOT in the student list (or explicitly in a teacher list). Access to Teacher Console, Values Development, Student Details.
+    - **Student**: Identified if their email exists in the `students` Firestore collection. Access to Passport, Learning, Achievements, Planner.
+    - **Teacher**: Identified if their email exists in the `teachers` Firestore collection (with role `TEACHER`). Access to Teacher Console, Values Development, Student Details.
+    - **Admin**: Identified if their email exists in the `teachers` Firestore collection (with role `ADMIN`). Full access to Teacher Console plus the **Admin Console** for managing users and settings.
