@@ -1,4 +1,4 @@
-import { Signature, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory } from '../types';
+import { Signature, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings } from '../types';
 import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS } from '../constants';
 import { db } from '../firebaseConfig';
 import { 
@@ -15,18 +15,137 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 
-// We keep students hardcoded for now as the "Directory", 
-// but signatures and nominations go to the database.
-export const getStudents = (): Student[] => MOCK_STUDENTS.filter(s => !s.grade.startsWith('Graduated'));
+// --- CACHE & SYNC HELPERS ---
+// In a real app, use a Context or Redux. For now, we'll keep a local cache to support legacy sync calls.
+let cachedStudents: Student[] = [...MOCK_STUDENTS];
+let cachedTeachers: Teacher[] = [...TEACHERS.map(t => ({ ...t, role: 'TEACHER' as const }))];
 
-export const getStudent = (id: string): Student | undefined => MOCK_STUDENTS.find(s => s.id === id);
-
+export const getStudents = (): Student[] => cachedStudents.filter(s => !s.grade.startsWith('Graduated'));
+export const getStudent = (id: string): Student | undefined => cachedStudents.find(s => s.id === id);
 export const getStudentByEmail = (email: string): Student | undefined => {
-  return MOCK_STUDENTS.find(s => s.email.toLowerCase() === email.toLowerCase());
+  return cachedStudents.find(s => s.email.toLowerCase() === email.toLowerCase());
 };
 
 export const isApprovedTeacher = (email: string): boolean => {
-  return TEACHERS.some(t => t.email.toLowerCase() === email.toLowerCase());
+  return cachedTeachers.some(t => t.email.toLowerCase() === email.toLowerCase());
+};
+
+// Initialize Cache from Firestore
+export const initializeData = async () => {
+    try {
+        const [students, teachers] = await Promise.all([getAllStudents(), getAllTeachers()]);
+        if (students.length > 0) cachedStudents = students;
+        if (teachers.length > 0) cachedTeachers = teachers;
+    } catch (e) {
+        console.error("Failed to initialize data cache", e);
+    }
+};
+
+// --- CRUD OPERATIONS ---
+
+// STUDENTS
+export const getAllStudents = async (): Promise<Student[]> => {
+  try {
+    const snapshot = await getDocs(collection(db, "students"));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+  } catch (error) {
+    console.error("Error getting students:", error);
+    return [];
+  }
+};
+
+export const addStudent = async (student: Omit<Student, 'id'>): Promise<Student | null> => {
+  try {
+    const newRef = doc(collection(db, "students"));
+    const newStudent = { ...student, id: newRef.id };
+    await setDoc(newRef, newStudent);
+    cachedStudents.push(newStudent); // Update cache
+    return newStudent;
+  } catch (error) {
+    console.error("Error adding student:", error);
+    return null;
+  }
+};
+
+export const updateStudent = async (id: string, updates: Partial<Student>): Promise<boolean> => {
+  try {
+    await updateDoc(doc(db, "students", id), updates);
+    cachedStudents = cachedStudents.map(s => s.id === id ? { ...s, ...updates } : s);
+    return true;
+  } catch (error) {
+    console.error("Error updating student:", error);
+    return false;
+  }
+};
+
+export const deleteStudent = async (id: string): Promise<boolean> => {
+    try {
+        await deleteDoc(doc(db, "students", id));
+        cachedStudents = cachedStudents.filter(s => s.id !== id);
+        return true;
+    } catch (error) {
+        console.error("Error deleting student:", error);
+        return false;
+    }
+};
+
+// TEACHERS
+export const getAllTeachers = async (): Promise<Teacher[]> => {
+    try {
+        const snapshot = await getDocs(collection(db, "teachers"));
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Teacher));
+    } catch (error) {
+        console.error("Error getting teachers:", error);
+        return [];
+    }
+};
+
+export const addTeacher = async (teacher: Teacher): Promise<Teacher | null> => {
+    try {
+        const id = teacher.email.replace(/[^a-zA-Z0-9]/g, '_');
+        const newTeacher = { ...teacher, id };
+        await setDoc(doc(db, "teachers", id), newTeacher);
+        cachedTeachers.push(newTeacher);
+        return newTeacher;
+    } catch (error) {
+        console.error("Error adding teacher:", error);
+        return null;
+    }
+};
+
+export const removeTeacher = async (id: string): Promise<boolean> => {
+    try {
+        await deleteDoc(doc(db, "teachers", id));
+        cachedTeachers = cachedTeachers.filter(t => t.id !== id);
+        return true;
+    } catch (error) {
+        console.error("Error removing teacher:", error);
+        return false;
+    }
+};
+
+// SETTINGS (Subjects)
+export const getSystemSettings = async (): Promise<SystemSettings | null> => {
+    try {
+        const docSnap = await getDoc(doc(db, "settings", "global-settings"));
+        if (docSnap.exists()) {
+            return docSnap.data() as SystemSettings;
+        }
+        return { id: "global-settings", subjects: SUBJECTS }; // Default fallback
+    } catch (error) {
+        console.error("Error getting settings:", error);
+        return null;
+    }
+};
+
+export const updateSubjects = async (subjects: string[]): Promise<boolean> => {
+    try {
+        await setDoc(doc(db, "settings", "global-settings"), { subjects }, { merge: true });
+        return true;
+    } catch (error) {
+        console.error("Error updating subjects:", error);
+        return false;
+    }
 };
 
 export const getStudentProfile = async (studentId: string): Promise<Student | null> => {
@@ -55,20 +174,48 @@ export const updateLastLogin = async (studentId: string) => {
 };
 
 // --- SEED DATABASE ---
-export const seedDatabase = async (): Promise<boolean> => {
+export const seedDatabase = async (): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log("Starting seed...");
-    const promises = MOCK_STUDENTS.map(student => {
-      // Use setDoc to define the ID explicitly (s1, s2, etc)
+    
+    // Seed Students
+    const studentPromises = MOCK_STUDENTS.map(student => {
       return setDoc(doc(db, "students", student.id), student);
     });
     
-    await Promise.all(promises);
-    console.log("Database seeded successfully with students!");
-    return true;
-  } catch (error) {
+    // Seed Teachers
+    const teacherPromises = TEACHERS.map(teacher => {
+        // Create a safe ID from email
+        const id = teacher.email.replace(/[^a-zA-Z0-9]/g, '_');
+        
+        // Auto-assign ADMIN role to specific users during seed
+        const role = (teacher.email.toLowerCase() === 'j.kakanis@sathyasai.nsw.edu.au' || teacher.email.includes('itadmin')) 
+            ? 'ADMIN' 
+            : 'TEACHER';
+
+        return setDoc(doc(db, "teachers", id), {
+            ...teacher,
+            id,
+            role
+        });
+    });
+
+    // Seed Settings (Subjects)
+    const settingsPromise = setDoc(doc(db, "settings", "global-settings"), {
+        id: "global-settings",
+        subjects: SUBJECTS
+    });
+
+    await Promise.all([...studentPromises, ...teacherPromises, settingsPromise]);
+    
+    // Refresh cache
+    await initializeData();
+
+    console.log("Database seeded successfully!");
+    return { success: true };
+  } catch (error: any) {
     console.error("Error seeding database:", error);
-    return false;
+    return { success: false, error: error.message };
   }
 };
 

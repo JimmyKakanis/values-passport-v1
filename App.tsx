@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, Key, Check, BrainCircuit, Calendar } from 'lucide-react';
+import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, Key, Check, BrainCircuit, Calendar, Shield } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { TeacherConsole } from './components/TeacherConsole';
+import { AdminConsole } from './components/AdminConsole';
 import { Achievements } from './components/Achievements';
 import { Leaderboard } from './components/Leaderboard';
 import { ValuesLearning } from './components/ValuesLearning';
@@ -15,17 +16,18 @@ import {
   signOut, 
   updatePassword 
 } from 'firebase/auth';
-import { getStudentByEmail } from './services/dataService';
+import { getStudentByEmail, getAllTeachers, initializeData } from './services/dataService';
 import { Logo } from './components/Logo';
 import { StudentDetailView } from './components/StudentDetailView';
 import { NotificationProvider, NotificationController } from './components/NotificationSystem';
+import { UserRole } from './types';
 
 import { TeacherCorner } from './components/TeacherCorner/TeacherCorner';
 
 // Layout Component
 const Layout: React.FC<{ 
   children: React.ReactNode, 
-  userRole: 'STUDENT' | 'TEACHER', 
+  userRole: UserRole, 
   onLogout: () => void,
   onChangePassword: () => void 
 }> = ({ children, userRole, onLogout, onChangePassword }) => {
@@ -84,7 +86,7 @@ const Layout: React.FC<{
                 <BarChart2 size={18} /> Leaderboard
               </Link>
 
-              {userRole === 'TEACHER' && (
+              {(userRole === 'TEACHER' || userRole === 'ADMIN') && (
                 <>
                   <Link to="/values-development" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/values-development')}`}>
                     <BrainCircuit size={18} /> Values Development
@@ -93,6 +95,12 @@ const Layout: React.FC<{
                     <PenTool size={18} /> Teacher Console
                   </Link>
                 </>
+              )}
+
+              {userRole === 'ADMIN' && (
+                <Link to="/admin" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/admin')}`}>
+                   <Shield size={18} /> Admin Console
+                </Link>
               )}
               
               <div className="h-6 w-px bg-emerald-600 mx-2"></div>
@@ -168,13 +176,22 @@ const Layout: React.FC<{
             >
               <BarChart2 size={20} /> Leaderboard
             </Link>
-            {userRole === 'TEACHER' && (
+            {(userRole === 'TEACHER' || userRole === 'ADMIN') && (
               <Link 
                 to="/teacher" 
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/teacher')}`}
               >
                 <PenTool size={20} /> Teacher Console
+              </Link>
+            )}
+            {userRole === 'ADMIN' && (
+              <Link 
+                to="/admin" 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/admin')}`}
+              >
+                <Shield size={20} /> Admin Console
               </Link>
             )}
             <div className="h-px bg-emerald-800 my-2"></div>
@@ -343,7 +360,7 @@ const App: React.FC = () => {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
       if (currentUser && currentUser.email) {
         // 1. Check Domain Security
@@ -355,15 +372,29 @@ const App: React.FC = () => {
         }
         setIsAuthorizedDomain(true);
 
-        // 2. Check Role (Student vs Teacher)
+        // Initialize Data
+        await initializeData();
+
+        // 2. Check Role (Student vs Teacher vs Admin)
         const student = getStudentByEmail(currentUser.email);
         
         if (student) {
           setUserRole('STUDENT');
           setStudentId(student.id);
         } else {
-          // If not in student list, assume Teacher
-          setUserRole('TEACHER');
+          // Check if teacher/admin
+          const teachers = await getAllTeachers();
+          const teacher = teachers.find(t => t.email.toLowerCase() === currentUser.email?.toLowerCase());
+          
+          // HARDCODED BOOTSTRAP FOR SUPER ADMIN
+          if (currentUser.email.toLowerCase() === 'j.kakanis@sathyasai.nsw.edu.au') {
+             setUserRole('ADMIN');
+          } else if (teacher) {
+             setUserRole(teacher.role || 'TEACHER');
+          } else {
+             // Fallback for hardcoded teachers if DB is empty or they haven't been migrated yet
+             setUserRole('TEACHER'); 
+          }
           setStudentId(null);
         }
         setUser(currentUser);
@@ -416,6 +447,14 @@ const App: React.FC = () => {
                <Route path="/achievements" element={<Achievements studentId={studentId} />} />
                {/* Redirect teacher routes to home */}
                <Route path="/teacher" element={<Navigate to="/" />} />
+             </>
+          ) : userRole === 'ADMIN' ? (
+             <>
+               <Route path="/admin" element={<AdminConsole />} />
+               <Route path="/teacher" element={<TeacherConsole />} />
+               <Route path="/values-development" element={<TeacherCorner />} />
+               <Route path="/student/:id" element={<StudentDetailView />} />
+               <Route path="/" element={<Navigate to="/admin" />} />
              </>
           ) : (
             // TEACHER ROUTES

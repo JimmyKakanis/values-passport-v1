@@ -4,10 +4,10 @@ import { Trophy, Crown, Loader2, Award, ArrowRight, GraduationCap, ShieldCheck, 
 import { useNavigate } from 'react-router-dom';
 import { fetchLeaderboardData, LeaderboardEntry } from '../services/dataService';
 import { CORE_VALUES } from '../constants';
-import { CoreValue } from '../types';
+import { CoreValue, UserRole } from '../types';
 
 interface Props {
-  userRole?: 'STUDENT' | 'TEACHER' | null;
+  userRole?: UserRole | null;
 }
 
 const getFilterStyle = (filter: string, isActive: boolean) => {
@@ -102,7 +102,7 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const isTeacher = userRole === 'TEACHER';
+  const isTeacher = userRole === 'TEACHER' || userRole === 'ADMIN';
 
   useEffect(() => {
     const load = async () => {

@@ -34,7 +34,8 @@ export type Subject =
   | 'Sport'
   | 'Excursions'
   | 'Assembly'
-  | 'Sports Carnivals';
+  | 'Sports Carnivals'
+  | string;
 
 export interface Student {
   id: string;
@@ -45,9 +46,18 @@ export interface Student {
   lastLoginAt?: number;
 }
 
+export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
+
 export interface Teacher {
+  id?: string;
   name: string;
   email: string;
+  role: UserRole;
+}
+
+export interface SystemSettings {
+  id: string; // usually 'global-settings'
+  subjects: string[];
 }
 
 export interface Signature {
