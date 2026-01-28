@@ -3,7 +3,6 @@ import {
   Users, 
   GraduationCap, 
   BookOpen, 
-  Settings, 
   Plus, 
   Search, 
   Trash2, 
@@ -14,7 +13,7 @@ import {
   Loader2,
   AlertTriangle
 } from 'lucide-react';
-import { Student, Teacher, SystemSettings, UserRole } from '../types';
+import { Student, Teacher, SystemSettings } from '../types';
 import { 
   getAllStudents, 
   getAllTeachers, 
@@ -27,7 +26,6 @@ import {
   updateSubjects,
   seedDatabase
 } from '../services/dataService';
-import { SCHOOL_EMAIL_DOMAIN } from '../constants';
 
 export const AdminConsole: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'STUDENTS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION'>('STUDENTS');

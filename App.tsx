@@ -353,7 +353,7 @@ const ChangePasswordModal: React.FC<{ isOpen: boolean, onClose: () => void }> = 
 
 const App: React.FC = () => {
   const [user, setUser] = useState<any | null>(null);
-  const [userRole, setUserRole] = useState<'STUDENT' | 'TEACHER' | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthorizedDomain, setIsAuthorizedDomain] = useState(true);
