@@ -174,6 +174,36 @@ export const updateLastLogin = async (studentId: string) => {
 };
 
 // --- SEED DATABASE ---
+export const resetAllProgress = async (): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log("Starting progress reset...");
+    
+    // 1. Signatures
+    const signaturesSnapshot = await getDocs(collection(db, "signatures"));
+    const sigPromises = signaturesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // 2. Claimed Rewards
+    const rewardsSnapshot = await getDocs(collection(db, "claimed_rewards"));
+    const rewardPromises = rewardsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // 3. Nominations
+    const nominationsSnapshot = await getDocs(collection(db, "nominations"));
+    const nomPromises = nominationsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+
+    // 4. Quiz Scores
+    const quizSnapshot = await getDocs(collection(db, "quiz_scores"));
+    const quizPromises = quizSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    await Promise.all([...sigPromises, ...rewardPromises, ...nomPromises, ...quizPromises]);
+    
+    console.log("Progress reset successfully!");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error resetting progress:", error);
+    return { success: false, error: error.message };
+  }
+};
+
 export const seedDatabase = async (): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log("Starting seed...");

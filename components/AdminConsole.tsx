@@ -24,7 +24,8 @@ import {
   addTeacher,
   removeTeacher,
   updateSubjects,
-  seedDatabase
+  seedDatabase,
+  resetAllProgress
 } from '../services/dataService';
 
 export const AdminConsole: React.FC = () => {
@@ -90,6 +91,25 @@ export const AdminConsole: React.FC = () => {
       }
     } catch (err: any) {
       setError(`Error during seeding: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetProgress = async () => {
+    if (!window.confirm("Are you sure you want to RESET ALL SCORES AND STAMPS? This will delete all student progress but keep student accounts. This cannot be undone.")) return;
+
+    setLoading(true);
+    try {
+      const result = await resetAllProgress();
+      if (result.success) {
+        setSuccess('All progress (stamps, rewards, scores) has been reset!');
+        loadData();
+      } else {
+        setError(`Failed to reset progress: ${result.error}`);
+      }
+    } catch (err: any) {
+      setError(`Error during reset: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -577,17 +597,35 @@ export const AdminConsole: React.FC = () => {
 
             {activeTab === 'MIGRATION' && (
               <div className="space-y-4">
-                <h2 className="text-xl font-bold text-yellow-800">Data Migration Tool</h2>
-                <p className="text-gray-600">
-                  Use this tool to populate the database with the initial hardcoded data from <code>constants.ts</code>.
-                  This should only be done once.
-                </p>
-                <button
-                  onClick={handleSeed}
-                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-bold transition-colors"
-                >
-                  Seed Database from Constants
-                </button>
+                <h2 className="text-xl font-bold text-yellow-800">Data Management</h2>
+                
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <h3 className="font-bold text-yellow-900 mb-2">Initialize Database</h3>
+                    <p className="text-gray-700 mb-4 text-sm">
+                        Use this tool to populate the database with the initial hardcoded data from <code>constants.ts</code>.
+                        This is useful for first-time setup or restoring missing student lists.
+                    </p>
+                    <button
+                        onClick={handleSeed}
+                        className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-bold transition-colors"
+                    >
+                        Seed Database from Constants
+                    </button>
+                </div>
+
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <h3 className="font-bold text-red-900 mb-2">Reset Student Progress</h3>
+                    <p className="text-gray-700 mb-4 text-sm">
+                        <strong className="text-red-600">WARNING:</strong> This will delete all stamps, signatures, claimed rewards, quiz scores, and pending nominations. 
+                        Student accounts and settings will remain. Use this before starting a new term or testing period.
+                    </p>
+                    <button
+                        onClick={handleResetProgress}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-bold transition-colors flex items-center gap-2"
+                    >
+                        <Trash2 size={16} /> Reset All Scores & Stamps
+                    </button>
+                </div>
               </div>
             )}
           </>

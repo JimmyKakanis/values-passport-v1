@@ -18,6 +18,7 @@ service cloud.firestore {
       // Allow users to update their own login timestamp, otherwise keep it restricted
       allow update: if isAuthenticated(); 
       allow create: if isAuthenticated(); // For seeding/registration
+      allow delete: if isAuthenticated(); // Added for admin operations
     }
 
     // Signatures Collection
@@ -25,6 +26,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated(); // For teacher approvals/edits
+      allow delete: if isAuthenticated(); // Added for progress reset
     }
 
     // Nominations Collection
@@ -32,6 +34,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated(); // For approvals
+      allow delete: if isAuthenticated(); // Added for progress reset
     }
 
     // Quiz Scores Collection
@@ -41,24 +44,28 @@ service cloud.firestore {
       // Only the student can update their own score
       // Note: We use request.resource.data.score to validate logic if needed
       allow write: if isAuthenticated(); 
+      allow delete: if isAuthenticated(); // Added for progress reset
     }
 
     // Claimed Rewards Collection
     match /claimed_rewards/{rewardId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
+      allow delete: if isAuthenticated(); // Added for progress reset
     }
 
     // Planner Collection
     match /planner/{itemId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
+      allow delete: if isAuthenticated(); // Added for progress reset
     }
 
     // Teachers Collection (New)
     match /teachers/{teacherId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated(); 
+      allow delete: if isAuthenticated(); // Added for admin operations
     }
 
     // Settings Collection (New)
@@ -68,4 +75,3 @@ service cloud.firestore {
     }
   }
 }
-

@@ -15,6 +15,8 @@ const firebaseConfig = {
   measurementId: "G-PMQFZG0DRX"
 };
 
+import { SCHOOL_EMAIL_DOMAIN } from './constants';
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
@@ -23,3 +25,6 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = firebaseAuth.getAuth(app);
 export const microsoftProvider = new OAuthProvider('microsoft.com');
+microsoftProvider.setCustomParameters({
+  tenant: SCHOOL_EMAIL_DOMAIN
+});

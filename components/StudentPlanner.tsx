@@ -155,27 +155,28 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
       <button
         key={day.toISOString()}
         onClick={() => setSelectedDate(day)}
-        className={`${heightClass} p-1 md:p-2 border-r border-b border-gray-100 transition-all relative flex flex-col items-center gap-1
+        onDoubleClick={() => { setSelectedDate(day); setIsModalOpen(true); }}
+        className={`${heightClass} p-0.5 md:p-2 border-r border-b border-gray-100 transition-all relative flex flex-col items-center gap-0.5 md:gap-1
           ${isOutsideRange ? 'bg-gray-50/50 text-gray-300' : 'bg-white text-gray-700'}
           ${isSelected ? '!bg-emerald-50 ring-2 ring-emerald-500 ring-inset z-10' : 'hover:bg-gray-50'}
         `}
       >
-        <span className={`text-xs md:text-sm font-bold w-6 h-6 md:w-7 md:h-7 flex items-center justify-center rounded-full
+        <span className={`text-[10px] md:text-sm font-bold w-5 h-5 md:w-7 md:h-7 flex items-center justify-center rounded-full
           ${isToday ? 'bg-yellow-400 text-blue-900' : ''}
         `}>
           {format(day, 'd')}
         </span>
         
-        <div className="flex flex-wrap justify-center gap-1 mt-1 w-full">
+        <div className="flex flex-wrap justify-center gap-0.5 md:gap-1 mt-0.5 w-full px-0.5">
           {dayItems.slice(0, 4).map(item => (
             <div 
               key={item.id} 
-              className={`w-1.5 h-1.5 md:w-2 md:h-2 rounded-full ${categoryColors[item.category] || 'bg-gray-400'} ${item.isCompleted ? 'opacity-30' : ''}`}
+              className={`w-1 h-1 md:w-2 md:h-2 rounded-full ${categoryColors[item.category] || 'bg-gray-400'} ${item.isCompleted ? 'opacity-30' : ''}`}
               title={item.title}
             />
           ))}
           {dayItems.length > 4 && (
-            <div className="text-[9px] text-gray-400 font-bold">+{dayItems.length - 4}</div>
+            <div className="text-[7px] md:text-[9px] text-gray-400 font-bold leading-none">+{dayItems.length - 4}</div>
           )}
         </div>
       </button>
@@ -191,12 +192,12 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
     return (
       <div key={weekStart.toISOString()} className={`flex border-b border-gray-100 ${minHeight}`}>
           {/* Week Sidebar */}
-          <div className="w-12 md:w-20 bg-emerald-50/30 flex flex-col items-center justify-center border-r border-gray-100 text-emerald-800 p-1 md:p-2 text-center shrink-0">
+          <div className="w-8 md:w-20 bg-emerald-50/30 flex flex-col items-center justify-center border-r border-gray-100 text-emerald-800 p-0.5 md:p-2 text-center shrink-0">
             {monthLabel && (
-              <span className="text-[10px] uppercase font-bold text-emerald-600 mb-1">{monthLabel}</span>
+              <span className="text-[8px] md:text-[10px] uppercase font-bold text-emerald-600 mb-0.5 md:mb-1 -rotate-90 md:rotate-0">{monthLabel}</span>
             )}
-            <span className="text-[10px] uppercase font-bold text-gray-400">Week</span>
-            <span className="text-xl font-bold">{weekNum}</span>
+            <span className="hidden md:block text-[10px] uppercase font-bold text-gray-400">Week</span>
+            <span className="text-sm md:text-xl font-bold">{weekNum}</span>
           </div>
           
           {/* Days Grid */}
@@ -313,38 +314,40 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
           {/* Calendar Header */}
           <div className="bg-emerald-800 p-4 md:p-6 text-white shrink-0">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-4">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                  <CalendarIcon /> 
-                  {view === 'TERM' && currentTerm.name}
-                  {view === 'MONTH' && format(currentDate, 'MMMM yyyy')}
-                  {view === 'WEEK' && `Week of ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d')}`}
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
+                <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5 md:w-6 md:h-6" /> 
+                  <span className="truncate">
+                    {view === 'TERM' && currentTerm.name}
+                    {view === 'MONTH' && format(currentDate, 'MMMM yyyy')}
+                    {view === 'WEEK' && `Week of ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'MMM d')}`}
+                  </span>
                 </h2>
                 
                 {/* View Switcher */}
-                <div className="flex bg-emerald-900/50 p-1 rounded-lg">
+                <div className="flex bg-emerald-900/50 p-1 rounded-lg w-full md:w-auto overflow-x-auto">
                   <button 
                     onClick={() => setView('TERM')}
-                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'TERM' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-100 hover:bg-emerald-700/50'}`}
+                    className={`flex-1 md:flex-none px-3 py-1 rounded-md text-xs md:text-sm font-medium transition-all flex items-center justify-center gap-2 ${view === 'TERM' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-100 hover:bg-emerald-700/50'}`}
                   >
                     <List size={14} /> Term
                   </button>
                   <button 
                     onClick={() => setView('MONTH')}
-                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'MONTH' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-100 hover:bg-emerald-700/50'}`}
+                    className={`flex-1 md:flex-none px-3 py-1 rounded-md text-xs md:text-sm font-medium transition-all flex items-center justify-center gap-2 ${view === 'MONTH' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-100 hover:bg-emerald-700/50'}`}
                   >
                     <CalendarRange size={14} /> Month
                   </button>
                   <button 
                     onClick={() => setView('WEEK')}
-                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${view === 'WEEK' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-100 hover:bg-emerald-700/50'}`}
+                    className={`flex-1 md:flex-none px-3 py-1 rounded-md text-xs md:text-sm font-medium transition-all flex items-center justify-center gap-2 ${view === 'WEEK' ? 'bg-white text-emerald-900 shadow-sm' : 'text-emerald-100 hover:bg-emerald-700/50'}`}
                   >
                     <LayoutDashboard size={14} /> Week
                   </button>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 self-end md:self-auto">
                 <button onClick={() => handleNavigate('PREV')} className="p-2 hover:bg-emerald-700 rounded-full transition-colors">
                   <ChevronLeft size={24} />
                 </button>
@@ -355,9 +358,9 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
             </div>
 
             {/* Days Header */}
-            <div className="grid grid-cols-7 pl-12 md:pl-20 text-center text-xs font-bold uppercase tracking-widest text-emerald-200">
+            <div className="grid grid-cols-7 pl-8 md:pl-20 text-center text-[10px] md:text-xs font-bold uppercase tracking-widest text-emerald-200">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                <div key={day} className="py-2">{day}</div>
+                <div key={day} className="py-2">{day.slice(0, 3)}</div>
               ))}
             </div>
           </div>
@@ -447,6 +450,14 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
           </div>
         </div>
       </div>
+
+      {/* Floating Action Button (Mobile Only) */}
+      <button 
+        onClick={() => setIsModalOpen(true)}
+        className="md:hidden fixed bottom-6 right-6 z-40 bg-emerald-600 text-white p-4 rounded-full shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
+      >
+        <Plus size={24} />
+      </button>
 
       {/* Add Item Modal */}
       {isModalOpen && (

@@ -341,6 +341,28 @@ export const MOCK_STUDENTS: Student[] = [
   createStudent('s140', 'Adam Shadbolt', 'Year 10'),
   createStudent('s141', 'Jack Stanbury', 'Year 10'),
   createStudent('s142', 'Taj Watts', 'Year 10'),
+
+  // Year 7
+  createStudent('s143', 'Felix Arnold Freire', 'Year 7'),
+  createStudent('s144', 'Eliana De Lloyd', 'Year 7'),
+  createStudent('s145', 'Sol Fletcher Hair', 'Year 7'),
+  createStudent('s146', 'Molly Jones', 'Year 7'),
+  createStudent('s147', 'Harrison Widgery', 'Year 7'),
+  createStudent('s148', 'Ayla Perkins', 'Year 7'),
+  createStudent('s149', 'Reggie Selwood', 'Year 7'),
+  createStudent('s150', 'Frankie Townsend', 'Year 7'),
+  createStudent('s151', 'Koopa Watts', 'Year 7'),
+  createStudent('s152', 'Malaya Zajc', 'Year 7'),
+  createStudent('s153', 'Beau Bevege', 'Year 7'),
+  createStudent('s154', 'Aroha Dempsey', 'Year 7'),
+  createStudent('s155', 'Van Gane', 'Year 7'),
+  createStudent('s156', 'Miriam Genish', 'Year 7'),
+  createStudent('s157', 'Henry Hudson', 'Year 7'),
+  createStudent('s158', 'Chahaya Imran', 'Year 7'),
+  createStudent('s159', 'George Kneebone', 'Year 7'),
+  createStudent('s160', 'Jack Monaghan', 'Year 7'),
+  createStudent('s161', 'Charlie Robinson', 'Year 7'),
+  createStudent('s162', 'Lola Townsend', 'Year 7'),
 ];
 
 // Helper to generate mastery achievements for all subjects
