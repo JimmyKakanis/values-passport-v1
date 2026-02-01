@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent, getStudents } from '../services/dataService';
-import { Student, Subject, CoreValue, Nomination } from '../types';
+import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent, getStudents, getAllTeachers } from '../services/dataService';
+import { Student, Subject, CoreValue, Nomination, Teacher } from '../types';
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck, Gift } from 'lucide-react';
 import { TeacherRewards } from './TeacherRewards';
+import { auth } from '../firebaseConfig';
 
 
 interface TeacherConsoleProps {
@@ -25,6 +26,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
   const [note, setNote] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
 
   // Inbox State
   const [pendingNominations, setPendingNominations] = useState<Nomination[]>([]);
@@ -33,6 +35,15 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
   useEffect(() => {
     const studentData = getStudents();
     setStudents(studentData);
+
+    const fetchTeacher = async () => {
+      if (auth.currentUser?.email) {
+        const allTeachers = await getAllTeachers();
+        const teacher = allTeachers.find(t => t.email.toLowerCase() === auth.currentUser?.email?.toLowerCase());
+        if (teacher) setCurrentTeacher(teacher);
+      }
+    };
+    fetchTeacher();
   }, []);
 
   useEffect(() => {
@@ -146,7 +157,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
       </div>
 
       {activeTab === 'REWARDS' && (
-          <TeacherRewards />
+          <TeacherRewards teacher={currentTeacher} />
       )}
 
       {activeTab === 'AWARD' && (

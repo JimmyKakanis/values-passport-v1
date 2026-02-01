@@ -53,7 +53,29 @@ export interface Teacher {
   name: string;
   email: string;
   role: UserRole;
+  assignedGrades?: string[]; // Grades this teacher is responsible for
 }
+
+export interface CustomReward {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  title: string;
+  description: string;
+  reward: string;
+  targetGrades: string[];
+  targetSubject?: Subject; // Optional: Only applies to this subject
+  criteria: {
+    type: 'TOTAL' | 'VALUE' | 'SUBJECT_MASTERY'; // Added SUBJECT_MASTERY support
+    threshold: number;
+    value?: CoreValue;
+    subject?: Subject; // Used if type is SUBJECT_MASTERY
+    subValue?: string; // Optional sub-value
+  };
+  isActive: boolean;
+  createdAt: number;
+}
+
 
 export interface SystemSettings {
   id: string; // usually 'global-settings'

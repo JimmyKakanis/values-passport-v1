@@ -13,15 +13,15 @@ export const STUDENT_TEMP_PASSWORD = 'StudentValues2026!';
 
 // Approved Teachers List
 export const TEACHERS: Teacher[] = [
-  { name: 'Admin User', email: 'teacher1@sathyasai.nsw.edu.au', role: 'TEACHER' }, // Kept for testing
-  { name: 'Ms Meredith Barrie', email: 'M.Barrie@sathyasai.nsw.edu.au', role: 'TEACHER' },
-  { name: 'Mrs Sarah Biersteker', email: 'S.Biersteker@sathyasai.nsw.edu.au', role: 'TEACHER' },
+  { name: 'Admin User', email: 'teacher1@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] }, // Kept for testing
+  { name: 'Ms Meredith Barrie', email: 'M.Barrie@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 9', 'Year 10'] },
+  { name: 'Mrs Sarah Biersteker', email: 'S.Biersteker@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 7', 'Year 8'] },
   { name: 'Mrs Annette Caldicott', email: 'a.caldicott@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mr Flynn Colby', email: 'f.colby@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mrs Simone Coyne', email: 's.coyne@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Miss Amy Crossingham', email: 'a.crossingham@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Miss Tracey Crossingham', email: 'T.crossingham@sathyasai.nsw.edu.au', role: 'TEACHER' },
-  { name: 'Mr Ray Farthing', email: 'itadmin@sathyasai.nsw.edu.au', role: 'ADMIN' },
+  { name: 'Mr Ray Farthing', email: 'itadmin@sathyasai.nsw.edu.au', role: 'ADMIN', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] },
   { name: 'Mrs Kirsty Forsyth', email: 'schooloffice_d@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mr Asher Gruft', email: 'A.gruft@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mrs Rebecca Hall', email: 'r.hall@sathyasai.nsw.edu.au', role: 'TEACHER' },
@@ -29,7 +29,7 @@ export const TEACHERS: Teacher[] = [
   { name: 'Mr Keshava Inglis', email: 'k.inglis@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Ms Jaime John', email: 'j.john@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mrs Jenna Jones', email: 'j.jones@sathyasai.nsw.edu.au', role: 'TEACHER' },
-  { name: 'Mr James Kakanis', email: 'j.kakanis@sathyasai.nsw.edu.au', role: 'ADMIN' },
+  { name: 'Mr James Kakanis', email: 'j.kakanis@sathyasai.nsw.edu.au', role: 'ADMIN', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] },
   { name: 'Mr Glenn Kaminski', email: 'g.kaminski@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mr Gavin Kester', email: 'g.kester@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Ms Rachael Lebeter', email: 'r.lebeter@sathyasai.nsw.edu.au', role: 'TEACHER' },

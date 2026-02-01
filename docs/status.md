@@ -26,6 +26,10 @@
     - [x] Manage Teachers (Add/Remove Access)
     - [x] Manage Subjects (Dynamic Settings)
     - [x] Role-Based Access Control (Admin Role)
+- [x] **Custom Rewards System Fixes**
+    - [x] Fixed "Pending Claims" showing generic achievements
+    - [x] Fixed Custom Reward calculation logic (Value vs Total vs Subject Mastery)
+    - [x] Ensured correct filtering for Teacher-created rewards vs Global tangible rewards
 
 ## In Progress
 - [ ] Mobile Responsiveness Refinements (Planner)

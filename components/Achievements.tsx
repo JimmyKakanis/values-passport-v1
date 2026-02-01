@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft, Calendar, ListChecks, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards, getPlannerItems } from '../services/dataService';
-import { StudentAchievement, AchievementDifficulty } from '../types';
+import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards, getPlannerItems, getCustomRewardsForGrade } from '../services/dataService';
+import { StudentAchievement, AchievementDifficulty, AchievementDefinition } from '../types';
 
 interface Props {
   studentId: string;
@@ -28,12 +28,26 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
     const load = async () => {
       setLoading(true);
       try {
-        const [sigs, claimedIds, plannerItems] = await Promise.all([
+        const [sigs, claimedIds, plannerItems, customRewards] = await Promise.all([
           getSignaturesForStudent(studentId),
           getClaimedRewards(studentId),
-          getPlannerItems(studentId)
+          getPlannerItems(studentId),
+          student ? getCustomRewardsForGrade(student.grade) : Promise.resolve([])
         ]);
-        const calculated = calculateStudentAchievements(sigs, claimedIds, plannerItems);
+
+        const normalizedCustomRewards: AchievementDefinition[] = customRewards.map(cr => ({
+          id: cr.id,
+          title: cr.title,
+          description: cr.description,
+          reward: cr.reward,
+          icon: 'Star', 
+          type: cr.criteria.type,
+          difficulty: 'MEDIUM',
+          threshold: cr.criteria.threshold,
+          target: cr.criteria.value || cr.criteria.subject // Normalize target based on type
+        }));
+
+        const calculated = calculateStudentAchievements(sigs, claimedIds, plannerItems, normalizedCustomRewards);
         setAchievements(calculated);
       } catch (error) {
         console.error("Failed to load achievements", error);

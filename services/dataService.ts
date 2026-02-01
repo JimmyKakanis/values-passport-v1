@@ -1,4 +1,4 @@
-import { Signature, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings } from '../types';
+import { Signature, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition } from '../types';
 import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS } from '../constants';
 import { db } from '../firebaseConfig';
 import { 
@@ -501,7 +501,7 @@ export const calculateStats = (signatures: Signature[]) => {
   return { total, byValue, bySubject };
 };
 
-export const calculateStudentAchievements = (signatures: Signature[], claimedRewardIds: string[] = [], plannerItems: PlannerItem[] = []): StudentAchievement[] => {
+export const calculateStudentAchievements = (signatures: Signature[], claimedRewardIds: string[] = [], plannerItems: PlannerItem[] = [], customRewards: AchievementDefinition[] = []): StudentAchievement[] => {
   const stats = calculateStats(signatures);
   const sigs = signatures;
 
@@ -510,7 +510,9 @@ export const calculateStudentAchievements = (signatures: Signature[], claimedRew
     return sigs.filter(s => s.subject === subject && s.value === value).length;
   };
 
-  return ACHIEVEMENTS.map(ach => {
+  const allAchievements = [...ACHIEVEMENTS, ...customRewards];
+
+  return allAchievements.map(ach => {
     let currentProgress = 0;
     let maxProgress = 0;
     let isUnlocked = false;
@@ -574,6 +576,14 @@ export const calculateStudentAchievements = (signatures: Signature[], claimedRew
              );
              currentProgress = subjectsWithValue.size;
              isUnlocked = currentProgress >= maxProgress;
+             return {
+                ...ach,
+                currentProgress,
+                maxProgress,
+                isUnlocked,
+                unlockedAt: isUnlocked ? Date.now() : undefined,
+                isClaimed: claimedRewardIds.includes(ach.id)
+              };
           }
         } else {
             switch (ach.id) {
@@ -755,9 +765,46 @@ export const calculateStudentAchievements = (signatures: Signature[], claimedRew
                 break;
 
             default:
-                maxProgress = 1;
-                currentProgress = 0;
-                isUnlocked = false;
+                // Handle dynamic custom rewards
+                // This is a bit of a hack: if we don't recognize the ID, check if it's in our custom rewards list passed in.
+                // However, we are iterating over `allAchievements` which INCLUDES custom rewards.
+                // So if we are here, it's either a global one we missed or a custom one.
+                
+                // Check if it's a known custom reward in the passed array
+                const customMatch = customRewards.find(r => r.id === ach.id);
+                if (customMatch) {
+                    const calcType = (customMatch as any).criteria?.type || customMatch.type;
+                    maxProgress = customMatch.threshold || 1;
+                    if (calcType === 'TOTAL') {
+                        currentProgress = stats.total;
+                    } else if (calcType === 'VALUE') {
+                        // Support for Sub-Value filtering
+                        if ((customMatch as any).criteria?.subValue) {
+                            currentProgress = sigs.filter(s => 
+                                s.value === customMatch.target as string && 
+                                s.subValue === (customMatch as any).criteria.subValue
+                            ).length;
+                        } else {
+                            currentProgress = stats.byValue[customMatch.target as string] || 0;
+                        }
+                    } else if (calcType === 'SUBJECT_MASTERY') {
+                        // Subject Mastery logic for custom rewards
+                        const subjectTarget = customMatch.target as Subject;
+                        if (subjectTarget) {
+                            const counts = Object.values(CORE_VALUES).map(val => getCount(subjectTarget, val.id as CoreValue));
+                            currentProgress = Math.min(...counts); // Minimum stamps across all values for this subject
+                        } else {
+                            currentProgress = 0;
+                        }
+                    } else {
+                        currentProgress = 0;
+                    }
+                    isUnlocked = currentProgress >= maxProgress;
+                } else {
+                    maxProgress = 1;
+                    currentProgress = 0;
+                    isUnlocked = false;
+                }
             }
         }
         break;
@@ -784,19 +831,53 @@ export const getPendingRewardsForTeacher = async (): Promise<RewardEntry[]> => {
   const allSignatures = await getAllSignatures();
   const allClaimed = await getAllClaimedRewards(); // returns ClaimedReward[]
   
-  const pendingRewards: RewardEntry[] = [];
-
-  getStudents().forEach(student => {
+    // Fetch all active custom rewards once
+    const customRewardsSnapshot = await getDocs(query(collection(db, "custom_rewards"), where("isActive", "==", true)));
+    const allCustomRewards = customRewardsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomReward));
+    const teacherCreatedRewardIds = new Set(allCustomRewards.map(r => r.id));
+    
+    const pendingRewards: RewardEntry[] = [];
+  
+    getStudents().forEach(student => {
     const studentSigs = allSignatures.filter(s => s.studentId === student.id);
     const studentClaimedIds = allClaimed
         .filter(c => c.studentId === student.id)
         .map(c => c.achievementId);
     
-    const achievements = calculateStudentAchievements(studentSigs, studentClaimedIds, []);
+    // Filter custom rewards relevant to this student's grade
+    const relevantCustomRewards = allCustomRewards
+        .filter(r => r.targetGrades.includes(student.grade))
+        // Map CustomReward to AchievementDefinition structure
+        .map(r => ({
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            reward: `Reward: ${r.reward}`, // Ensure consistent "Reward:" prefix if expected
+            icon: 'Star', // Default icon
+            type: 'CUSTOM' as AchievementType, // Explicit cast
+            difficulty: 'MEDIUM' as AchievementDifficulty, // Default difficulty
+            threshold: r.criteria.threshold,
+            target: r.criteria.type === 'VALUE' ? r.criteria.value : 
+                   r.criteria.type === 'SUBJECT_MASTERY' ? r.criteria.subject : undefined,
+            // Include extra criteria for custom logic
+            criteria: r.criteria
+        } as AchievementDefinition));
+    
+    const achievements = calculateStudentAchievements(studentSigs, studentClaimedIds, [], relevantCustomRewards);
     
     achievements.forEach(ach => {
-      // Check if unlocked, not claimed, and has a reward text
-      if (ach.isUnlocked && !ach.isClaimed && ach.reward.startsWith('Reward:')) {
+      // Filter Logic:
+      // 1. Must be Unlocked and Not Claimed
+      // 2. MUST be either:
+      //    a. A Teacher-Created Custom Reward (ID is in teacherCreatedRewardIds)
+      //    b. A Global Achievement with a "Tangible" reward (excludes generic badges/unlocks)
+      
+      const isTeacherCreated = teacherCreatedRewardIds.has(ach.id);
+      const isTangibleGlobal = !isTeacherCreated && ach.reward && 
+                               !ach.reward.includes('Achievement Unlocked') && 
+                               !ach.reward.includes('Badge');
+      
+      if (ach.isUnlocked && !ach.isClaimed && (isTeacherCreated || isTangibleGlobal)) {
         pendingRewards.push({
           student,
           achievement: ach
@@ -975,6 +1056,96 @@ export const deletePlannerItem = async (itemId: string) => {
     return true;
   } catch (error) {
     console.error("Error deleting planner item:", error);
+    return false;
+  }
+};
+
+// --- CUSTOM REWARDS (Database) ---
+
+export const addCustomReward = async (
+  teacherId: string,
+  teacherName: string,
+  title: string,
+  description: string,
+  reward: string,
+  targetGrades: string[],
+  targetSubject: Subject | undefined,
+  criteria: {
+    type: 'TOTAL' | 'VALUE' | 'SUBJECT_MASTERY';
+    threshold: number;
+    value?: CoreValue;
+    subject?: Subject;
+    subValue?: string;
+  }
+): Promise<CustomReward | null> => {
+  try {
+    const newReward = {
+      teacherId,
+      teacherName,
+      title,
+      description,
+      reward,
+      targetGrades,
+      targetSubject: targetSubject || null,
+      criteria: {
+          type: criteria.type,
+          threshold: criteria.threshold,
+          value: criteria.value || null,
+          subject: criteria.subject || null,
+          subValue: criteria.subValue || null
+      },
+      isActive: true,
+      createdAt: Date.now()
+    };
+    const docRef = await addDoc(collection(db, "custom_rewards"), newReward);
+    return { id: docRef.id, ...newReward } as CustomReward;
+  } catch (error) {
+    console.error("Error adding custom reward:", error);
+    return null;
+  }
+};
+
+export const getCustomRewardsForGrade = async (grade: string): Promise<CustomReward[]> => {
+  try {
+    const q = query(
+      collection(db, "custom_rewards"),
+      where("targetGrades", "array-contains", grade),
+      where("isActive", "==", true)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as CustomReward));
+  } catch (error) {
+    console.error("Error fetching custom rewards for grade:", error);
+    return [];
+  }
+};
+
+export const getCustomRewardsForTeacher = async (teacherId: string): Promise<CustomReward[]> => {
+  try {
+    const q = query(
+      collection(db, "custom_rewards"),
+      where("teacherId", "==", teacherId)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as CustomReward)).sort((a, b) => b.createdAt - a.createdAt);
+  } catch (error) {
+    console.error("Error fetching custom rewards for teacher:", error);
+    return [];
+  }
+};
+
+export const deleteCustomReward = async (rewardId: string): Promise<boolean> => {
+  try {
+    await deleteDoc(doc(db, "custom_rewards", rewardId));
+    return true;
+  } catch (error) {
+    console.error("Error deleting custom reward:", error);
     return false;
   }
 };
