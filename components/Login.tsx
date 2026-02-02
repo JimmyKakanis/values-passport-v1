@@ -3,7 +3,10 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
-  signOut 
+  signOut,
+  linkWithCredential,
+  OAuthProvider,
+  AuthCredential
 } from 'firebase/auth';
 import { auth, microsoftProvider } from '../firebaseConfig';
 import { Loader2, AlertCircle, Key } from 'lucide-react';
@@ -18,6 +21,7 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [pendingCred, setPendingCred] = useState<AuthCredential | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +37,19 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
+      if (pendingCred) {
+        // LINKING FLOW:
+        // 1. Sign in with the Email/Password first
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        
+        // 2. Link the pending Microsoft credential
+        await linkWithCredential(userCredential.user, pendingCred);
+        
+        setSuccessMsg('Account linked successfully! Logging you in...');
+        setPendingCred(null);
+        return;
+      }
+
       // 1. Try to login normally first
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
@@ -67,7 +84,10 @@ export const Login: React.FC = () => {
       } else {
         // Standard error handling
         if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-           setError('Invalid email or password.');
+           setError(pendingCred 
+             ? 'Incorrect password. Please try again to link your account.' 
+             : 'Invalid email or password.'
+           );
         } else if (err.code === 'auth/too-many-requests') {
            setError('Too many attempts. Please try again later.');
         } else {
@@ -98,6 +118,21 @@ export const Login: React.FC = () => {
     } catch (err: any) {
       console.error("Microsoft login error:", err);
       
+      // Handle account linking (Email/Password exists, user tried Microsoft)
+      if (err.code === 'auth/account-exists-with-different-credential') {
+         // Get the pending credential from the error
+         const pendingCredential = OAuthProvider.credentialFromError(err);
+         // Get the email from the error object to pre-fill the form
+         const email = err.customData?.email;
+         
+         if (pendingCredential && email) {
+            setPendingCred(pendingCredential);
+            setEmail(email);
+            setError(`An account already exists for ${email}. Please enter your password to link your Microsoft account.`);
+            return;
+         }
+      }
+
       // Detailed error message for debugging
       const errorMessage = `Error: ${err.message} (Code: ${err.code})`;
       
@@ -185,7 +220,7 @@ export const Login: React.FC = () => {
              disabled={loading}
              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow-md transition-all flex items-center justify-center gap-2 disabled:bg-gray-400"
            >
-             {loading ? <Loader2 className="animate-spin" /> : 'Sign In'}
+             {loading ? <Loader2 className="animate-spin" /> : (pendingCred ? 'Link Account' : 'Sign In')}
            </button>
 
            <div className="relative my-6">
