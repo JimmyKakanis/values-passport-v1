@@ -128,7 +128,7 @@ export const Login: React.FC = () => {
          if (pendingCredential && email) {
             setPendingCred(pendingCredential);
             setEmail(email);
-            setError(`An account already exists for ${email}. Please enter your password to link your Microsoft account.`);
+            setError(`An account already exists for ${email}. Please enter your Values Passport password to link your Microsoft account.`);
             return;
          }
       }
