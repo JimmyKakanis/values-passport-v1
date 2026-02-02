@@ -1,24 +1,29 @@
 import React, { useEffect, useState } from 'react';
-import { getAllSignatures } from '../../services/dataService';
+import { getAllSignatures, getAllTeachers } from '../../services/dataService';
 import { Signature, CoreValue } from '../../types';
 import { CORE_VALUES } from '../../constants';
 import { PieChart, Award } from 'lucide-react';
+import { auth } from '../../firebaseConfig';
 
 export const TeacherInsights: React.FC = () => {
   const [signatures, setSignatures] = useState<Signature[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // In a real app, we would get the current user's name from context/auth
-  // For this mock, we'll just filter by "Current Teacher" or show all for demo purposes
-  // Since the `addSignature` uses "Current Teacher" hardcoded in TeacherConsole.tsx,
-  // we will filter by that to show "My" stats vs "School" stats.
-  const TEACHER_NAME = "Current Teacher"; 
-
   useEffect(() => {
     const loadData = async () => {
+      let currentTeacherName = "Current Teacher";
+      
+      if (auth.currentUser?.email) {
+        const allTeachers = await getAllTeachers();
+        const teacher = allTeachers.find(t => t.email.toLowerCase() === auth.currentUser?.email?.toLowerCase());
+        if (teacher) currentTeacherName = teacher.name;
+      }
+
       const all = await getAllSignatures();
-      // Filter for this teacher
-      const mySigs = all.filter(s => s.teacherName === TEACHER_NAME);
+      // Filter for this teacher (including legacy "Current Teacher" stamps if we can't distinguish, 
+      // but ideally we want to show their specific stamps now that we are tracking them)
+      // For now, we will include both to show past history + new specific history
+      const mySigs = all.filter(s => s.teacherName === currentTeacherName || s.teacherName === "Current Teacher");
       setSignatures(mySigs);
       setLoading(false);
     };

@@ -250,6 +250,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
   const prevPlannerItemsRef = useRef<PlannerItem[]>([]);
   const lastLoginRef = useRef<number | undefined>(undefined);
   const isInitialLoad = useRef(true);
+  const hasCheckedWelcomeBack = useRef(false);
 
   // 1. Fetch Profile to get Last Login
   useEffect(() => {
@@ -315,6 +316,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
       prevUnlockedRef.current = [];
       prevPlannerItemsRef.current = [];
       isInitialLoad.current = true;
+      hasCheckedWelcomeBack.current = false;
       return;
     }
 
@@ -325,19 +327,22 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
       
       if (isInitialLoad.current) {
         // --- WELCOME BACK LOGIC ---
-        if (lastLoginRef.current) {
-           const newSinceLogin = signatures.filter(s => s.timestamp > (lastLoginRef.current || 0));
-           if (newSinceLogin.length > 0) {
-             addNotification({
-                type: 'INFO',
-                title: 'Welcome Back!',
-                message: `You earned ${newSinceLogin.length} new stamps while you were away! Check your passport.`,
-                icon: <Star className="w-5 h-5" />,
-                duration: 8000
-             });
-           }
+        if (!hasCheckedWelcomeBack.current) {
+          if (lastLoginRef.current) {
+             const newSinceLogin = signatures.filter(s => s.timestamp > (lastLoginRef.current || 0));
+             if (newSinceLogin.length > 0) {
+               addNotification({
+                  type: 'INFO',
+                  title: 'Welcome Back!',
+                  message: `You earned ${newSinceLogin.length} new stamps while you were away! Check your passport.`,
+                  icon: <Star className="w-5 h-5" />,
+                  duration: 8000
+               });
+             }
+          }
+          updateLastLogin(studentId);
+          hasCheckedWelcomeBack.current = true;
         }
-        updateLastLogin(studentId);
       } else {
         // Detect New Signatures
         const prevSigIds = new Set(prevSignaturesRef.current.map(s => s.id));

@@ -86,8 +86,9 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
     if (selectedStudentIds.length > 0 && selectedSubject && selectedValue) {
       setIsSubmitting(true);
       // Award to all selected students
+      const teacherName = currentTeacher?.name || 'Current Teacher';
       const promises = selectedStudentIds.map(id => 
-        addSignature(id, 'Current Teacher', selectedSubject, selectedValue, note, selectedSubValue)
+        addSignature(id, teacherName, selectedSubject, selectedValue, note, selectedSubValue)
       );
       
       await Promise.all(promises);
@@ -108,7 +109,8 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
   };
 
   const handleApprove = async (nomination: Nomination) => {
-    await approveNomination(nomination, 'Homeroom Teacher');
+    const teacherName = currentTeacher?.name || 'Homeroom Teacher';
+    await approveNomination(nomination, teacherName);
     setRefreshTrigger(prev => prev + 1);
   };
 
