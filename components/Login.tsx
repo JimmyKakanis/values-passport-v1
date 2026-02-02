@@ -97,12 +97,17 @@ export const Login: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Microsoft login error:", err);
+      
+      // Detailed error message for debugging
+      const errorMessage = `Error: ${err.message} (Code: ${err.code})`;
+      
       if (err.code === 'auth/configuration-not-found') {
         setError('Microsoft login is not yet configured in the Firebase Console.');
       } else if (err.code === 'auth/popup-closed-by-user') {
-        // Do nothing, user closed the popup
+        setError('Login cancelled. Please try again.');
       } else {
-        setError('Failed to sign in with Microsoft. Please try again.');
+        // Show full error details to help debug the AAD/Redirect issue
+        setError(`Failed to sign in with Microsoft. ${errorMessage}`);
       }
     } finally {
       setLoading(false);
