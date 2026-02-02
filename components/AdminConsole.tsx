@@ -11,7 +11,8 @@ import {
   X,
   Shield,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import { Student, Teacher, SystemSettings } from '../types';
 import { 
@@ -25,7 +26,8 @@ import {
   removeTeacher,
   updateSubjects,
   seedDatabase,
-  resetAllProgress
+  resetAllProgress,
+  resetStudentProgress
 } from '../services/dataService';
 
 export const AdminConsole: React.FC = () => {
@@ -112,6 +114,21 @@ export const AdminConsole: React.FC = () => {
       setError(`Error during reset: ${err.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetStudent = async (student: Student) => {
+    if(!window.confirm(`Are you sure you want to RESET progress for ${student.name}? This will delete all their stamps, rewards, and quiz scores.`)) return;
+    
+    setLoading(true);
+    const result = await resetStudentProgress(student.id);
+    setLoading(false);
+    
+    if (result.success) {
+        setSuccess(`Progress reset for ${student.name}`);
+        loadData();
+    } else {
+        setError(`Failed to reset student: ${result.error}`);
     }
   };
 
@@ -454,6 +471,7 @@ export const AdminConsole: React.FC = () => {
                                         ) : (
                                             <div className="flex justify-end gap-2">
                                                 <button onClick={() => setEditingStudent(student)} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Edit"><Edit2 size={18} /></button>
+                                                <button onClick={() => handleResetStudent(student)} className="text-orange-600 hover:bg-orange-50 p-1 rounded" title="Reset Progress"><RotateCcw size={18} /></button>
                                                 <button onClick={() => handleDeleteStudent(student.id)} className="text-red-600 hover:bg-red-50 p-1 rounded" title="Delete"><Trash2 size={18} /></button>
                                             </div>
                                         )}

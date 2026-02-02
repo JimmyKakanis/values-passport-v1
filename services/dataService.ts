@@ -174,6 +174,36 @@ export const updateLastLogin = async (studentId: string) => {
 };
 
 // --- SEED DATABASE ---
+export const resetStudentProgress = async (studentId: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log(`Starting progress reset for student ${studentId}...`);
+    
+    // 1. Signatures
+    const signaturesSnapshot = await getDocs(query(collection(db, "signatures"), where("studentId", "==", studentId)));
+    const sigPromises = signaturesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // 2. Claimed Rewards
+    const rewardsSnapshot = await getDocs(query(collection(db, "claimed_rewards"), where("studentId", "==", studentId)));
+    const rewardPromises = rewardsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // 3. Nominations
+    const nominationsSnapshot = await getDocs(query(collection(db, "nominations"), where("studentId", "==", studentId)));
+    const nomPromises = nominationsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+
+    // 4. Quiz Scores
+    const quizDoc = await getDoc(doc(db, "quiz_scores", studentId));
+    const quizPromises = quizDoc.exists() ? [deleteDoc(quizDoc.ref)] : [];
+    
+    await Promise.all([...sigPromises, ...rewardPromises, ...nomPromises, ...quizPromises]);
+    
+    console.log(`Progress reset successfully for student ${studentId}!`);
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Error resetting progress for student ${studentId}:`, error);
+    return { success: false, error: error.message };
+  }
+};
+
 export const resetAllProgress = async (): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log("Starting progress reset...");
