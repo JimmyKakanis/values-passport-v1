@@ -9,7 +9,7 @@ import {
   AuthCredential
 } from 'firebase/auth';
 import { auth, microsoftProvider } from '../firebaseConfig';
-import { Loader2, AlertCircle, Key, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN, TEACHER_TEMP_PASSWORD, STUDENT_TEMP_PASSWORD } from '../constants';
 import { isApprovedTeacher, getStudentByEmail } from '../services/dataService';
 import { Logo } from './Logo';
