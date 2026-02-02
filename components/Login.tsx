@@ -268,21 +268,6 @@ export const Login: React.FC = () => {
                  {loading ? <Loader2 className="animate-spin" /> : (pendingCred ? 'Link Account' : 'Sign In')}
                </button>
 
-               {/* Only show "First time logging in" if NOT linking */}
-               {!pendingCred && (
-                 <div className="bg-blue-50 p-4 rounded-lg text-xs text-blue-800 border border-blue-100 flex gap-3 mt-4">
-                    <Key size={24} className="flex-shrink-0 text-blue-600 mt-1" />
-                    <div>
-                      <strong className="block mb-1 text-sm text-blue-900">First time logging in?</strong>
-                      <p className="mb-1">Use your email and the student code below:</p>
-                      <div className="grid grid-cols-1 gap-1">
-                         <div className="flex justify-between bg-white px-2 py-1 rounded border border-blue-200">
-                           <span>Students:</span> <code className="font-bold text-blue-600">{STUDENT_TEMP_PASSWORD}</code>
-                         </div>
-                      </div>
-                    </div>
-                 </div>
-               )}
              </form>
            )}
 
