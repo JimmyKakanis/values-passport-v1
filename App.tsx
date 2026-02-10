@@ -16,7 +16,7 @@ import {
   signOut, 
   updatePassword 
 } from 'firebase/auth';
-import { getStudentByEmail, getAllTeachers, initializeData } from './services/dataService';
+import { getStudentByEmail, getAllTeachers, initializeData, addTeacher } from './services/dataService';
 import { Logo } from './components/Logo';
 import { StudentDetailView } from './components/StudentDetailView';
 import { NotificationProvider, NotificationController } from './components/NotificationSystem';
@@ -392,8 +392,17 @@ const App: React.FC = () => {
           } else if (teacher) {
              setUserRole(teacher.role || 'TEACHER');
           } else {
-             // Fallback for hardcoded teachers if DB is empty or they haven't been migrated yet
+             // Fallback: User has school email but is not in 'students' or 'teachers' collection.
+             // Default to TEACHER role and auto-register them in Firestore so they appear in Admin Console.
              setUserRole('TEACHER'); 
+             
+             // Auto-register (Fire and forget)
+             const newTeacher = {
+                 name: currentUser.displayName || currentUser.email?.split('@')[0] || 'New Teacher',
+                 email: currentUser.email,
+                 role: 'TEACHER' as const
+             };
+             addTeacher(newTeacher).catch(e => console.error("Auto-registration failed", e));
           }
           setStudentId(null);
         }
