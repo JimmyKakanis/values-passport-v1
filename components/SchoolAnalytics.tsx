@@ -6,12 +6,9 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  Legend, 
   ResponsiveContainer, 
   LineChart, 
   Line, 
-  PieChart, 
-  Pie, 
   Cell 
 } from 'recharts';
 import { getAllSignatures, getAllTeachers, getStudents } from '../services/dataService';
