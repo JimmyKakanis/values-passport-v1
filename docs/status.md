@@ -30,9 +30,12 @@
     - [x] Fixed "Pending Claims" showing generic achievements
     - [x] Fixed Custom Reward calculation logic (Value vs Total vs Subject Mastery)
     - [x] Ensured correct filtering for Teacher-created rewards vs Global tangible rewards
+- [x] **Mobile Responsiveness Refinements (Planner)**
+- [x] **Bug Fixes**
+    - [x] Fixed "Welcome Back" notification spam on login
 
 ## In Progress
-- [ ] Mobile Responsiveness Refinements (Planner)
+
 
 ## Planned / Future
 - [ ] PDF Export for Passports

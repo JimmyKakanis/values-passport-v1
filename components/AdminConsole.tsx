@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  BarChart2,
   Users, 
   GraduationCap, 
   BookOpen, 
@@ -27,11 +28,14 @@ import {
   updateSubjects,
   seedDatabase,
   resetAllProgress,
-  resetStudentProgress
+  resetStudentProgress,
+  migrateTeacherName
 } from '../services/dataService';
 
+import { SchoolAnalytics } from './SchoolAnalytics';
+
 export const AdminConsole: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'STUDENTS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION'>('STUDENTS');
+  const [activeTab, setActiveTab] = useState<'ANALYTICS' | 'STUDENTS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION'>('ANALYTICS');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -73,6 +77,7 @@ export const AdminConsole: React.FC = () => {
         const data = await getSystemSettings();
         setSettings(data);
       }
+      // Analytics fetches its own data internally
     } catch (err) {
       console.error(err);
       setError('Failed to load data.');
@@ -129,6 +134,21 @@ export const AdminConsole: React.FC = () => {
         loadData();
     } else {
         setError(`Failed to reset student: ${result.error}`);
+    }
+  };
+
+
+  const handleFixLegacyTeacherName = async () => {
+    if(!window.confirm('This will update all stamps from "Current Teacher" to "Mr Aaron Shepherd". Continue?')) return;
+    
+    setLoading(true);
+    const result = await migrateTeacherName("Current Teacher", "Mr Aaron Shepherd");
+    setLoading(false);
+
+    if (result.success) {
+        setSuccess(`Successfully migrated ${result.count} signatures to Mr Aaron Shepherd`);
+    } else {
+        setError('Migration failed');
     }
   };
 
@@ -291,7 +311,17 @@ export const AdminConsole: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+      <div className="flex space-x-1 bg-white p-1 rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('ANALYTICS')}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'ANALYTICS' 
+              ? 'bg-emerald-100 text-emerald-900' 
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <BarChart2 size={20} /> Analytics
+        </button>
         <button
           onClick={() => setActiveTab('STUDENTS')}
           className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors ${
@@ -353,6 +383,10 @@ export const AdminConsole: React.FC = () => {
           </div>
         ) : (
           <>
+            {activeTab === 'ANALYTICS' && (
+                <SchoolAnalytics />
+            )}
+
             {activeTab === 'STUDENTS' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
@@ -628,6 +662,19 @@ export const AdminConsole: React.FC = () => {
                         className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-bold transition-colors"
                     >
                         Seed Database from Constants
+                    </button>
+                </div>
+
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="font-bold text-blue-900 mb-2">Fix Legacy Teacher Names</h3>
+                    <p className="text-gray-700 mb-4 text-sm">
+                        Update all legacy stamps marked as "Current Teacher" to be attributed to <strong>Mr Aaron Shepherd</strong>.
+                    </p>
+                    <button
+                        onClick={handleFixLegacyTeacherName}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold transition-colors"
+                    >
+                        Run Migration: Current Teacher → Mr Aaron Shepherd
                     </button>
                 </div>
 

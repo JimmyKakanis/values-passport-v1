@@ -279,7 +279,33 @@ export const seedDatabase = async (): Promise<{ success: boolean; error?: string
   }
 };
 
-// --- SIGNATURES (Database) ---
+// --- MIGRATION UTILS ---
+export const migrateTeacherName = async (oldName: string, newName: string): Promise<{ success: boolean; count: number }> => {
+  try {
+    const q = query(
+      collection(db, "signatures"),
+      where("teacherName", "==", oldName)
+    );
+    const snapshot = await getDocs(q);
+    const updates = snapshot.docs.map(doc => updateDoc(doc.ref, { teacherName: newName }));
+    await Promise.all(updates);
+    
+    // Also update claimed rewards if they store teacher names
+    const rewardsQ = query(
+        collection(db, "claimed_rewards"),
+        where("teacherName", "==", oldName)
+    );
+    const rewardsSnapshot = await getDocs(rewardsQ);
+    const rewardUpdates = rewardsSnapshot.docs.map(doc => updateDoc(doc.ref, { teacherName: newName }));
+    await Promise.all(rewardUpdates);
+
+    return { success: true, count: updates.length + rewardUpdates.length };
+  } catch (error) {
+    console.error("Migration failed:", error);
+    return { success: false, count: 0 };
+  }
+};
+
 
 export const subscribeToSignatures = (studentId: string, callback: (signatures: Signature[]) => void) => {
   const q = query(
