@@ -48,6 +48,11 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Data Fetching**: Real-time subscription to `planner` collection in Firestore, filtered by `studentId`.
 - **UI Architecture**: Uses a Flexbox layout with a fixed sidebar for navigation and a main content area that expands to fit the screen height, avoiding internal scrollbars where possible.
 
+### School Analytics (Admin)
+- **Aggregated Stats**: Calculates school-wide metrics (total stamps, participation rate, value distribution) by fetching all signatures.
+- **Visualizations**: Uses `recharts` for data visualization (Bar charts for values, Line charts for trends).
+- **Performance**: Fetches all data on load. For larger datasets (>5000 signatures), this should be migrated to server-side aggregation or Firebase Extensions (e.g., "Aggregate Counters").
+
 ## Security Rules (Firestore)
 *Current Implementation assumes a trusted environment or prototype phase. For production:*
 - **Read**: Students can read their own data; Teachers can read all data.

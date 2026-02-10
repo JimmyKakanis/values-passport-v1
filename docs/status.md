@@ -33,12 +33,18 @@
 - [x] **Mobile Responsiveness Refinements (Planner)**
 - [x] **Bug Fixes**
     - [x] Fixed "Welcome Back" notification spam on login
+- [x] **School Analytics Dashboard**
+    - [x] Real-time engagement stats (Total, Today)
+    - [x] Value Distribution charts
+    - [x] 14-day Activity Trend graph
+    - [x] Teacher Leaderboard (Top Awarders)
+- [x] **Data Migration Tools**
+    - [x] Legacy Teacher Name Migration (Update "Current Teacher" -> "Mr Aaron Shepherd")
 
 ## In Progress
 
 
 ## Planned / Future
 - [ ] PDF Export for Passports
-- [ ] Advanced Analytics for Admin
 - [ ] Push Notifications (Native/PWA)
 - [ ] School Year / Term Rollover Logic
