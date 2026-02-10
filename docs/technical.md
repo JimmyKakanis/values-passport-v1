@@ -33,6 +33,10 @@ The notification system is designed to be unobtrusive yet celebratory.
     - **Debouncing**: Small timeouts are used to stagger notifications if multiple stamps arrive simultaneously (e.g., from a bulk award action).
 - **Offline Handling**: On initialization, it compares `signature.timestamp` > `student.lastLoginAt` to determine if a "Welcome Back" summary is needed.
 
+### Authentication & Teacher Provisioning
+- **Domain Locking**: Only emails ending in `@sathyasai.nsw.edu.au` are permitted.
+- **Just-in-Time Provisioning**: If a user logs in with a valid school email but does not exist in the `teachers` collection, the system automatically creates a `TEACHER` profile for them in Firestore. This ensures the Admin Console list stays up-to-date without manual data entry.
+
 ### Real-Time Passport
 - **Subscriptions**: The `StudentPassport` component uses `onSnapshot` from Firestore. This opens a WebSocket connection that pushes changes immediately.
 - **Optimistic UI**: While not strictly "optimistic" (since we wait for the server push), the latency is low enough (~100ms) that it feels instant.

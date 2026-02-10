@@ -40,6 +40,8 @@
     - [x] Teacher Leaderboard (Top Awarders)
 - [x] **Data Migration Tools**
     - [x] Legacy Teacher Name Migration (Update "Current Teacher" -> "Mr Aaron Shepherd")
+- [x] **Teacher Auto-Registration**
+    - [x] Automatically create teacher profile in Firestore upon first valid login if missing.
 
 ## In Progress
 
