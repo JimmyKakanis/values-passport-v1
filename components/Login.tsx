@@ -3,13 +3,11 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
-  signInWithRedirect,
   getRedirectResult,
   signOut,
   linkWithCredential,
   OAuthProvider,
-  AuthCredential,
-  UserCredential
+  AuthCredential
 } from 'firebase/auth';
 import { auth, microsoftProvider } from '../firebaseConfig';
 import { Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
