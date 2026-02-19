@@ -8,8 +8,8 @@ export const SCHOOL_LOGO_URL = '/school-logo.png';
 export const SCHOOL_EMAIL_DOMAIN = 'sathyasai.nsw.edu.au';
 
 // Default Temporary Passwords for initial login
-export const TEACHER_TEMP_PASSWORD = 'TeacherValues2026!';
-export const STUDENT_TEMP_PASSWORD = 'StudentValues2026!';
+export const TEACHER_TEMP_PASSWORD = import.meta.env.VITE_TEACHER_TEMP_PASSWORD || 'TeacherValues2026!';
+export const STUDENT_TEMP_PASSWORD = import.meta.env.VITE_STUDENT_TEMP_PASSWORD || 'StudentValues2026!';
 
 // Approved Teachers List
 export const TEACHERS: Teacher[] = [

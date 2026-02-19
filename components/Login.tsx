@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   linkWithCredential,
   OAuthProvider,
-  AuthCredential
+  AuthCredential,
+  UserCredential
 } from 'firebase/auth';
 import { auth, microsoftProvider } from '../firebaseConfig';
 import { Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
@@ -23,6 +26,71 @@ export const Login: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [pendingCred, setPendingCred] = useState<AuthCredential | null>(null);
   const [showEmailLogin, setShowEmailLogin] = useState(false);
+
+  // Shared Logic: Handle Successful Microsoft Login (Popup or Redirect)
+  const handleMicrosoftSuccess = async (user: any) => {
+      if (user.email && user.email.toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN)) {
+        setSuccessMsg('Microsoft account verified! Logging you in...');
+      } else {
+        // Domain mismatch - sign out immediately
+        await signOut(auth);
+        setError(`Access denied. Please use your @${SCHOOL_EMAIL_DOMAIN} account.`);
+      }
+  };
+
+  // Shared Logic: Handle Microsoft Login Errors (Popup or Redirect)
+  const handleMicrosoftError = (err: any) => {
+      console.error("Microsoft login error:", err);
+      
+      // Handle account linking (Email/Password exists, user tried Microsoft)
+      if (err.code === 'auth/account-exists-with-different-credential') {
+         // Get the pending credential from the error
+         const pendingCredential = OAuthProvider.credentialFromError(err);
+         // Get the email from the error object to pre-fill the form
+         const email = err.customData?.email;
+         
+         if (pendingCredential && email) {
+            setPendingCred(pendingCredential);
+            setEmail(email);
+            setShowEmailLogin(true); // Ensure form is visible for linking
+            setError(`An account already exists for ${email}. Please enter your Values Passport password to link your Microsoft account.`);
+            return;
+         }
+      }
+
+      // Detailed error message for debugging
+      const errorMessage = `Error: ${err.message} (Code: ${err.code})`;
+      
+      if (err.code === 'auth/configuration-not-found') {
+        setError('Microsoft login is not yet configured in the Firebase Console.');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('Login cancelled. Please try again.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Popup blocked. Retrying with redirect...');
+      } else {
+        // Show full error details to help debug the AAD/Redirect issue
+        setError(`Failed to sign in with Microsoft. ${errorMessage}`);
+      }
+  };
+
+  // Check for Redirect Result on Mount
+  useEffect(() => {
+    const checkRedirect = async () => {
+      // Avoid checking redirect if we are already in a loading state initiated by something else
+      setLoading(true); 
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          await handleMicrosoftSuccess(result.user);
+        }
+      } catch (err: any) {
+        handleMicrosoftError(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkRedirect();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,44 +175,12 @@ export const Login: React.FC = () => {
 
     try {
       const result = await signInWithPopup(auth, microsoftProvider);
-      const user = result.user;
-
-      if (user.email && user.email.toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN)) {
-        setSuccessMsg('Microsoft account verified! Logging you in...');
-      } else {
-        // Domain mismatch - sign out immediately
-        await signOut(auth);
-        setError(`Access denied. Please use your @${SCHOOL_EMAIL_DOMAIN} account.`);
-      }
+      await handleMicrosoftSuccess(result.user);
     } catch (err: any) {
-      console.error("Microsoft login error:", err);
-      
-      // Handle account linking (Email/Password exists, user tried Microsoft)
-      if (err.code === 'auth/account-exists-with-different-credential') {
-         // Get the pending credential from the error
-         const pendingCredential = OAuthProvider.credentialFromError(err);
-         // Get the email from the error object to pre-fill the form
-         const email = err.customData?.email;
-         
-         if (pendingCredential && email) {
-            setPendingCred(pendingCredential);
-            setEmail(email);
-            setShowEmailLogin(true); // Ensure form is visible for linking
-            setError(`An account already exists for ${email}. Please enter your Values Passport password to link your Microsoft account.`);
-            return;
-         }
-      }
-
-      // Detailed error message for debugging
-      const errorMessage = `Error: ${err.message} (Code: ${err.code})`;
-      
-      if (err.code === 'auth/configuration-not-found') {
-        setError('Microsoft login is not yet configured in the Firebase Console.');
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        setError('Login cancelled. Please try again.');
+      if (err.code === 'auth/popup-blocked') {
+        setError('Popup blocked by your browser. Please allow popups for this site and try again.');
       } else {
-        // Show full error details to help debug the AAD/Redirect issue
-        setError(`Failed to sign in with Microsoft. ${errorMessage}`);
+        handleMicrosoftError(err);
       }
     } finally {
       setLoading(false);

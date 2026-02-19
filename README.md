@@ -17,6 +17,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ### 📚 Student Portal
 - **My Passport:** A visual grid showing mastery levels across all subjects and values. Click any cell to see the full history of stamps and teacher comments.
+- **My Goals:** A goal-setting area where students can create and track Yearly, Subject-specific, and Personal Life goals.
 - **Values Lab:** A learning hub with definitions, sub-values, and resources.
 - **Leaderboard:** A friendly competition tracker (optional/configurable).
 

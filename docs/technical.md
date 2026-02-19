@@ -46,11 +46,14 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Client-Side Calculation**: Given the dataset size (~150 students, ~1000s of signatures), statistics and achievement progress are calculated client-side in `dataService.ts`.
 - **Efficiency**: Calculations are memoized or run only on data updates to prevent performance bottlenecks.
 
-### Student Planner
+### Student Planner & Goals
 - **View Logic**: Supported views include `Term`, `Month`, and `Week`.
+- **Goals Integration**: Students can switch between `Calendar` and `My Goals` modes.
+    - **Goal Types**: `YEARLY`, `SUBJECT`, and `LIFE` goals.
+    - **Persistence**: Goals are stored in the `goals` collection in Firestore, linked by `studentId`.
 - **Term Navigation**: The planner defaults to the current term based on `SCHOOL_TERMS` configuration.
-- **Data Fetching**: Real-time subscription to `planner` collection in Firestore, filtered by `studentId`.
-- **UI Architecture**: Uses a Flexbox layout with a fixed sidebar for navigation and a main content area that expands to fit the screen height, avoiding internal scrollbars where possible.
+- **Data Fetching**: Real-time subscription to `planner` and `goals` collections in Firestore.
+- **UI Architecture**: Uses a Flexbox layout with a fixed sidebar for navigation and a main content area that expands to fit the screen height.
 
 ### School Analytics (Admin)
 - **Aggregated Stats**: Calculates school-wide metrics (total stamps, participation rate, value distribution) by fetching all signatures.
@@ -60,9 +63,15 @@ The notification system is designed to be unobtrusive yet celebratory.
 ## Security Rules (Firestore)
 *Current Implementation assumes a trusted environment or prototype phase. For production:*
 - **Read**: Students can read their own data; Teachers can read all data.
-- **Write**: Only authenticated Teachers should be able to write to the `signatures` collection.
+- **Write**: 
+    - Teachers can write to `signatures`, `nominations`, and `claimed_rewards`.
+    - Students can write to their own `planner` items and `goals`.
 - **Validation**: Cloud Functions or Security Rules should validate that `subject` and `value` match the allowed enums.
 
 ## Deployment
-- The app is built via `npm run build` which runs `tsc` (TypeScript Compiler) and `vite build`.
-- The output `dist` folder is static and can be deployed to any static host (Vercel, Netlify, Firebase Hosting).
+- The app is configured for deployment on **Vercel** or **Firebase Hosting**.
+- **Build Command**: `npm run build` (runs `tsc && vite build`).
+- **Configuration**:
+    - `vercel.json` (if applicable) for Vercel.
+    - `firebase.json` and `.firebaserc` for Firebase Hosting and CLI operations.
+- The output `dist` folder is static and can be deployed to any static host.

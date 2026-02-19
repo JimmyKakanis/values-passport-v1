@@ -17,6 +17,7 @@
 - [x] **Student Planner v1**
     - [x] Calendar View (Term, Month, Week)
     - [x] Task Management (Add, Complete, Delete)
+    - [x] **My Goals Section** (Yearly, Subject, Life Goals)
     - [x] Integration with Firestore
     - [x] Sidebar with Month & Week Indicators
 - [x] **Super Admin Console**
