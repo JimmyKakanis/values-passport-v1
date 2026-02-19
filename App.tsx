@@ -16,7 +16,7 @@ import {
   signOut, 
   updatePassword 
 } from 'firebase/auth';
-import { getStudentByEmail, getAllTeachers, initializeData, addTeacher } from './services/dataService';
+import { getStudentByEmail, getAllTeachers, initializeData, addStudent } from './services/dataService';
 import { Logo } from './components/Logo';
 import { StudentDetailView } from './components/StudentDetailView';
 import { NotificationProvider, NotificationController } from './components/NotificationSystem';
@@ -375,36 +375,54 @@ const App: React.FC = () => {
         // Initialize Data
         await initializeData();
 
-        // 2. Check Role (Student vs Teacher vs Admin)
-        const student = getStudentByEmail(currentUser.email);
+        // 2. Check Role Priority: Check TEACHER list first
+        // If they are explicitly in the teacher list, give them teacher access.
+        const teachers = await getAllTeachers();
+        const teacher = teachers.find(t => t.email.toLowerCase() === currentUser.email?.toLowerCase());
         
-        if (student) {
-          setUserRole('STUDENT');
-          setStudentId(student.id);
-        } else {
-          // Check if teacher/admin
-          const teachers = await getAllTeachers();
-          const teacher = teachers.find(t => t.email.toLowerCase() === currentUser.email?.toLowerCase());
-          
-          // HARDCODED BOOTSTRAP FOR SUPER ADMIN
-          if (currentUser.email.toLowerCase() === 'j.kakanis@sathyasai.nsw.edu.au') {
+        // HARDCODED BOOTSTRAP FOR SUPER ADMIN
+        if (currentUser.email.toLowerCase() === 'j.kakanis@sathyasai.nsw.edu.au') {
              setUserRole('ADMIN');
-          } else if (teacher) {
+             setStudentId(null);
+        } else if (teacher) {
+             // Known Teacher
              setUserRole(teacher.role || 'TEACHER');
-          } else {
-             // Fallback: User has school email but is not in 'students' or 'teachers' collection.
-             // Default to TEACHER role and auto-register them in Firestore so they appear in Admin Console.
-             setUserRole('TEACHER'); 
-             
-             // Auto-register (Fire and forget)
-             const newTeacher = {
-                 name: currentUser.displayName || currentUser.email?.split('@')[0] || 'New Teacher',
-                 email: currentUser.email,
-                 role: 'TEACHER' as const
-             };
-             addTeacher(newTeacher).catch(e => console.error("Auto-registration failed", e));
-          }
-          setStudentId(null);
+             setStudentId(null);
+        } else {
+             // 3. Everyone else is assumed to be a STUDENT
+             const student = getStudentByEmail(currentUser.email);
+        
+             if (student) {
+                // Existing Student
+                setUserRole('STUDENT');
+                setStudentId(student.id);
+             } else {
+                // 4. New User (Not in Teacher list, Not in Student list) -> Auto-provision as STUDENT
+                console.log("New user detected. Auto-provisioning as Student:", currentUser.email);
+                
+                const newName = currentUser.displayName || currentUser.email?.split('@')[0] || 'New Student';
+                
+                // Create a new student record automatically
+                try {
+                    const newStudent = await addStudent({
+                        name: newName,
+                        email: currentUser.email,
+                        grade: 'Year 7', // Default value - can be changed in Admin Console
+                        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newName.replace(' ', '')}&backgroundColor=b6e3f4`
+                    });
+
+                    if (newStudent) {
+                        setUserRole('STUDENT');
+                        setStudentId(newStudent.id);
+                    } else {
+                        console.error("Failed to auto-provision student");
+                        setUserRole('STUDENT');
+                    }
+                } catch (e) {
+                    console.error("Auto-provision error", e);
+                    setUserRole('STUDENT');
+                }
+             }
         }
         setUser(currentUser);
       } else {
@@ -465,7 +483,7 @@ const App: React.FC = () => {
                <Route path="/student/:id" element={<StudentDetailView />} />
                <Route path="/" element={<Navigate to="/admin" />} />
              </>
-          ) : (
+          ) : userRole === 'TEACHER' ? (
             // TEACHER ROUTES
             <>
                <Route path="/teacher" element={<TeacherConsole />} />
@@ -480,6 +498,8 @@ const App: React.FC = () => {
                {/* Regular achievements route redirects to console for teachers */}
                <Route path="/achievements" element={<Navigate to="/teacher" />} />
             </>
+          ) : (
+            <Route path="*" element={<div className="p-8 text-center bg-white m-4 rounded-lg shadow">Account setup in progress... If this persists, please contact support.</div>} />
           )}
           
           {/* Shared Route - Leaderboard needs userRole to determine behavior */}
