@@ -43,6 +43,11 @@ export interface Student {
   email: string;
   grade: string;
   avatar: string;
+  avatarConfig?: {
+    seed: string;
+    backgroundColor?: string;
+    [key: string]: any; // Allow other properties for DiceBear config
+  };
   lastLoginAt?: number;
 }
 

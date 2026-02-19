@@ -19,11 +19,13 @@ import {
   addNomination, 
   getStudents,
   getStudentClaimedRewards,
-  getPlannerItems
+  getPlannerItems,
+  updateStudentAvatarConfig
 } from '../services/dataService';
 import { StudentPassport } from './StudentPassport';
+import { AvatarEditor } from './AvatarEditor';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search, Gift, Sparkles, Calendar, CheckSquare } from 'lucide-react';
+import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search, Gift, Sparkles, Calendar, CheckSquare, Edit3 } from 'lucide-react';
 import { Subject, CoreValue, Signature, ClaimedReward, PlannerItem } from '../types';
 
 interface Props {
@@ -74,6 +76,9 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   const [nomReason, setNomReason] = useState('');
   const [nomSuccess, setNomSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Avatar Editor State
+  const [isAvatarEditorOpen, setIsAvatarEditorOpen] = useState(false);
   
   const allStudents = getStudents();
 
@@ -222,11 +227,20 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
         <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-yellow-400 opacity-10 rounded-full translate-y-1/2 -translate-x-1/4 pointer-events-none"></div>
 
-        <img 
-          src={student.avatar} 
-          alt={student.name} 
-          className="w-24 h-24 rounded-full border-4 border-yellow-400 shadow-md z-10 bg-white" 
-        />
+        <div className="relative">
+          <img 
+            src={student.avatar} 
+            alt={student.name} 
+            className="w-24 h-24 rounded-full border-4 border-yellow-400 shadow-md z-10 bg-white" 
+          />
+          <button 
+            onClick={() => setIsAvatarEditorOpen(true)}
+            className="absolute bottom-0 right-0 bg-white text-gray-700 p-1.5 rounded-full shadow-md border border-gray-200 hover:bg-gray-100 z-20"
+            title="Edit Avatar"
+          >
+            <Edit3 size={14} />
+          </button>
+        </div>
         <div className="text-center md:text-left flex-1 z-10">
           <h1 className="text-3xl font-bold">{student.name}</h1>
           <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 text-emerald-100 opacity-90 text-sm md:text-base">
@@ -453,6 +467,27 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
            </div>
         </div>
       </div>
+
+      {/* Avatar Editor Modal */}
+      <AvatarEditor 
+        isOpen={isAvatarEditorOpen}
+        onClose={() => setIsAvatarEditorOpen(false)}
+        student={student}
+        achievements={achievements}
+        onSave={async (config) => {
+            const success = await updateStudentAvatarConfig(studentId, config);
+            if (success) {
+                // Force a reload or update local state if needed
+                // In this app structure, the parent component might need to refetch
+                // But dataService updates the cache, and getStudent reads from cache
+                // So a simple state toggle might be enough to trigger re-render of student image
+                // However, 'student' is derived from getStudent(studentId) at top of component.
+                // We might need to force update.
+                window.location.reload(); // Simple brute force refresh to show new avatar immediately
+            }
+            return success;
+        }}
+      />
 
       {/* Nomination Modal */}
       {isNominationModalOpen && (

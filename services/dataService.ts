@@ -43,6 +43,41 @@ export const initializeData = async () => {
 
 // --- CRUD OPERATIONS ---
 
+export const updateStudentAvatarConfig = async (studentId: string, config: any): Promise<boolean> => {
+  try {
+    // Generate URL
+    let avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${config.seed}`;
+    
+    // Add background color if present
+    if (config.backgroundColor) {
+        avatarUrl += `&backgroundColor=${config.backgroundColor.replace('#', '')}`;
+    }
+    
+    // Add other properties
+    Object.entries(config).forEach(([key, value]) => {
+        if (key !== 'seed' && key !== 'backgroundColor' && value) {
+            avatarUrl += `&${key}=${value}`;
+        }
+    });
+
+    const docRef = doc(db, "students", studentId);
+    await updateDoc(docRef, {
+        avatar: avatarUrl,
+        avatarConfig: config
+    });
+
+    // Update local cache
+    cachedStudents = cachedStudents.map(s => 
+        s.id === studentId ? { ...s, avatar: avatarUrl, avatarConfig: config } : s
+    );
+    
+    return true;
+  } catch (error) {
+    console.error("Error updating avatar config:", error);
+    return false;
+  }
+};
+
 // STUDENTS
 export const getAllStudents = async (): Promise<Student[]> => {
   try {
@@ -57,7 +92,14 @@ export const getAllStudents = async (): Promise<Student[]> => {
 export const addStudent = async (student: Omit<Student, 'id'>): Promise<Student | null> => {
   try {
     const newRef = doc(collection(db, "students"));
-    const newStudent = { ...student, id: newRef.id };
+    const newStudent = { 
+        ...student, 
+        id: newRef.id,
+        avatarConfig: {
+            seed: student.name.replace(/\s+/g, ''),
+            backgroundColor: 'b6e3f4'
+        }
+    };
     await setDoc(newRef, newStudent);
     cachedStudents.push(newStudent); // Update cache
     return newStudent;
