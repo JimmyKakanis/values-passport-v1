@@ -288,7 +288,7 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
           items={groupedAchievements['LEGEND']} 
           color="text-yellow-700" 
           icon={<Crown size={24} />}
-          description="The ultimate honor. A true Values Champion."
+          description="The ultimate honour. A true Values Champion."
         />
       </div>
     </div>

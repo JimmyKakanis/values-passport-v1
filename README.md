@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Values Passport** is a gamified positive behavior support system for Sathya Sai College. It replaces traditional paper-based "values passports" with an engaging, interactive digital web application.
+The **Values Passport** is a gamified positive behaviour support system for Sathya Sai College. It replaces traditional paper-based "values passports" with an engaging, interactive digital web application.
 
 - **For Students:** A digital "Passport" that tracks signatures (stamps) for demonstrating core values (Truth, Love, Peace, Right Conduct, Non-Violence). It features real-time updates, achievement unlocking, leaderboards, and a learning lab.
 - **For Teachers:** A powerful console to award stamps, manage nominations, view student progress, and access professional development resources regarding values education.
@@ -24,7 +24,7 @@ The **Values Passport** is a gamified positive behavior support system for Sathy
 - **Quick Awarding:** Award stamps to individual students or bulk groups in seconds.
 - **Nomination Review:** Approve or reject self/peer nominations from students.
 - **Teacher Corner:** A dedicated professional development section with:
-  - **Scenario Simulator:** Practice handling classroom situations.
+  - **Scenario Simulator:** Practise handling classroom situations.
   - **Value Deep Dives:** Resources and discussion prompts.
   - **Insights:** Track your own awarding habits.
 - **Student Details:** View any student's full profile, passport, and achievement history.

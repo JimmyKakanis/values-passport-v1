@@ -4,7 +4,7 @@ export interface ValueDeepDiveContent {
   id: CoreValue;
   title: string;
   tagline: string;
-  observableBehaviors: string[];
+  observableBehaviours: string[];
   teachingPrompts: string[];
   curriculumLinks: { subject: string; idea: string }[];
 }
@@ -14,12 +14,12 @@ export const VALUE_DEEP_DIVES: Record<CoreValue, ValueDeepDiveContent> = {
     id: CoreValue.TRUTH,
     title: 'Truth (Satya)',
     tagline: 'Love in Speech',
-    observableBehaviors: [
+    observableBehaviours: [
       'Admits to mistakes without being prompted.',
       'Gives honest feedback to peers in a constructive way.',
       'Does their own work during assessments.',
       'Keeps promises and commitments made to teachers or classmates.',
-      'Speaks up when they see something unfair (Upstander behavior).'
+      'Speaks up when they see something unfair (Upstander behaviour).'
     ],
     teachingPrompts: [
       'Is there a difference between "facts" and "truth"?',
@@ -29,20 +29,20 @@ export const VALUE_DEEP_DIVES: Record<CoreValue, ValueDeepDiveContent> = {
     ],
     curriculumLinks: [
       { subject: 'Science', idea: 'Discuss the importance of accurate data recording and reporting findings honestly, even if they contradict the hypothesis.' },
-      { subject: 'History', idea: 'Analyze historical sources: Who wrote this? Is it the whole truth? What perspectives are missing?' },
-      { subject: 'Math', idea: 'Show your working out. The "truth" of the process is as important as the correct answer.' }
+      { subject: 'History', idea: 'Analyse historical sources: Who wrote this? Is it the whole truth? What perspectives are missing?' },
+      { subject: 'Maths', idea: 'Show your working out. The "truth" of the process is as important as the correct answer.' }
     ]
   },
   [CoreValue.LOVE]: {
     id: CoreValue.LOVE,
     title: 'Love (Prema)',
     tagline: 'Love in Action',
-    observableBehaviors: [
+    observableBehaviours: [
       'Consistently includes others in group activities.',
       'Shares resources (pens, books) willingly.',
       'Uses kind words even when frustrated.',
       'Shows genuine concern when a classmate is upset.',
-      'Practices selfless service (helping without expecting a reward).'
+      'Practises selfless service (helping without expecting a reward).'
     ],
     teachingPrompts: [
       'What does "Love in Action" look like in this classroom?',
@@ -52,7 +52,7 @@ export const VALUE_DEEP_DIVES: Record<CoreValue, ValueDeepDiveContent> = {
     ],
     curriculumLinks: [
       { subject: 'English', idea: 'Explore themes of empathy and compassion in literature. Write from another character\'s perspective.' },
-      { subject: 'PDHPE', idea: 'Practice sportsmanship. Shaking hands, encouraging teammates, and respecting the referee.' },
+      { subject: 'PDHPE', idea: 'Practise sportsmanship. Shaking hands, encouraging teammates, and respecting the referee.' },
       { subject: 'Art', idea: 'Create art that expresses gratitude for someone or something in their life.' }
     ]
   },
@@ -60,15 +60,15 @@ export const VALUE_DEEP_DIVES: Record<CoreValue, ValueDeepDiveContent> = {
     id: CoreValue.PEACE,
     title: 'Peace (Shanti)',
     tagline: 'Love in Thought',
-    observableBehaviors: [
+    observableBehaviours: [
       'Remains calm during stressful situations or conflicts.',
-      'Practices "Silent Sitting" effectively.',
+      'Practises "Silent Sitting" effectively.',
       'Moves through the classroom/corridors quietly.',
       'Waits patiently for their turn to speak.',
       'Helps de-escalate conflicts between peers.'
     ],
     teachingPrompts: [
-      'What helps you find your "quiet center" when things get noisy?',
+      'What helps you find your "quiet centre" when things get noisy?',
       'How does a peaceful mind help us learn better?',
       'What is the difference between "peace" and just "quiet"?',
       'How can we make our classroom a more peaceful place today?'
@@ -83,12 +83,12 @@ export const VALUE_DEEP_DIVES: Record<CoreValue, ValueDeepDiveContent> = {
     id: CoreValue.RIGHT_CONDUCT,
     title: 'Right Conduct (Dharma)',
     tagline: 'Love in Action',
-    observableBehaviors: [
+    observableBehaviours: [
       'Follows instructions the first time they are given.',
       'Completes homework and assignments on time.',
       'Wears the correct uniform with pride.',
       'Returns borrowed items in good condition.',
-      'Takes initiative to clean up or organize without being asked.'
+      'Takes initiative to clean up or organise without being asked.'
     ],
     teachingPrompts: [
       'Why do we have rules? Who do they protect?',
@@ -106,7 +106,7 @@ export const VALUE_DEEP_DIVES: Record<CoreValue, ValueDeepDiveContent> = {
     id: CoreValue.NON_VIOLENCE,
     title: 'Non-Violence (Ahimsa)',
     tagline: 'Love in Understanding',
-    observableBehaviors: [
+    observableBehaviours: [
       'Resolves conflicts with words, not hands.',
       'Protects the environment (recycling, not littering).',
       'Stands up against bullying (is an Upstander).',
@@ -178,14 +178,14 @@ export const SCENARIOS: Scenario[] = [
         id: 'opt1',
         text: 'Tell Student A they are being bossy and need to stop.',
         isCorrect: false,
-        feedback: 'This might stop the behavior momentarily but doesn\'t teach the underlying value of collaboration.',
+        feedback: 'This might stop the behaviour momentarily but doesn\'t teach the underlying value of collaboration.',
         associatedValue: undefined
       },
       {
         id: 'opt2',
         text: 'Guide Student A to understand that "Love" means respecting others\' abilities and sharing the load.',
         isCorrect: true,
-        feedback: 'Yes. Framing it around Love (Value Others/Collaboration) helps Student A see the "why" behind the behavior.',
+        feedback: 'Yes. Framing it around Love (Value Others/Collaboration) helps Student A see the "why" behind the behaviour.',
         associatedValue: CoreValue.LOVE
       },
       {

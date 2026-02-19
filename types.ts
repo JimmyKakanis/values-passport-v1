@@ -12,7 +12,7 @@ export interface ValueDefinition {
   color: string;
   icon: string; // Lucide icon name
   description: string;
-  behaviors: string[];
+  behaviours: string[];
   subValues: string[]; // Added sub-values list
 }
 

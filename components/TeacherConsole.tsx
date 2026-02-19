@@ -169,7 +169,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
               <Users className="w-6 h-6" />
               Teacher Console
             </h2>
-            <p className="text-emerald-100 mt-1">Award stamps for positive behavior</p>
+            <p className="text-emerald-100 mt-1">Award stamps for positive behaviour</p>
           </div>
           
           <form onSubmit={handleSubmit} className="p-6 space-y-6 rounded-b-xl">

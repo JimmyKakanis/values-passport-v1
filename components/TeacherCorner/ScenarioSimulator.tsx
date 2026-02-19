@@ -37,7 +37,7 @@ export const ScenarioSimulator: React.FC = () => {
             </div>
             <h2 className="text-3xl font-bold text-indigo-900 mb-3">Classroom Simulator</h2>
             <p className="text-indigo-600 max-w-md mx-auto mb-8 text-lg">
-                Practice identifying values in real-world situations. 
+                Practise identifying values in real-world situations. 
                 There are {SCENARIOS.length} scenarios to explore.
             </p>
             <button 

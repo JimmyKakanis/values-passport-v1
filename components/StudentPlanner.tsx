@@ -445,7 +445,7 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
           <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 flex gap-3">
             <AlertCircle size={20} className="text-yellow-600 shrink-0" />
             <div className="text-xs text-yellow-800 leading-relaxed">
-              <strong>Tip:</strong> Use different colors to separate your homework from your personal tasks!
+              <strong>Tip:</strong> Use different colours to separate your homework from your personal tasks!
             </div>
           </div>
         </div>
@@ -481,7 +481,7 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
                   autoFocus
                   type="text"
                   required
-                  placeholder="e.g. Math Homework Page 42"
+                  placeholder="e.g. Maths Homework Page 42"
                   className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}

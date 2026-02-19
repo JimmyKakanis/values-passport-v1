@@ -48,7 +48,7 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
     color: 'bg-blue-100 text-blue-900 border-blue-200',
     icon: 'ShieldCheck',
     description: 'Love in speech: Speak truthfully, act with integrity.',
-    behaviors: [
+    behaviours: [
       'Making Learning a Priority',
       'Responsibility for actions/words',
       'Honest Words',
@@ -67,7 +67,7 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
     color: 'bg-pink-100 text-pink-900 border-pink-200',
     icon: 'Heart',
     description: 'Love in action: Respect learning, property, and others.',
-    behaviors: [
+    behaviours: [
       'Respect Learning',
       'Respect Property',
       'Value Others',
@@ -85,7 +85,7 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
     color: 'bg-teal-100 text-teal-900 border-teal-200',
     icon: 'Sun',
     description: 'Love in thought: Polite respect, punctuality, and calm.',
-    behaviors: [
+    behaviours: [
       'Polite Respect',
       'Right Place (Right time)',
       'Right Time (Punctuality)',
@@ -104,7 +104,7 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
     color: 'bg-emerald-100 text-emerald-900 border-emerald-200',
     icon: 'Scale',
     description: 'Love in action: Follow instructions and duty.',
-    behaviors: [
+    behaviours: [
       'Attend School regularly',
       'Follow Instructions',
       'Follow Seating Plan',
@@ -124,7 +124,7 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
     color: 'bg-orange-100 text-orange-900 border-orange-200',
     icon: 'Hand',
     description: 'Love in understanding: Respect, safety, and compassion.',
-    behaviors: [
+    behaviours: [
       'Hands to Yourself',
       'Be an Upstander',
       'Promotion of Safety',
@@ -470,7 +470,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   },
   {
     id: 'planner-first',
-    title: 'Organizer Apprentice',
+    title: 'Organiser Apprentice',
     description: 'Add your first item to the planner.',
     reward: 'Achievement Unlocked',
     icon: 'Calendar',

@@ -69,7 +69,7 @@ export const ValueDeepDive: React.FC = () => {
               What to Look For
             </h3>
             <div className="grid grid-cols-1 gap-3">
-              {content.observableBehaviors.map((behavior, idx) => (
+              {content.observableBehaviours.map((behavior, idx) => (
                 <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 text-gray-700 border border-gray-100">
                   <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
                   <span>{behavior}</span>

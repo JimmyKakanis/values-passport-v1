@@ -22,7 +22,7 @@ export const TeacherCorner: React.FC = () => {
             </h1>
             <p className="text-indigo-100 text-lg max-w-2xl">
                 Your professional hub for mastering the Values Framework. Explore resources, 
-                practice with scenarios, and track your impact.
+                practise with scenarios, and track your impact.
             </p>
         </div>
       </div>
