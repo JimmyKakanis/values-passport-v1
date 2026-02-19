@@ -157,3 +157,15 @@ export interface PlannerItem {
   isCompleted: boolean;
   createdAt: number;
 }
+
+export type GoalType = 'YEARLY' | 'SUBJECT' | 'LIFE';
+
+export interface Goal {
+  id: string;
+  studentId: string;
+  type: GoalType;
+  title: string;
+  subject?: string;
+  isCompleted: boolean;
+  createdAt: number;
+}

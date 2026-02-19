@@ -33,6 +33,8 @@
 - [x] **Mobile Responsiveness Refinements (Planner)**
 - [x] **Bug Fixes**
     - [x] Fixed "Welcome Back" notification spam on login
+    - [x] Fixed "White Screen" crash (Missing export in `dataService.ts`)
+    - [x] Fixed "My Goals" not saving (Updated Firestore Security Rules permissions)
 - [x] **School Analytics Dashboard**
     - [x] Real-time engagement stats (Total, Today)
     - [x] Value Distribution charts

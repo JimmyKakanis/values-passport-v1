@@ -1,4 +1,4 @@
-import { Signature, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty } from '../types';
+import { Signature, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType } from '../types';
 import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS } from '../constants';
 import { db } from '../firebaseConfig';
 import { 
@@ -1244,6 +1244,76 @@ export const deleteCustomReward = async (rewardId: string): Promise<boolean> => 
     return true;
   } catch (error) {
     console.error("Error deleting custom reward:", error);
+    return false;
+  }
+};
+
+
+// --- GOALS (Database) ---
+
+export const subscribeToGoals = (studentId: string, callback: (goals: Goal[]) => void) => {
+  const q = query(
+    collection(db, "goals"),
+    where("studentId", "==", studentId)
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const goals = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Goal)).sort((a, b) => b.createdAt - a.createdAt);
+    callback(goals);
+  }, (error) => {
+    console.error("Error subscribing to goals:", error);
+    callback([]);
+  });
+};
+
+export const addGoal = async (
+  studentId: string,
+  type: GoalType,
+  title: string,
+  subject?: string
+): Promise<Goal | null> => {
+  try {
+    const newGoal: any = {
+      studentId,
+      type,
+      title,
+      isCompleted: false,
+      createdAt: Date.now()
+    };
+    
+    if (subject) {
+      newGoal.subject = subject;
+    }
+
+    const docRef = await addDoc(collection(db, "goals"), newGoal);
+    return { id: docRef.id, ...newGoal } as Goal;
+  } catch (error) {
+    console.error("Error adding goal:", error);
+    return null;
+  }
+};
+
+export const updateGoal = async (goalId: string, updates: Partial<Goal>) => {
+  try {
+    const goalRef = doc(db, "goals", goalId);
+    await updateDoc(goalRef, updates);
+    return true;
+  } catch (error) {
+    console.error("Error updating goal:", error);
+    return false;
+  }
+};
+
+export const deleteGoal = async (goalId: string) => {
+  try {
+    const goalRef = doc(db, "goals", goalId);
+    await deleteDoc(goalRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting goal:", error);
     return false;
   }
 };

@@ -18,7 +18,13 @@ const firebaseConfig = {
 import { SCHOOL_EMAIL_DOMAIN } from './constants';
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+} catch (e) {
+  console.error("Firebase App Initialization Failed", e);
+}
+
 // const analytics = getAnalytics(app);
 
 // Initialize Services

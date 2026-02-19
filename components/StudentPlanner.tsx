@@ -34,6 +34,7 @@ import {
 import { PlannerItem, PlannerCategory } from '../types';
 import { subscribeToPlannerItems, addPlannerItem, updatePlannerItem, deletePlannerItem } from '../services/dataService';
 import { motion, AnimatePresence } from 'framer-motion';
+import { StudentGoals } from './StudentGoals';
 
 // School Term Dates (2026)
 const SCHOOL_TERMS = [
@@ -49,8 +50,11 @@ interface Props {
   studentId: string;
 }
 
+
 export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
+  const [mode, setMode] = useState<'CALENDAR' | 'GOALS'>('CALENDAR');
   const [view, setView] = useState<CalendarView>('TERM');
+
   const [currentDate, setCurrentDate] = useState(new Date()); 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [items, setItems] = useState<PlannerItem[]>([]);
@@ -307,7 +311,32 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
 
   return (
     <div className="max-w-7xl mx-auto p-4 space-y-6">
-      <div className="flex flex-col lg:flex-row gap-6">
+      {/* Mode Switcher */}
+      <div className="flex justify-center">
+        <div className="bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 flex gap-2">
+          <button 
+            onClick={() => setMode('CALENDAR')}
+            className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all
+              ${mode === 'CALENDAR' ? 'bg-emerald-100 text-emerald-800' : 'text-gray-400 hover:bg-gray-50'}
+            `}
+          >
+            <CalendarIcon size={18} /> Calendar
+          </button>
+          <button 
+            onClick={() => setMode('GOALS')}
+            className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all
+              ${mode === 'GOALS' ? 'bg-purple-100 text-purple-800' : 'text-gray-400 hover:bg-gray-50'}
+            `}
+          >
+            <List size={18} /> My Goals
+          </button>
+        </div>
+      </div>
+
+      {mode === 'GOALS' ? (
+        <StudentGoals studentId={studentId} />
+      ) : (
+        <div className="flex flex-col lg:flex-row gap-6">
         
         {/* Left Side: Calendar */}
         <div className="flex-1 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden flex flex-col">
@@ -450,17 +479,20 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Floating Action Button (Mobile Only) */}
+      {mode === 'CALENDAR' && (
       <button 
         onClick={() => setIsModalOpen(true)}
         className="md:hidden fixed bottom-6 right-6 z-40 bg-emerald-600 text-white p-4 rounded-full shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
       >
         <Plus size={24} />
       </button>
+      )}
 
       {/* Add Item Modal */}
-      {isModalOpen && (
+      {mode === 'CALENDAR' && isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-blue-900/60 backdrop-blur-sm">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9, y: 20 }}

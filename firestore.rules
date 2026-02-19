@@ -61,6 +61,14 @@ service cloud.firestore {
       allow delete: if isAuthenticated(); // Added for progress reset
     }
 
+    // Goals Collection
+    match /goals/{goalId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
     // Teachers Collection (New)
     match /teachers/{teacherId} {
       allow read: if isAuthenticated();
