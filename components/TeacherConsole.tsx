@@ -19,6 +19,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [isStudentDropdownOpen, setIsStudentDropdownOpen] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState('');
   
   const [selectedSubject, setSelectedSubject] = useState<Subject | ''>('');
   const [selectedValue, setSelectedValue] = useState<CoreValue | ''>('');
@@ -59,17 +60,51 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
     setSelectedSubValue('');
   }, [selectedValue]);
 
-  // Filter students based on search and exclude already selected ones
-  const filteredStudents = students.filter(s => 
-    (s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || 
-    s.grade.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
-    s.email.toLowerCase().includes(studentSearchTerm.toLowerCase())) &&
-    !selectedStudentIds.includes(s.id)
-  );
+  // Get unique grades
+  const uniqueGrades = Array.from(new Set(students.map(s => s.grade))).sort((a, b) => {
+    const aNum = parseInt(a.replace(/\D/g, '')) || 0;
+    const bNum = parseInt(b.replace(/\D/g, '')) || 0;
+    return aNum - bNum;
+  });
+
+  // Filter logic
+  const filteredStudents = students.filter(s => {
+    const term = studentSearchTerm.toLowerCase();
+    const matchesSearch = s.name.toLowerCase().includes(term) || 
+                          s.email.toLowerCase().includes(term);
+    
+    // If a grade is selected, we only show students from that grade
+    // If NO grade is selected, we include grade in the search match
+    const matchesGrade = selectedGrade ? s.grade === selectedGrade : true;
+    const matchesGlobalSearch = !selectedGrade && (matchesSearch || s.grade.toLowerCase().includes(term));
+    
+    // For the specific grade view, we just need to match the search term
+    const matchesGradeSearch = selectedGrade && matchesSearch;
+
+    return (selectedGrade ? matchesGradeSearch : matchesGlobalSearch) && !selectedStudentIds.includes(s.id);
+  });
+
+  // Students specifically for the grade grid view (includes selected ones to show state)
+  const gradeStudents = selectedGrade 
+    ? students.filter(s => s.grade === selectedGrade && (
+        !studentSearchTerm || 
+        s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || 
+        s.email.toLowerCase().includes(studentSearchTerm.toLowerCase())
+      ))
+    : [];
 
   const handleStudentSelect = (student: Student) => {
-    setSelectedStudentIds(prev => [...prev, student.id]);
-    setStudentSearchTerm(''); 
+    if (selectedStudentIds.includes(student.id)) {
+        removeStudent(student.id);
+    } else {
+        setSelectedStudentIds(prev => [...prev, student.id]);
+    }
+    
+    // Only clear search and close dropdown if we are in the global search mode
+    if (!selectedGrade) {
+        setStudentSearchTerm(''); 
+        setIsStudentDropdownOpen(false);
+    }
   };
 
   const removeStudent = (studentId: string) => {
@@ -79,6 +114,13 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
   const clearAllStudents = () => {
     setSelectedStudentIds([]);
     setStudentSearchTerm('');
+  };
+
+  const handleSelectAllGrade = () => {
+    const idsToSelect = gradeStudents.map(s => s.id);
+    // Add any that aren't already selected
+    const newIds = idsToSelect.filter(id => !selectedStudentIds.includes(id));
+    setSelectedStudentIds(prev => [...prev, ...newIds]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -180,25 +222,53 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
               </div>
             )}
 
-            <div className="relative z-20">
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-bold text-blue-900">Student Search</label>
-                {selectedStudentIds.length > 0 && (
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-                    {selectedStudentIds.length} Selected
-                  </span>
-                )}
+            <div className="relative z-20 space-y-4">
+              <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="w-full md:w-1/3">
+                  <label className="block text-sm font-bold text-blue-900 mb-1">Filter by Class/Grade</label>
+                  <select
+                    value={selectedGrade}
+                    onChange={(e) => setSelectedGrade(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="">All Students</option>
+                    {uniqueGrades.map(g => (
+                      <option key={g} value={g}>{g}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex-1 w-full flex justify-between items-center">
+                   <div>
+                    {selectedStudentIds.length > 0 && (
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+                        {selectedStudentIds.length} Selected
+                      </span>
+                    )}
+                   </div>
+                   
+                   {selectedGrade && (
+                     <button
+                       type="button"
+                       onClick={handleSelectAllGrade}
+                       className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1.5 rounded-lg font-bold transition-colors"
+                     >
+                       Select All {selectedGrade}
+                     </button>
+                   )}
+                </div>
               </div>
 
               {/* Selected Students Chips */}
               {selectedStudentIds.length > 0 && (
-                 <div className="flex flex-wrap gap-2 mb-3 bg-gray-50 p-3 rounded-lg border border-gray-200 shadow-inner">
+                 <div className="flex flex-wrap gap-2 bg-gray-50 p-3 rounded-lg border border-gray-200 shadow-inner max-h-32 overflow-y-auto">
                     {selectedStudentIds.map(id => {
                         const s = students.find(st => st.id === id);
+                        if (!s) return null;
                         return (
                             <div key={id} className="bg-white border border-emerald-200 shadow-sm text-emerald-900 pl-1 pr-2 py-1 rounded-full flex items-center gap-2 text-sm">
-                                <img src={s?.avatar} className="w-6 h-6 rounded-full bg-gray-200" alt="" />
-                                <span className="font-bold">{s?.name}</span>
+                                <img src={s.avatar} className="w-6 h-6 rounded-full bg-gray-200" alt="" />
+                                <span className="font-bold">{s.name}</span>
                                 <button 
                                   type="button" 
                                   onClick={() => removeStudent(id)} 
@@ -219,47 +289,105 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
                  </div>
               )}
 
-              <div className="relative">
-                <input
-                  type="text"
-                  value={studentSearchTerm}
-                  onChange={(e) => {
-                    setStudentSearchTerm(e.target.value);
-                    setIsStudentDropdownOpen(true);
-                  }}
-                  onFocus={() => setIsStudentDropdownOpen(true)}
-                  placeholder={selectedStudentIds.length > 0 ? "Search to add more students..." : "Type student name or email..."}
-                  className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              </div>
+              {/* GRADE VIEW: Grid of Students */}
+              {selectedGrade ? (
+                <div className="space-y-2">
+                   <div className="relative">
+                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                     <input
+                       type="text"
+                       value={studentSearchTerm}
+                       onChange={(e) => setStudentSearchTerm(e.target.value)}
+                       placeholder={`Filter ${selectedGrade} students...`}
+                       className="w-full p-2 pl-9 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+                     />
+                   </div>
+                   
+                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto p-1">
+                     {gradeStudents.map(student => {
+                       const isSelected = selectedStudentIds.includes(student.id);
+                       return (
+                         <div
+                           key={student.id}
+                           onClick={() => handleStudentSelect(student)}
+                           className={`
+                             cursor-pointer p-2 rounded-lg border transition-all flex items-center gap-2
+                             ${isSelected 
+                               ? 'bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500 shadow-sm' 
+                               : 'bg-white border-gray-200 hover:border-emerald-300 hover:shadow-sm'}
+                           `}
+                         >
+                           <div className="relative">
+                             <img src={student.avatar} alt="" className="w-8 h-8 rounded-full bg-gray-100" />
+                             {isSelected && (
+                               <div className="absolute -top-1 -right-1 bg-emerald-500 text-white rounded-full p-0.5">
+                                 <Check size={10} />
+                               </div>
+                             )}
+                           </div>
+                           <div className="min-w-0">
+                             <div className="text-sm font-bold truncate text-gray-800">{student.name}</div>
+                             <div className="text-xs text-gray-500 truncate">{student.email.split('@')[0]}</div>
+                           </div>
+                         </div>
+                       );
+                     })}
+                     {gradeStudents.length === 0 && (
+                       <div className="col-span-full text-center text-gray-400 py-4 italic text-sm">
+                         No students found matching filter
+                       </div>
+                     )}
+                   </div>
+                </div>
+              ) : (
+                /* GLOBAL SEARCH VIEW: Autocomplete Dropdown */
+                <div className="relative">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={studentSearchTerm}
+                      onChange={(e) => {
+                        setStudentSearchTerm(e.target.value);
+                        setIsStudentDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsStudentDropdownOpen(true)}
+                      placeholder={selectedStudentIds.length > 0 ? "Search to add more students..." : "Type student name or email..."}
+                      className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  </div>
 
-              {/* Autocomplete Dropdown */}
-              {isStudentDropdownOpen && studentSearchTerm && (
-                <div className="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-60 overflow-y-auto">
-                  {filteredStudents.length > 0 ? (
-                    filteredStudents.map(student => (
-                      <div 
-                        key={student.id}
-                        onClick={() => handleStudentSelect(student)}
-                        className="p-3 hover:bg-emerald-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0"
-                      >
-                        <img src={student.avatar} alt="" className="w-8 h-8 rounded-full bg-gray-200" />
-                        <div className="flex-1">
-                          <div className="font-bold text-gray-800">{student.name}</div>
-                          <div className="flex justify-between items-center text-xs text-gray-500">
-                             <span>{student.grade}</span>
-                             <span>{student.email}</span>
+                  {isStudentDropdownOpen && studentSearchTerm && (
+                    <div className="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-xl border border-gray-200 max-h-60 overflow-y-auto">
+                      {filteredStudents.length > 0 ? (
+                        filteredStudents.map(student => (
+                          <div 
+                            key={student.id}
+                            onClick={() => {
+                                handleStudentSelect(student);
+                                setStudentSearchTerm('');
+                                setIsStudentDropdownOpen(false);
+                            }}
+                            className="p-3 hover:bg-emerald-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0"
+                          >
+                            <img src={student.avatar} alt="" className="w-8 h-8 rounded-full bg-gray-200" />
+                            <div className="flex-1">
+                              <div className="font-bold text-gray-800">{student.name}</div>
+                              <div className="flex justify-between items-center text-xs text-gray-500">
+                                 <span>{student.grade}</span>
+                                 <span>{student.email}</span>
+                              </div>
+                            </div>
+                            <div className="ml-auto text-emerald-600 text-xs font-bold uppercase opacity-0 hover:opacity-100">
+                              Add +
+                            </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500 text-sm">
+                          No students found matching "{studentSearchTerm}"
                         </div>
-                        <div className="ml-auto text-emerald-600 text-xs font-bold uppercase opacity-0 hover:opacity-100">
-                          Add +
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-gray-500 text-sm">
-                      No students found matching "{studentSearchTerm}"
+                      )}
                     </div>
                   )}
                 </div>
