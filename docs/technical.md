@@ -34,6 +34,11 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Offline Handling**: On initialization, it compares `signature.timestamp` > `student.lastLoginAt` to determine if a "Welcome Back" summary is needed.
 
 ### Authentication & Teacher Provisioning
+- **Provider**: Microsoft 365 (via Firebase Authentication).
+- **Security**: 
+    - API Keys are stored in `import.meta.env` (Vite Environment Variables).
+    - Hardcoded secrets have been removed from the codebase.
+    - Fallback mechanism handles browser "Popup Blocked" scenarios gracefully.
 - **Domain Locking**: Only emails ending in `@sathyasai.nsw.edu.au` are permitted.
 - **Just-in-Time Provisioning**: If a user logs in with a valid school email but does not exist in the `teachers` collection, the system automatically creates a `TEACHER` profile for them in Firestore. This ensures the Admin Console list stays up-to-date without manual data entry.
 

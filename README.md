@@ -6,6 +6,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 - **For Students:** A digital "Passport" that tracks signatures (stamps) for demonstrating core values (Truth, Love, Peace, Right Conduct, Non-Violence). It features real-time updates, achievement unlocking, leaderboards, and a learning lab.
 - **For Teachers:** A powerful console to award stamps, manage nominations, view student progress, and access professional development resources regarding values education.
+- **Security:** Integrated with Microsoft 365 Authentication and Firebase for secure, domain-locked access.
 
 ## Features
 

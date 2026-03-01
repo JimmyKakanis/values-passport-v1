@@ -45,6 +45,11 @@
     - [x] Legacy Teacher Name Migration (Update "Current Teacher" -> "Mr Aaron Shepherd")
 - [x] **Teacher Auto-Registration**
     - [x] Automatically create teacher profile in Firestore upon first valid login if missing.
+- [x] **Secure Authentication V2**
+    - [x] Implemented Environment Variables (`.env`) for API Keys and Secrets.
+    - [x] Rotated and Secured Firebase API Keys.
+    - [x] Fixed "Popup Blocked" issues with Microsoft 365 Login flow.
+    - [x] Configured Authorized Domains and Redirect URIs in Azure & Firebase.
 
 ## In Progress
 
