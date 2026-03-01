@@ -90,7 +90,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
         !studentSearchTerm || 
         s.name.toLowerCase().includes(studentSearchTerm.toLowerCase()) || 
         s.email.toLowerCase().includes(studentSearchTerm.toLowerCase())
-      ))
+      )).sort((a, b) => a.name.localeCompare(b.name))
     : [];
 
   const handleStudentSelect = (student: Student) => {
