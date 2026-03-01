@@ -75,7 +75,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
     
     // If a grade is selected, we only show students from that grade
     // If NO grade is selected, we include grade in the search match
-    const matchesGrade = selectedGrade ? s.grade === selectedGrade : true;
+    // const matchesGrade = selectedGrade ? s.grade === selectedGrade : true; // REMOVED: unused variable
     const matchesGlobalSearch = !selectedGrade && (matchesSearch || s.grade.toLowerCase().includes(term));
     
     // For the specific grade view, we just need to match the search term
