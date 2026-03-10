@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getRecentSignatures, getStudent } from '../services/dataService';
 import { Signature, CoreValue, Subject } from '../types';
-import { CORE_VALUES } from '../constants';
 import { Clock, ChevronDown, ChevronUp, Tag } from 'lucide-react';
 
 interface GroupedActivity {
