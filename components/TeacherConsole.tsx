@@ -2,18 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent, getStudents, getAllTeachers } from '../services/dataService';
 import { Student, Subject, CoreValue, Nomination, Teacher } from '../types';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck, Gift } from 'lucide-react';
+import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck, Gift, Activity } from 'lucide-react';
 import { TeacherRewards } from './TeacherRewards';
+import { TeacherActivityFeed } from './TeacherActivityFeed';
 import { auth } from '../firebaseConfig';
 
 
 interface TeacherConsoleProps {
-  initialTab?: 'AWARD' | 'INBOX' | 'REWARDS';
+  initialTab?: 'AWARD' | 'INBOX' | 'REWARDS' | 'FEED';
 }
 
 export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AWARD' }) => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX' | 'REWARDS'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX' | 'REWARDS' | 'FEED'>(initialTab);
   
   // Award Form State
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
@@ -176,6 +177,15 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
           Award Stamps
         </button>
         <button
+          onClick={() => setActiveTab('FEED')}
+          className={`flex-1 py-3 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'FEED' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:bg-gray-50'
+          }`}
+        >
+          <Activity className="w-5 h-5" />
+          Activity
+        </button>
+        <button
           onClick={() => setActiveTab('INBOX')}
           className={`flex-1 py-3 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
             activeTab === 'INBOX' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:bg-gray-50'
@@ -199,10 +209,6 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
           Rewards
         </button>
       </div>
-
-      {activeTab === 'REWARDS' && (
-          <TeacherRewards teacher={currentTeacher} />
-      )}
 
       {activeTab === 'AWARD' && (
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 relative">
@@ -480,6 +486,10 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
         </div>
       )} 
       
+      {activeTab === 'FEED' && (
+        <TeacherActivityFeed />
+      )}
+
       {activeTab === 'INBOX' && (
         <div className="space-y-4">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -545,6 +555,10 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'REWARDS' && (
+          <TeacherRewards teacher={currentTeacher} />
       )}
     </div>
   );

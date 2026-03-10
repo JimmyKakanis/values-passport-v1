@@ -12,6 +12,8 @@ import {
   updateDoc,
   setDoc,
   onSnapshot,
+  orderBy,
+  limit,
   deleteDoc
 } from 'firebase/firestore';
 
@@ -435,6 +437,24 @@ export const addSignature = async (
   } catch (error) {
     console.error("Error adding signature:", error);
     return null;
+  }
+};
+
+export const getRecentSignatures = async (limitCount: number = 50): Promise<Signature[]> => {
+  try {
+    const q = query(
+      collection(db, "signatures"),
+      orderBy("timestamp", "desc"),
+      limit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Signature));
+  } catch (error) {
+    console.error("Error fetching recent signatures:", error);
+    return [];
   }
 };
 
