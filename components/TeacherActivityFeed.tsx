@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getRecentSignatures, getStudent } from '../services/dataService';
-import { Signature, Student, CoreValue, Subject } from '../types';
+import { Signature, CoreValue, Subject } from '../types';
 import { CORE_VALUES } from '../constants';
-import { Clock, User, Users, ChevronDown, ChevronUp, Tag } from 'lucide-react';
+import { Clock, ChevronDown, ChevronUp, Tag } from 'lucide-react';
 
 interface GroupedActivity {
   id: string; // Use the id of the first signature as the group id
@@ -160,7 +160,6 @@ export const TeacherActivityFeed: React.FC = () => {
 
       {activities.map((group) => {
         const isExpanded = expandedGroups.has(group.id);
-        const valueConfig = CORE_VALUES[group.value];
         const hasManyStudents = group.count > 1;
         
         return (
@@ -210,7 +209,7 @@ export const TeacherActivityFeed: React.FC = () => {
                         onClick={() => toggleGroup(group.id)}
                       >
                          <div className="flex -space-x-2">
-                            {group.students.slice(0, 3).map((s, i) => (
+                            {group.students.slice(0, 3).map((s) => (
                                 <img 
                                     key={s.id} 
                                     src={s.avatar} 
