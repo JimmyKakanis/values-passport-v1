@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { getRecentSignatures, getStudent } from '../services/dataService';
-import { Signature, CoreValue, Subject } from '../types';
-import { Clock, ChevronDown, ChevronUp, Tag } from 'lucide-react';
+import { Signature, CoreValue, Subject, Teacher } from '../types';
+import { Clock, ChevronDown, ChevronUp, Tag, Users, User } from 'lucide-react';
+
+interface TeacherActivityFeedProps {
+  currentTeacher?: Teacher | null;
+}
 
 interface GroupedActivity {
   id: string; // Use the id of the first signature as the group id
@@ -15,10 +19,11 @@ interface GroupedActivity {
   count: number;
 }
 
-export const TeacherActivityFeed: React.FC = () => {
+export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ currentTeacher }) => {
   const [activities, setActivities] = useState<GroupedActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [activeSection, setActiveSection] = useState<'all' | 'my'>('all');
 
   useEffect(() => {
     fetchActivities();
@@ -36,6 +41,10 @@ export const TeacherActivityFeed: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const myActivities = currentTeacher?.name
+    ? activities.filter((g) => g.teacherName === currentTeacher.name)
+    : [];
 
   const createNewGroup = (sig: Signature, student: { id: string; name: string; avatar: string }): GroupedActivity => {
     return {
@@ -108,6 +117,16 @@ export const TeacherActivityFeed: React.FC = () => {
     });
   };
 
+  const getInitials = (name: string): string => {
+    const honorifics = ['mr', 'mrs', 'ms', 'miss', 'dr', 'prof', 'sir', 'dame'];
+    const parts = name.trim().split(/\s+/).filter(
+      (p) => p.length > 0 && !honorifics.includes(p.toLowerCase().replace(/\.$/, ''))
+    );
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -136,28 +155,47 @@ export const TeacherActivityFeed: React.FC = () => {
     );
   }
 
-  if (activities.length === 0) {
-    return (
-      <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-        <Clock className="w-12 h-12 mx-auto text-gray-300 mb-2" />
-        <p className="text-gray-500">No recent activity found.</p>
-      </div>
-    );
-  }
+  const displayActivities = activeSection === 'my' ? myActivities : activities;
+  const emptyMessage = activeSection === 'my'
+    ? 'No stamps awarded by you yet.'
+    : 'No recent activity found.';
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-4">
-             <h3 className="font-bold text-gray-700 text-lg">Recent Stamps</h3>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+             <div className="flex rounded-lg border border-gray-200 p-1 bg-gray-50">
+               <button
+                 onClick={() => setActiveSection('all')}
+                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                   activeSection === 'all' ? 'bg-white shadow text-emerald-700' : 'text-gray-500 hover:text-gray-700'
+                 }`}
+               >
+                 <Users size={16} /> All Activity
+               </button>
+               <button
+                 onClick={() => setActiveSection('my')}
+                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                   activeSection === 'my' ? 'bg-white shadow text-emerald-700' : 'text-gray-500 hover:text-gray-700'
+                 }`}
+               >
+                 <User size={16} /> My Activity
+               </button>
+             </div>
              <button 
                 onClick={fetchActivities}
-                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium self-start sm:self-center"
              >
                 Refresh
              </button>
         </div>
 
-      {activities.map((group) => {
+      {displayActivities.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+          <Clock className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+          <p className="text-gray-500">{emptyMessage}</p>
+        </div>
+      ) : (
+      displayActivities.map((group) => {
         const isExpanded = expandedGroups.has(group.id);
         const hasManyStudents = group.count > 1;
         
@@ -166,8 +204,8 @@ export const TeacherActivityFeed: React.FC = () => {
             <div className="flex items-start gap-4">
               {/* Teacher Avatar/Icon */}
               <div className="flex-shrink-0">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
-                  {group.teacherName.charAt(0)}
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                  {getInitials(group.teacherName)}
                 </div>
               </div>
 
@@ -246,7 +284,8 @@ export const TeacherActivityFeed: React.FC = () => {
             </div>
           </div>
         );
-      })}
+      })
+      )}
     </div>
   );
 };

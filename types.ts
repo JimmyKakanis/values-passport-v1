@@ -36,6 +36,7 @@ export type Subject =
   | 'Excursions'
   | 'Assembly'
   | 'Sports Carnivals'
+  | 'Camp'
   | string;
 
 export interface Student {

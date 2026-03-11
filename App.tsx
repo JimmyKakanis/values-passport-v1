@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, Key, Check, BrainCircuit, Calendar, Shield } from 'lucide-react';
+import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, BrainCircuit, Calendar, Shield } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { TeacherConsole } from './components/TeacherConsole';
 import { AdminConsole } from './components/AdminConsole';
@@ -13,8 +13,7 @@ import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN } from './constants';
 import { auth } from './firebaseConfig';
 import { 
   onAuthStateChanged, 
-  signOut, 
-  updatePassword 
+  signOut 
 } from 'firebase/auth';
 import { getStudentByEmail, getAllTeachers, initializeData, addStudent } from './services/dataService';
 import { Logo } from './components/Logo';
@@ -28,9 +27,8 @@ import { TeacherCorner } from './components/TeacherCorner/TeacherCorner';
 const Layout: React.FC<{ 
   children: React.ReactNode, 
   userRole: UserRole, 
-  onLogout: () => void,
-  onChangePassword: () => void 
-}> = ({ children, userRole, onLogout, onChangePassword }) => {
+  onLogout: () => void
+}> = ({ children, userRole, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const location = useLocation();
@@ -104,14 +102,6 @@ const Layout: React.FC<{
               )}
               
               <div className="h-6 w-px bg-emerald-600 mx-2"></div>
-
-              <button 
-                onClick={onChangePassword}
-                className="px-3 py-2 text-emerald-200 hover:text-white hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-2"
-                title="Change Password"
-              >
-                <Key size={18} />
-              </button>
 
               <button 
                 onClick={onLogout}
@@ -196,12 +186,6 @@ const Layout: React.FC<{
             )}
             <div className="h-px bg-emerald-800 my-2"></div>
             <button 
-              onClick={() => { onChangePassword(); setIsMobileMenuOpen(false); }}
-              className="w-full text-left block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 text-emerald-200 hover:bg-emerald-800"
-            >
-              <Key size={20} /> Change Password
-            </button>
-            <button 
               onClick={onLogout}
               className="w-full text-left block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 text-red-200 hover:bg-red-900/50"
             >
@@ -255,109 +239,12 @@ const AccessDenied: React.FC<{ onLogout: () => void, email: string }> = ({ onLog
   </div>
 );
 
-// Change Password Modal
-const ChangePasswordModal: React.FC<{ isOpen: boolean, onClose: () => void }> = ({ isOpen, onClose }) => {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  if (!isOpen) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      if (auth.currentUser) {
-        await updatePassword(auth.currentUser, newPassword);
-        setSuccess(true);
-        setTimeout(() => {
-          onClose();
-          setSuccess(false);
-          setNewPassword('');
-          setConfirmPassword('');
-        }, 2000);
-      }
-    } catch (err) {
-      setError('Failed to update password. You may need to sign out and sign in again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
-        <div className="bg-emerald-800 p-4 text-white flex justify-between items-center">
-          <h3 className="font-bold flex items-center gap-2"><Key size={20} /> Change Password</h3>
-          <button onClick={onClose}><X size={20} /></button>
-        </div>
-        
-        {success ? (
-          <div className="p-8 text-center text-green-600">
-             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-               <Check size={32} />
-             </div>
-             <h4 className="font-bold text-lg">Password Updated!</h4>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            {error && <div className="bg-red-50 text-red-600 p-3 rounded text-sm">{error}</div>}
-            
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">New Password</label>
-              <input 
-                type="password" 
-                className="w-full p-2 border border-gray-300 rounded"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Confirm New Password</label>
-              <input 
-                type="password" 
-                className="w-full p-2 border border-gray-300 rounded"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="w-full bg-emerald-600 text-white font-bold py-2 rounded hover:bg-emerald-700 disabled:bg-gray-400"
-            >
-              {loading ? 'Updating...' : 'Update Password'}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-};
-
 const App: React.FC = () => {
   const [user, setUser] = useState<any | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthorizedDomain, setIsAuthorizedDomain] = useState(true);
-  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -463,7 +350,6 @@ const App: React.FC = () => {
         <Layout 
           userRole={userRole!} 
           onLogout={handleLogout}
-          onChangePassword={() => setIsChangePasswordOpen(true)}
         >
         <Routes>
           {userRole === 'STUDENT' && studentId ? (
@@ -507,10 +393,6 @@ const App: React.FC = () => {
           
         </Routes>
       </Layout>
-      <ChangePasswordModal 
-        isOpen={isChangePasswordOpen} 
-        onClose={() => setIsChangePasswordOpen(false)} 
-      />
       </Router>
     </NotificationProvider>
   );

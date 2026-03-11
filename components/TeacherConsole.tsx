@@ -487,7 +487,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
       )} 
       
       {activeTab === 'FEED' && (
-        <TeacherActivityFeed />
+        <TeacherActivityFeed currentTeacher={currentTeacher} />
       )}
 
       {activeTab === 'INBOX' && (

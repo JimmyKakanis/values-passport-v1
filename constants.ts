@@ -160,7 +160,8 @@ export const SUBJECTS: Subject[] = [
   'Sport',
   'Excursions',
   'Assembly',
-  'Sports Carnivals'
+  'Sports Carnivals',
+  'Camp'
 ];
 
 // Helper to generate email and avatar

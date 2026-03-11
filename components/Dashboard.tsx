@@ -41,7 +41,7 @@ const DID_YOU_KNOW_TIPS = [
   "The **Leaderboard** has filters! You can see who is leading specifically in 'Truth' or 'Non-Violence'.",
   "Teachers can tag your stamps with specific behaviours like **'Curiosity'** or **'Leadership'**. Check your Recent History to see them!",
   "The **'Head, Heart, Hand'** achievement requires you to earn stamps in Academic, Creative, and Active subjects.",
-  "You can change your password at any time by clicking the **Key icon** in the top navigation bar.",
+  "With **Microsoft 365** login, your school account keeps your Values Passport secure.",
   "Earning 5 stars in a subject means you have completed the full set of values **5 times**! That is true mastery.",
   "The **'Hat Trick'** achievement is unlocked by earning 3 stamps in a single day. Can you do it?",
   "Your **Passport** is split into Subjects (like Maths) and Locations (like Playground). Make sure to show values everywhere!",

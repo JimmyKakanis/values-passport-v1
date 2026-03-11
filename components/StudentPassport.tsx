@@ -10,7 +10,7 @@ interface Props {
   studentId: string;
 }
 
-const LOCATION_SUBJECTS: Subject[] = ['Homeroom', 'Playground', 'Sport', 'Excursions', 'Assembly', 'Sports Carnivals'];
+const LOCATION_SUBJECTS: Subject[] = ['Homeroom', 'Playground', 'Sport', 'Excursions', 'Assembly', 'Sports Carnivals', 'Camp'];
 const ACADEMIC_SUBJECTS: Subject[] = SUBJECTS.filter(s => !LOCATION_SUBJECTS.includes(s));
 
 // --- Modal for Stamp History ---
