@@ -123,8 +123,9 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
   
   const topThree = filteredLeaderboard.slice(0, 3);
   
-  // Teachers see EVERYONE, Students only see top 10
-  const runnersUp = isTeacher ? filteredLeaderboard.slice(3) : filteredLeaderboard.slice(3, 10); 
+  // Teachers see everyone. Students: top 20 for overall all-grades, top 10 for other views
+  const totalStudentLimit = filter === 'ALL' && selectedGrade === 'ALL' ? 20 : 10;
+  const runnersUp = isTeacher ? filteredLeaderboard.slice(3) : filteredLeaderboard.slice(3, totalStudentLimit); 
 
   // When searching or filtering by grade, we skip the podium view if results are sparse, 
   // but usually users expect a podium for a grade leaderboard.
@@ -347,9 +348,9 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
         </div>
         <div className="divide-y divide-gray-100">
           {listToDisplay.length > 0 ? (
-            listToDisplay.map((entry) => {
-              // Calculate rank: if searching, we need to find the actual rank in the original leaderboard
-              const actualRank = leaderboard.findIndex(e => e.student.id === entry.student.id) + 1;
+            listToDisplay.map((entry, index) => {
+              // When podium is shown, list continues from 4; when searching, list starts at 1
+              const tableRank = showPodium ? index + 4 : index + 1;
               
               return (
                 <div 
@@ -359,7 +360,7 @@ export const Leaderboard: React.FC<Props> = ({ userRole }) => {
                     isTeacher ? 'cursor-pointer hover:bg-emerald-50' : 'hover:bg-gray-50'
                   }`}
                 >
-                  <div className="w-8 font-bold text-gray-400 text-center">{actualRank}</div>
+                  <div className="w-8 font-bold text-gray-400 text-center">{tableRank}</div>
                   <img src={entry.student.avatar} alt="" className="w-10 h-10 rounded-full ml-4" />
                   <div className="ml-4 flex-1">
                       <div className="font-bold text-blue-900 flex items-center gap-2">
