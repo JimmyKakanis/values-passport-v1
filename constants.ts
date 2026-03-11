@@ -154,6 +154,7 @@ export const SUBJECTS: Subject[] = [
   'Technology',
   'PDHPE',
   'EHV',
+  'Electives',
   'Homeroom',
   'Playground',
   'Sport',
