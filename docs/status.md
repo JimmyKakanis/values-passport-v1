@@ -50,6 +50,22 @@
     - [x] Rotated and Secured Firebase API Keys.
     - [x] Fixed "Popup Blocked" issues with Microsoft 365 Login flow.
     - [x] Configured Authorized Domains and Redirect URIs in Azure & Firebase.
+- [x] **Teacher Console Activity Feed**
+    - [x] Chronological feed of recent stamps
+    - [x] Grouping of batch awards (same teacher, subject, value, time)
+    - [x] "Activity" tab in Teacher Console
+    - [x] **All Activity / My Activity** tabs (filter by stamps given by current teacher)
+    - [x] **Teacher initials** in avatars (first + last initial, e.g., JK; excludes Mr/Mrs/Ms)
+- [x] **Leaderboard Enhancements**
+    - [x] Table ranks show position within filtered view (1, 2, 3...) not overall position
+    - [x] Podium (top 3) with list continuing from rank 4
+    - [x] Top 20 for overall all-grades view; top 10 for grade/value-specific views (students)
+    - [x] Teachers see full rankings; students see limited view
+- [x] **Change Password Removal**
+    - [x] Removed Key icon and Change Password modal (Microsoft 365 login handles credentials)
+    - [x] Updated Dashboard tips
+- [x] **Passport Locations**
+    - [x] Added "Camp" to Locations and Events section
 
 ## In Progress
 

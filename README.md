@@ -17,13 +17,14 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **Welcome Back Summaries:** If a student is offline, the app summarizes what they earned while away upon their next login.
 
 ### 📚 Student Portal
-- **My Passport:** A visual grid showing mastery levels across all subjects and values. Click any cell to see the full history of stamps and teacher comments.
+- **My Passport:** A visual grid showing mastery levels across Academic Subjects and Locations & Events (including Camp, Excursions, Sports Carnivals). Click any cell to see the full history of stamps and teacher comments.
 - **My Goals:** A goal-setting area where students can create and track Yearly, Subject-specific, and Personal Life goals.
 - **Values Lab:** A learning hub with definitions, sub-values, and resources.
-- **Leaderboard:** A friendly competition tracker (optional/configurable).
+- **Leaderboard:** A friendly competition tracker with filters (grade, value). Ranks show position within the selected view. Top 20 for overall; top 10 for filtered views.
 
 ### 👨‍🏫 Teacher Console
 - **Quick Awarding:** Award stamps to individual students or bulk groups in seconds.
+- **Activity Feed:** View all recent stamps or filter to "My Activity" (stamps you awarded). Teacher avatars show initials (e.g., JK).
 - **Nomination Review:** Approve or reject self/peer nominations from students.
 - **Teacher Corner:** A dedicated professional development section with:
   - **Scenario Simulator:** Practise handling classroom situations.

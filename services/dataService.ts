@@ -458,6 +458,26 @@ export const getRecentSignatures = async (limitCount: number = 50): Promise<Sign
   }
 };
 
+export const getTeacherSignatures = async (teacherName: string): Promise<Signature[]> => {
+  try {
+    const q = query(
+      collection(db, "signatures"),
+      where("teacherName", "==", teacherName)
+    );
+    const querySnapshot = await getDocs(q);
+    const signatures = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Signature));
+    
+    // Sort in memory (Newest first)
+    return signatures.sort((a, b) => b.timestamp - a.timestamp);
+  } catch (error) {
+    console.error("Error fetching teacher signatures:", error);
+    return [];
+  }
+};
+
 // --- NOMINATIONS (Database) ---
 
 export const getPendingNominations = async (): Promise<Nomination[]> => {

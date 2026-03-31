@@ -41,11 +41,25 @@ The notification system is designed to be unobtrusive yet celebratory.
     - Fallback mechanism handles browser "Popup Blocked" scenarios gracefully.
 - **Domain Locking**: Only emails ending in `@sathyasai.nsw.edu.au` are permitted.
 - **Just-in-Time Provisioning**: If a user logs in with a valid school email but does not exist in the `teachers` collection, the system automatically creates a `TEACHER` profile for them in Firestore. This ensures the Admin Console list stays up-to-date without manual data entry.
+- **No In-App Password Change**: With Microsoft 365 login, credential management is handled by the identity provider. The Change Password UI has been removed.
 
 ### Real-Time Passport
 - **Subscriptions**: The `StudentPassport` component uses `onSnapshot` from Firestore. This opens a WebSocket connection that pushes changes immediately.
 - **Optimistic UI**: While not strictly "optimistic" (since we wait for the server push), the latency is low enough (~100ms) that it feels instant.
 - **Stamp History**: Clicking a cell opens a modal that filters the local signatures state by `subject` and `value`. This avoids an additional network request.
+
+### Leaderboard
+- **Rank Display**: Ranks shown in the table reflect position within the current filtered view (e.g., 1–24 for "Year 8 Truth"), not overall position across all students.
+- **Podium + List**: Top 3 displayed on podium; list below continues from rank 4.
+- **Visibility**: Teachers see full rankings; students see top 20 for overall all-grades, top 10 for grade/value-specific views.
+
+### Teacher Activity Feed
+- **All Activity / My Activity**: Toggle to view all stamps or only stamps awarded by the logged-in teacher. Filtering uses `teacherName` match.
+- **Teacher Initials**: Avatar circles show first + last initial (e.g., "JK" for James Kakanis). Honorifics (Mr, Mrs, Ms, Miss, Dr, Prof, Sir, Dame) are excluded.
+
+### Passport Subjects & Locations
+- **Locations and Events**: Homeroom, Playground, Sport, Excursions, Assembly, Sports Carnivals, **Camp**.
+- **Academic Subjects**: Maths, English, Science, etc. Defined in `constants.ts` (`SUBJECTS`). `StudentPassport` splits these via `LOCATION_SUBJECTS` vs `ACADEMIC_SUBJECTS`.
 
 ### Statistics & Achievements
 - **Client-Side Calculation**: Given the dataset size (~150 students, ~1000s of signatures), statistics and achievement progress are calculated client-side in `dataService.ts`.

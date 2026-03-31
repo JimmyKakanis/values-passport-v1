@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getRecentSignatures, getStudent } from '../services/dataService';
+import { getRecentSignatures, getTeacherSignatures, getStudent } from '../services/dataService';
 import { Signature, CoreValue, Subject, Teacher } from '../types';
 import { Clock, ChevronDown, ChevronUp, Tag, Users, User } from 'lucide-react';
 
@@ -21,30 +21,36 @@ interface GroupedActivity {
 
 export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ currentTeacher }) => {
   const [activities, setActivities] = useState<GroupedActivity[]>([]);
+  const [myActivities, setMyActivities] = useState<GroupedActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<'all' | 'my'>('all');
 
   useEffect(() => {
     fetchActivities();
-  }, []);
+  }, [currentTeacher]);
 
   const fetchActivities = async () => {
     setIsLoading(true);
     try {
-      const signatures = await getRecentSignatures(100); // Fetch last 100
-      const grouped = groupSignatures(signatures);
-      setActivities(grouped);
+      if (currentTeacher?.name) {
+        const [recentSigs, mySigs] = await Promise.all([
+          getRecentSignatures(100),
+          getTeacherSignatures(currentTeacher.name)
+        ]);
+        setActivities(groupSignatures(recentSigs));
+        setMyActivities(groupSignatures(mySigs));
+      } else {
+        const signatures = await getRecentSignatures(100);
+        setActivities(groupSignatures(signatures));
+        setMyActivities([]);
+      }
     } catch (error) {
       console.error("Failed to fetch activities", error);
     } finally {
       setIsLoading(false);
     }
   };
-
-  const myActivities = currentTeacher?.name
-    ? activities.filter((g) => g.teacherName === currentTeacher.name)
-    : [];
 
   const createNewGroup = (sig: Signature, student: { id: string; name: string; avatar: string }): GroupedActivity => {
     return {
