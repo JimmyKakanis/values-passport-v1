@@ -35,14 +35,7 @@ import { PlannerItem, PlannerCategory } from '../types';
 import { subscribeToPlannerItems, addPlannerItem, updatePlannerItem, deletePlannerItem } from '../services/dataService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StudentGoals } from './StudentGoals';
-
-// School Term Dates (2026)
-const SCHOOL_TERMS = [
-  { id: 1, name: 'Term 1', start: new Date(2026, 1, 2), end: new Date(2026, 3, 2) },   // Feb 2 - Apr 2
-  { id: 2, name: 'Term 2', start: new Date(2026, 3, 21), end: new Date(2026, 6, 3) },  // Apr 21 - Jul 3
-  { id: 3, name: 'Term 3', start: new Date(2026, 6, 21), end: new Date(2026, 8, 25) }, // Jul 21 - Sep 25
-  { id: 4, name: 'Term 4', start: new Date(2026, 9, 13), end: new Date(2026, 11, 11) } // Oct 13 - Dec 11
-];
+import { SCHOOL_TERMS } from '../schoolCalendar';
 
 type CalendarView = 'TERM' | 'MONTH' | 'WEEK';
 

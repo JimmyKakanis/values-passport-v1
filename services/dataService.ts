@@ -1,4 +1,4 @@
-import { Signature, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType } from '../types';
+import { Signature, SignatureSource, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType } from '../types';
 import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS } from '../constants';
 import { db } from '../firebaseConfig';
 import { 
@@ -420,7 +420,8 @@ export const addSignature = async (
   subject: Subject, 
   value: CoreValue, 
   note?: string,
-  subValue?: string
+  subValue?: string,
+  source?: SignatureSource
 ): Promise<Signature | null> => {
   try {
     const newSig = {
@@ -430,7 +431,8 @@ export const addSignature = async (
       value,
       subValue: subValue || undefined, // Changed from null to undefined
       timestamp: Date.now(),
-      note: note || ''
+      note: note || '',
+      ...(source ? { source } : {}),
     };
     const docRef = await addDoc(collection(db, "signatures"), newSig);
     return { id: docRef.id, ...newSig };
@@ -545,7 +547,8 @@ export const approveNomination = async (nomination: Nomination, teacherName: str
       nomination.subject,
       nomination.value,
       `${nomination.type === 'SELF' ? 'Self-Advocacy' : 'Nominated by ' + nomination.nominatorName}: ${nomination.reason}`,
-      nomination.subValue
+      nomination.subValue,
+      'NOMINATION'
     );
   } catch (error) {
     console.error("Error approving nomination:", error);

@@ -27,6 +27,10 @@ import { AvatarEditor } from './AvatarEditor';
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search, Gift, Sparkles, Calendar, CheckSquare, Edit3 } from 'lucide-react';
 import { Subject, CoreValue, Signature, ClaimedReward, PlannerItem } from '../types';
+import {
+  getValuesIntegrationFocus,
+  formatValuesIntegrationStudentLine,
+} from '../valuesIntegrationCalendar2026';
 
 interface Props {
   studentId: string;
@@ -218,6 +222,8 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
     );
   }
 
+  const valuesIntegrationFocus = getValuesIntegrationFocus(new Date());
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 p-4">
       
@@ -290,6 +296,23 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
            <BarChart2 size={16} /> View School Leaderboard
         </Link>
       </div>
+
+      {valuesIntegrationFocus && (
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50/90 p-4 md:p-5 shadow-sm">
+          <h2 className="text-sm font-bold text-indigo-900 flex items-center gap-2 mb-2">
+            <Calendar className="text-indigo-600 w-5 h-5 shrink-0" /> This week at school
+          </h2>
+          <p className="text-indigo-950 font-medium">
+            {formatValuesIntegrationStudentLine(valuesIntegrationFocus)}
+          </p>
+          <p className="text-sm italic text-indigo-900/90 mt-2">
+            {`"${valuesIntegrationFocus.quote}"`}
+          </p>
+          {valuesIntegrationFocus.events && (
+            <p className="text-xs text-indigo-800 mt-2">{valuesIntegrationFocus.events}</p>
+          )}
+        </div>
+      )}
 
       {/* Rewards Catalog Preview */}
       <div className="space-y-4">

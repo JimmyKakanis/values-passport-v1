@@ -89,6 +89,8 @@ export interface SystemSettings {
   subjects: string[];
 }
 
+export type SignatureSource = 'DIRECT' | 'NOMINATION';
+
 export interface Signature {
   id: string;
   studentId: string;
@@ -98,6 +100,8 @@ export interface Signature {
   subValue?: string; // Added optional sub-value tag
   timestamp: number;
   note?: string;
+  /** Set for new stamps; older rows may omit (use note heuristics for nominations). */
+  source?: SignatureSource;
 }
 
 export type NominationType = 'SELF' | 'PEER';

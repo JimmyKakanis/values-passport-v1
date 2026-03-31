@@ -1,32 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { getAllSignatures, getAllTeachers } from '../../services/dataService';
-import { Signature, CoreValue } from '../../types';
+import { Signature, CoreValue, Teacher } from '../../types';
 import { CORE_VALUES } from '../../constants';
 import { PieChart, Award } from 'lucide-react';
 import { auth } from '../../firebaseConfig';
+import { TeacherEngagementPanel } from '../TeacherEngagementPanel';
 
 export const TeacherInsights: React.FC = () => {
   const [signatures, setSignatures] = useState<Signature[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
+
   useEffect(() => {
     const loadData = async () => {
-      let currentTeacherName = "Current Teacher";
-      
-      if (auth.currentUser?.email) {
+      setLoading(true);
+      let teacherName = 'Current Teacher';
+      let resolvedTeacher: Teacher | null = null;
+      const email = auth.currentUser?.email?.toLowerCase() ?? '';
+
+      if (email) {
         const allTeachers = await getAllTeachers();
-        const teacher = allTeachers.find(t => t.email.toLowerCase() === auth.currentUser?.email?.toLowerCase());
-        if (teacher) currentTeacherName = teacher.name;
+        const teacher = allTeachers.find((t) => t.email.toLowerCase() === email);
+        if (teacher) {
+          teacherName = teacher.name;
+          resolvedTeacher = { ...teacher, role: teacher.role ?? 'TEACHER' };
+        } else {
+          resolvedTeacher = {
+            name: teacherName,
+            email: auth.currentUser?.email ?? '',
+            role: 'TEACHER',
+          };
+        }
+      } else {
+        resolvedTeacher = { name: teacherName, email: '', role: 'TEACHER' };
       }
 
       const all = await getAllSignatures();
-      // Filter for this teacher (including legacy "Current Teacher" stamps if we can't distinguish, 
-      // but ideally we want to show their specific stamps now that we are tracking them)
-      // For now, we will include both to show past history + new specific history
-      const mySigs = all.filter(s => s.teacherName === currentTeacherName || s.teacherName === "Current Teacher");
+      const mySigs = all.filter(
+        (s) => s.teacherName === teacherName || s.teacherName === 'Current Teacher'
+      );
       setSignatures(mySigs);
+      setCurrentTeacher(resolvedTeacher);
       setLoading(false);
     };
+
     loadData();
   }, []);
 
@@ -55,6 +72,14 @@ export const TeacherInsights: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {currentTeacher && (
+        <TeacherEngagementPanel
+          teacher={currentTeacher}
+          signatures={signatures}
+          dataReady={!loading}
+        />
+      )}
+
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-8 text-white shadow-lg">
         <h2 className="text-3xl font-bold mb-2">My Impact Dashboard</h2>
         <p className="opacity-80 text-lg">See how you are shaping student character.</p>

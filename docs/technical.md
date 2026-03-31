@@ -15,13 +15,13 @@
 
 ### 1. Core Types (`types.ts`)
 - **`Student`**: Basic profile info + `lastLoginAt` (timestamp).
-- **`Signature`**: Represents a "Stamp". Contains `studentId`, `teacherName`, `subject`, `value`, `subValue` (optional), `note` (optional), and `timestamp`.
+- **`Signature`**: Represents a "Stamp". Contains `studentId`, `teacherName`, `subject`, `value`, `subValue` (optional), `note` (optional), `timestamp`, and optional `source` (`DIRECT` | `NOMINATION`) for stamps created from nomination approval.
 - **`Achievement`**: Defines milestones. Types include `TOTAL`, `VALUE`, `SUBJECT_MASTERY`, `FULL_PASSPORT`, and `CUSTOM`.
 - **`Nomination`**: A request for a stamp (Self or Peer). Has a status of `PENDING`, `APPROVED`, or `REJECTED`.
 - **`PlannerItem`**: Represents a task or event in the student planner. Contains `studentId`, `title`, `dueDate` (timestamp), `category` (TASK, HOMEWORK, ASSIGNMENT), and `isCompleted`.
 
 ### 2. Constants for Core Data
-Static, foundational data such as the list of subjects, core values, achievement definitions, and **School Term Dates** are stored in `constants.ts` (or local constants within components for specific configurations like `SCHOOL_TERMS`).
+Static, foundational data such as the list of subjects, core values, and achievement definitions live in `constants.ts`. **School term calendar** (`SCHOOL_TERMS`) is shared from [`schoolCalendar.ts`](../schoolCalendar.ts) for the student planner and teacher engagement logic.
 
 ## Feature Implementations
 
@@ -57,6 +57,29 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **All Activity / My Activity**: Toggle to view all stamps or only stamps awarded by the logged-in teacher. Filtering uses `teacherName` match.
 - **Teacher Initials**: Avatar circles show first + last initial (e.g., "JK" for James Kakanis). Honorifics (Mr, Mrs, Ms, Miss, Dr, Prof, Sir, Dame) are excluded.
 
+### Teacher engagement (console)
+- **Purpose**: Private, low-pressure prompts, weekly theme copy, impact summaries, and milestone badges for the logged-in teacher. There is no teacher-vs-teacher leaderboard.
+- **Data**: Metrics are **derived client-side** from all signatures matching the teacher's `teacherName`, plus legacy rows where `teacherName === "Current Teacher"` (same merge as Teacher Corner insights). Uses `getAllSignatures()` when the Teacher Console loads or after awarding / approving a nomination.
+- **Time zones**: Week boundaries use the **browser's local calendar** (Monday-start week via date-fns). NSW staff devices are typically aligned with the school week.
+- **Term**: "First stamp this term" uses [`schoolCalendar.ts`](../schoolCalendar.ts) term ranges; stamp timestamps use an inclusive end-of-day on the term's end date.
+- **Fortnight**: Rolling **14 calendar days** ending at the end of "today" for the "10 different students" reach badge.
+- **Impact snippet**: Last **7 calendar days** (inclusive): unique students stamped; "first stamp from you" counts students whose **earliest** signature from this teacher falls in that window (counted once per student).
+- **Bulk awards**: A bulk batch is inferred when two or more signatures share the same teacher, subject, value, optional sub-value, note, and timestamps within **2 minutes** (aligned with activity feed grouping).
+- **Nomination milestone**: Prefer `source === 'NOMINATION'`; older rows use note prefixes `Self-Advocacy` or `Nominated by`.
+- **Streaks**: "Steady rhythm" = at least **three Mon–Fri school days** in the current week with at least one stamp. "Fresh lens" = on **each** day you stamped this week, at least one core value appears that was not used on any **earlier** stamped day that week (requires two or more stamped days).
+- **Comeback copy**: If the last stamp was **7+ days** ago, a **cosmetic** message says the next stamp counts double toward a personal engagement goal; student points are unchanged.
+- **Badge celebrations**: Newly earned badges trigger short confetti once per badge per browser (localStorage under `vp_teacher_badge_toasts_v1`); first load marks existing badges as already seen (`vp_teacher_engagement_init_v1:` + teacher key) so teachers are not spammed on first visit.
+- **UI**: [`TeacherEngagementPanel.tsx`](../components/TeacherEngagementPanel.tsx) is embedded in **Values Development → My Insights** ([`TeacherInsights.tsx`](../components/TeacherCorner/TeacherInsights.tsx)); logic in [`services/teacherEngagement.ts`](../services/teacherEngagement.ts). Optional empty-state prompt strings remain available as `pickAwardEmptyPrompt` / `AWARD_EMPTY_PROMPTS` if reused elsewhere.
+- **2026 school integration themes**: When the device date is in **2026** and falls in a mapped term week, prompts use the whole-school calendar in [`valuesIntegrationCalendar2026.ts`](../valuesIntegrationCalendar2026.ts) (see below). Otherwise weekly/daily copy falls back to the generic templates.
+
+### Values integration calendar (2026)
+- **Data**: [`valuesIntegrationCalendar2026.ts`](../valuesIntegrationCalendar2026.ts) lists segments per `termId` (matching [`SCHOOL_TERMS`](../schoolCalendar.ts)) and inclusive **week-within-term** bounds. Each segment has `coreValue` ([`CoreValue`](../types.ts)), a **display-only** `subValueLabel`, `quote`, and optional `events` (e.g. public holidays or school events).
+- **Week index (integration only)**: [`getTermAndIntegrationWeekInTerm(date)`](../schoolCalendar.ts) uses Monday-start weeks from [`getValuesIntegrationWeekAnchor(term)`](../schoolCalendar.ts). **Term 1** uses the Monday **one week before** the official term start week so printed labels (e.g. "Week 9" = Non-Violence in late March) line up; Terms 2–4 use the Monday of the official start week. Badges and planner-style logic still use [`getTermAndWeekInTerm`](../schoolCalendar.ts) from `term.start`.
+- **Lookup**: `getValuesIntegrationFocus(date)` returns `null` outside 2026, in holidays between terms, or if `weekInTerm` is not covered by any segment (verify segment ranges against the printed calendar after the first term).
+- **Teachers**: Indigo **School values integration** block at the top of [`TeacherEngagementPanel.tsx`](../components/TeacherEngagementPanel.tsx); `getWeeklyThemeLine` and `pickDailyNudge` in [`teacherEngagement.ts`](../services/teacherEngagement.ts) prefer this focus when non-null.
+- **Students**: [`Dashboard.tsx`](../components/Dashboard.tsx) shows a **This week at school** card when focus exists.
+- **Stamps**: Sub-value labels on the calendar are **not** auto-applied to the award form; align dropdown sub-values in `constants.ts` separately if you want exact matches.
+
 ### Passport Subjects & Locations
 - **Locations and Events**: Homeroom, Playground, Sport, Excursions, Assembly, Sports Carnivals, **Camp**.
 - **Academic Subjects**: Maths, English, Science, etc. Defined in `constants.ts` (`SUBJECTS`). `StudentPassport` splits these via `LOCATION_SUBJECTS` vs `ACADEMIC_SUBJECTS`.
@@ -70,7 +93,7 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Goals Integration**: Students can switch between `Calendar` and `My Goals` modes.
     - **Goal Types**: `YEARLY`, `SUBJECT`, and `LIFE` goals.
     - **Persistence**: Goals are stored in the `goals` collection in Firestore, linked by `studentId`.
-- **Term Navigation**: The planner defaults to the current term based on `SCHOOL_TERMS` configuration.
+- **Term Navigation**: The planner defaults to the current term based on `SCHOOL_TERMS` from [`schoolCalendar.ts`](../schoolCalendar.ts).
 - **Data Fetching**: Real-time subscription to `planner` and `goals` collections in Firestore.
 - **UI Architecture**: Uses a Flexbox layout with a fixed sidebar for navigation and a main content area that expands to fit the screen height.
 

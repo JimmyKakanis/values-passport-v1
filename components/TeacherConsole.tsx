@@ -32,8 +32,8 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
 
   // Inbox State
   const [pendingNominations, setPendingNominations] = useState<Nomination[]>([]);
-  const [refreshTrigger, setRefreshTrigger] = useState(0); 
-  
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   useEffect(() => {
     const studentData = getStudents();
     setStudents(studentData);
