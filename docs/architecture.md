@@ -48,6 +48,12 @@ The application's UI is built from a set of modular React components located in 
     - **`Toast`**: A lightweight, auto-dismissible notification component for stamps (built with `framer-motion`).
     - **`AchievementModal`**: A full-screen celebration modal with confetti for major milestones (Achievements/Rewards).
 
+### Email notifications (Microsoft Graph + Cloud Functions)
+- **Outbound email** is never sent from the browser. **Firebase Cloud Functions** (see [`functions/`](../functions/)) use the **Microsoft Graph** `sendMail` API with an Entra ID **app-only** token (`Mail.Send` application permission). Secrets and parameters are described in [`docs/technical.md`](technical.md).
+- **Achievement unlocks**: When [`NotificationController`](../components/NotificationSystem.tsx) detects a newly unlocked achievement, it enqueues a row in Firestore `achievement_email_queue`. A function on that collection sends one transactional email if the student has opted in via `email_preferences/{emailLower}` (`achievementEmailEnabled: true`). Idempotency is stored in `achievement_email_sent`.
+- **Weekly digests**: Each new row in `signatures` appends a summary row to `digest_stamp_events` (written only by the backend). A **scheduled function** (Friday 17:00 Australia/Sydney) sends student, teacher, and parent digests according to preferences and student parent fields, then clears processed stamp events. Deduping uses `digest_sent`.
+- **In-app settings**: Students and staff open **Settings** (gear in the header, `#/settings`) which includes [`EmailNotificationsSettings`](../components/EmailNotificationsSettings.tsx). Admins manage parent contact fields and consent in **Admin Console → Students**.
+
 ## Data Flow & State Management
 
 ### 1. Service Layer (`services/dataService.ts` and `services/teacherEngagement.ts`)

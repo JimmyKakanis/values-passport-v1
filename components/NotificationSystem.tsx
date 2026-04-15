@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Confetti from 'react-confetti';
 import { X, Award, Star, Gift, CheckCircle } from 'lucide-react';
-import { subscribeToSignatures, subscribeToClaimedRewards, calculateStudentAchievements, getStudentProfile, updateLastLogin, subscribeToPlannerItems } from '../services/dataService';
-import { Signature, PlannerItem } from '../types';
+import { subscribeToSignatures, subscribeToClaimedRewards, calculateStudentAchievements, getStudentProfile, updateLastLogin, subscribeToPlannerItems, getCustomRewardsForGrade } from '../services/dataService';
+import { enqueueAchievementEmailNotification } from '../services/emailNotificationService';
+import { Signature, PlannerItem, AchievementDefinition } from '../types';
 import { ACHIEVEMENTS } from '../constants';
 
 // --- Types ---
@@ -242,6 +243,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 export const NotificationController: React.FC<{ studentId: string | null }> = ({ studentId }) => {
   const { addNotification } = useNotification();
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const customRewardsRef = useRef<AchievementDefinition[]>([]);
   
   // Refs to track previous state
   const prevSignaturesRef = useRef<Signature[]>([]);
@@ -252,7 +254,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
   const isInitialLoad = useRef(true);
   const hasCheckedWelcomeBack = useRef(false);
 
-  // 1. Fetch Profile to get Last Login
+  // 1. Fetch Profile to get Last Login + custom rewards for achievement calculation
   useEffect(() => {
     if (!studentId) {
       setLoadingProfile(true);
@@ -264,6 +266,22 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
        try {
          const profile = await getStudentProfile(studentId);
          lastLoginRef.current = profile?.lastLoginAt;
+         if (profile?.grade) {
+           const customRewards = await getCustomRewardsForGrade(profile.grade);
+           customRewardsRef.current = customRewards.map((cr) => ({
+             id: cr.id,
+             title: cr.title,
+             description: cr.description,
+             reward: cr.reward,
+             icon: 'Star',
+             type: cr.criteria.type,
+             difficulty: 'MEDIUM',
+             threshold: cr.criteria.threshold,
+             target: cr.criteria.value || cr.criteria.subject,
+           }));
+         } else {
+           customRewardsRef.current = [];
+         }
        } catch (e) {
          console.error("Failed to load profile", e);
        } finally {
@@ -274,8 +292,13 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
   }, [studentId]);
 
   // Logic Handler
-  const checkAchievements = (signatures: Signature[], claimedIds: string[], plannerItems: PlannerItem[]) => {
-    const achievements = calculateStudentAchievements(signatures, claimedIds, plannerItems);
+  const checkAchievements = (sid: string, signatures: Signature[], claimedIds: string[], plannerItems: PlannerItem[]) => {
+    const achievements = calculateStudentAchievements(
+      signatures,
+      claimedIds,
+      plannerItems,
+      customRewardsRef.current
+    );
     const unlockedIds = achievements.filter(a => a.isUnlocked).map(a => a.id);
     
     if (isInitialLoad.current) {
@@ -292,7 +315,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
 
     if (!isSuspiciousUpdate) {
         newUnlocked.forEach(achId => {
-           const achDef = ACHIEVEMENTS.find(a => a.id === achId);
+           const achDef = achievements.find(a => a.id === achId && a.isUnlocked);
            if (achDef) {
              addNotification({
                type: 'ACHIEVEMENT',
@@ -300,6 +323,11 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
                message: `You've unlocked: ${achDef.title}`,
                icon: <Award className="w-5 h-5" />,
              });
+             void enqueueAchievementEmailNotification({
+               studentId: sid,
+               achievementId: achDef.id,
+               achievementTitle: achDef.title,
+             }).catch((err) => console.warn('Achievement email queue failed', err));
            }
         });
     }
@@ -367,7 +395,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
       }
 
       prevSignaturesRef.current = signatures;
-      checkAchievements(signatures, claimedIds, plannerItems);
+      checkAchievements(studentId, signatures, claimedIds, plannerItems);
       
       // If this was the first load of signatures, we might want to check if all data is in
       if (isInitialLoad.current) {
@@ -381,7 +409,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
       const claimedIds = prevClaimedRef.current;
       
       prevPlannerItemsRef.current = items;
-      checkAchievements(sigs, claimedIds, items);
+      checkAchievements(studentId, sigs, claimedIds, items);
     });
 
     // Subscribe to Claimed Rewards
@@ -393,7 +421,8 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
 
             if (!isLikelyInitialLoadRace) {
                 newClaims.forEach(claimId => {
-                   const achDef = ACHIEVEMENTS.find(a => a.id === claimId);
+                   const achDef = ACHIEVEMENTS.find(a => a.id === claimId)
+                     || customRewardsRef.current.find(a => a.id === claimId);
                    if (achDef) {
                       addNotification({
                         type: 'REWARD',
@@ -406,7 +435,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
             }
         }
         prevClaimedRef.current = claimedIds;
-        checkAchievements(prevSignaturesRef.current, claimedIds, prevPlannerItemsRef.current);
+        checkAchievements(studentId, prevSignaturesRef.current, claimedIds, prevPlannerItemsRef.current);
     });
 
     return () => {

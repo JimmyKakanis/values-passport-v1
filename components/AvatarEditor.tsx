@@ -7,6 +7,8 @@ interface AvatarEditorProps {
   onClose: () => void;
   student: Student;
   achievements: StudentAchievement[];
+  /** Total stamps earned; Randomize unlocks at >= 1 */
+  totalStamps: number;
   onSave: (config: any) => Promise<boolean>;
 }
 
@@ -69,7 +71,8 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   isOpen, 
   onClose, 
   student, 
-  achievements, 
+  achievements,
+  totalStamps,
   onSave 
 }) => {
   const [config, setConfig] = useState<any>({
@@ -91,16 +94,14 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
 
   if (!isOpen) return null;
 
-  // Unlocking Logic
+  // Unlocking: Randomize after 1+ stamp; full controls after all Beginner achievements
   const beginnerAchievements = achievements.filter(a => a.difficulty === 'BEGINNER');
-  const easyAchievements = achievements.filter(a => a.difficulty === 'EASY');
-
-  const allBeginnerUnlocked = beginnerAchievements.every(a => a.isUnlocked);
-  const allEasyUnlocked = easyAchievements.every(a => a.isUnlocked);
+  const hasFullCustomization = beginnerAchievements.every(a => a.isUnlocked);
+  const canRandomize = totalStamps >= 1;
 
   // For testing/demo purposes, you might want to uncomment these to force unlock
-  // const allBeginnerUnlocked = true;
-  // const allEasyUnlocked = true;
+  // const hasFullCustomization = true;
+  // const canRandomize = true;
 
   const handleRandomize = () => {
     const randomSeed = Math.random().toString(36).substring(7);
@@ -145,20 +146,20 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             <div className="flex gap-3 w-full">
                 <button
                     onClick={handleRandomize}
-                    disabled={!allBeginnerUnlocked}
+                    disabled={!canRandomize}
                     className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-colors ${
-                        allBeginnerUnlocked 
+                        canRandomize 
                             ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                 >
-                    {allBeginnerUnlocked ? <Wand2 size={20} /> : <Lock size={16} />}
+                    {canRandomize ? <Wand2 size={20} /> : <Lock size={16} />}
                     Randomize
                 </button>
             </div>
-            {!allBeginnerUnlocked && (
+            {!canRandomize && (
                 <p className="text-xs text-gray-500 mt-2 text-center">
-                    Complete all Beginner achievements to unlock Randomizer!
+                    Earn at least 1 stamp to unlock Randomize.
                 </p>
             )}
         </div>
@@ -173,28 +174,32 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-                {!allEasyUnlocked && (
+                {!hasFullCustomization && (
                      <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
                         <Lock className="text-amber-500 mt-1 shrink-0" size={20} />
                         <div>
                             <h4 className="font-semibold text-amber-800">Full Customization Locked</h4>
-                            <p className="text-sm text-amber-700 mt-1">
-                                Complete all <strong>Easy</strong> achievements to unlock detailed customization controls. 
-                                Currently you can only use the Randomizer (if Beginner achievements are complete).
-                            </p>
+                            <div className="text-sm text-amber-700 mt-1 space-y-2">
+                                <p>
+                                    Detailed options (colors, hair, clothes, and more) unlock when you complete <strong>all Beginner</strong> achievements.
+                                </p>
+                                <p>
+                                    <strong>Randomize</strong> is available as soon as you have earned <strong>at least 1 stamp</strong>.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 )}
 
                 <div className="space-y-6">
-                    {/* Background Color - Unlocked with Easy */}
-                    <div className={`p-4 rounded-lg border ${allEasyUnlocked ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+                    {/* Background Color - Unlocked with all Beginner achievements */}
+                    <div className={`p-4 rounded-lg border ${hasFullCustomization ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
                         <label className="block text-sm font-medium text-gray-700 mb-3">Background Color</label>
                         <div className="flex flex-wrap gap-2">
                             {BACKGROUND_COLORS.map(color => (
                                 <button
                                     key={color}
-                                    disabled={!allEasyUnlocked}
+                                    disabled={!hasFullCustomization}
                                     onClick={() => handleChange('backgroundColor', color)}
                                     className={`w-10 h-10 rounded-full border-2 transition-all ${
                                         config.backgroundColor === color ? 'border-indigo-600 scale-110' : 'border-transparent hover:scale-105'
@@ -205,8 +210,8 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                         </div>
                     </div>
 
-                    {/* Feature Controls - Unlocked with Easy */}
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${!allEasyUnlocked ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+                    {/* Feature Controls - Unlocked with all Beginner achievements */}
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${!hasFullCustomization ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                         {Object.entries(AVATAR_OPTIONS).map(([key, options]) => (
                             <div key={key} className="space-y-1">
                                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider">

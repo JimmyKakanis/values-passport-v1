@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, BrainCircuit, Calendar, Shield, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, BrainCircuit, Calendar, Shield, Settings, Archive } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { TeacherConsole } from './components/TeacherConsole';
 import { AdminConsole } from './components/AdminConsole';
@@ -15,7 +15,13 @@ import {
   onAuthStateChanged, 
   signOut 
 } from 'firebase/auth';
-import { getStudentByEmail, getAllTeachers, initializeData, addStudent } from './services/dataService';
+import {
+  getStudentByEmail,
+  getAllTeachers,
+  initializeData,
+  addStudent,
+  isArchivedStudentEmail,
+} from './services/dataService';
 import { Logo } from './components/Logo';
 import { StudentDetailView } from './components/StudentDetailView';
 import { NotificationProvider, NotificationController } from './components/NotificationSystem';
@@ -23,6 +29,7 @@ import { UserRole } from './types';
 
 import { TeacherCorner } from './components/TeacherCorner/TeacherCorner';
 import { FeedbackPage } from './components/FeedbackPage';
+import { SettingsPage } from './components/SettingsPage';
 
 // Layout Component
 const Layout: React.FC<{ 
@@ -78,9 +85,6 @@ const Layout: React.FC<{
                   <Link to="/achievements" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/achievements')}`}>
                     <Trophy size={18} /> Achievements
                   </Link>
-                  <Link to="/feedback" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/feedback')}`}>
-                    <MessageSquare size={18} /> Feedback
-                  </Link>
                 </>
               )}
               
@@ -96,9 +100,6 @@ const Layout: React.FC<{
                   <Link to="/teacher" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/teacher')}`}>
                     <PenTool size={18} /> Teacher Console
                   </Link>
-                  <Link to="/feedback" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/feedback')}`}>
-                    <MessageSquare size={18} /> Feedback
-                  </Link>
                 </>
               )}
 
@@ -110,20 +111,48 @@ const Layout: React.FC<{
               
               <div className="h-6 w-px bg-emerald-600 mx-2"></div>
 
+              <Link
+                to="/settings"
+                className={`p-2 rounded-lg transition-colors flex items-center justify-center ${
+                  location.pathname === '/settings'
+                    ? 'bg-emerald-900 text-white shadow-md'
+                    : 'text-emerald-200 hover:text-white hover:bg-emerald-700'
+                }`}
+                title="Settings"
+                aria-label="Settings"
+              >
+                <Settings size={20} />
+              </Link>
               <button 
                 onClick={onLogout}
                 className="px-3 py-2 text-emerald-200 hover:text-white hover:bg-emerald-700 rounded-lg transition-colors flex items-center gap-2"
                 title="Sign Out"
+                aria-label="Sign out"
               >
                 <LogOut size={18} />
               </button>
             </div>
 
-            {/* Mobile menu button */}
-            <div className="md:hidden flex items-center">
+            {/* Mobile: settings + menu */}
+            <div className="md:hidden flex items-center gap-1">
+              <Link
+                to="/settings"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`p-2.5 rounded-lg transition-colors ${
+                  location.pathname === '/settings'
+                    ? 'bg-emerald-900 text-white'
+                    : 'text-emerald-100 hover:text-white hover:bg-emerald-700'
+                }`}
+                title="Settings"
+                aria-label="Settings"
+              >
+                <Settings size={24} />
+              </Link>
               <button
+                type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="text-emerald-100 hover:text-white focus:outline-none"
+                className="text-emerald-100 hover:text-white focus:outline-none p-1"
+                aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
               >
                 {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
               </button>
@@ -164,13 +193,6 @@ const Layout: React.FC<{
                 >
                   <Trophy size={20} /> Achievements
                 </Link>
-                <Link 
-                  to="/feedback" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/feedback')}`}
-                >
-                  <MessageSquare size={20} /> Feedback
-                </Link>
               </>
             )}
             <Link 
@@ -188,13 +210,6 @@ const Layout: React.FC<{
                   className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/teacher')}`}
                 >
                   <PenTool size={20} /> Teacher Console
-                </Link>
-                <Link 
-                  to="/feedback" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/feedback')}`}
-                >
-                  <MessageSquare size={20} /> Feedback
                 </Link>
               </>
             )}
@@ -262,12 +277,37 @@ const AccessDenied: React.FC<{ onLogout: () => void, email: string }> = ({ onLog
   </div>
 );
 
+const ArchivedAccountMessage: React.FC<{ onLogout: () => void; email: string }> = ({
+  onLogout,
+  email,
+}) => (
+  <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div className="bg-white max-w-md w-full p-8 rounded-xl shadow-xl text-center border-t-8 border-amber-500">
+      <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <Archive className="w-10 h-10 text-amber-700" />
+      </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Account archived</h1>
+      <p className="text-gray-600 mb-6">
+        The student account for <strong>{email}</strong> has been archived and cannot access the Values
+        Passport. Contact the school if you believe this is a mistake.
+      </p>
+      <button
+        onClick={onLogout}
+        className="w-full bg-gray-900 text-white font-bold py-3 rounded-lg hover:bg-gray-800 transition-colors"
+      >
+        Back to Login
+      </button>
+    </div>
+  </div>
+);
+
 const App: React.FC = () => {
   const [user, setUser] = useState<any | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthorizedDomain, setIsAuthorizedDomain] = useState(true);
+  const [archivedStudentAccount, setArchivedStudentAccount] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -292,21 +332,28 @@ const App: React.FC = () => {
         
         // HARDCODED BOOTSTRAP FOR SUPER ADMIN
         if (currentUser.email.toLowerCase() === 'j.kakanis@sathyasai.nsw.edu.au') {
+             setArchivedStudentAccount(false);
              setUserRole('ADMIN');
              setStudentId(null);
         } else if (teacher) {
              // Known Teacher
+             setArchivedStudentAccount(false);
              setUserRole(teacher.role || 'TEACHER');
              setStudentId(null);
         } else {
              // 3. Everyone else is assumed to be a STUDENT
-             const student = getStudentByEmail(currentUser.email);
-        
-             if (student) {
-                // Existing Student
-                setUserRole('STUDENT');
-                setStudentId(student.id);
+             if (isArchivedStudentEmail(currentUser.email)) {
+                setArchivedStudentAccount(true);
+                setUserRole(null);
+                setStudentId(null);
              } else {
+                setArchivedStudentAccount(false);
+                const student = getStudentByEmail(currentUser.email);
+
+                if (student) {
+                  setUserRole('STUDENT');
+                  setStudentId(student.id);
+                } else {
                 // 4. New User (Not in Teacher list, Not in Student list) -> Auto-provision as STUDENT
                 console.log("New user detected. Auto-provisioning as Student:", currentUser.email);
                 
@@ -332,6 +379,7 @@ const App: React.FC = () => {
                     console.error("Auto-provision error", e);
                     setUserRole('STUDENT');
                 }
+                }
              }
         }
         setUser(currentUser);
@@ -340,6 +388,7 @@ const App: React.FC = () => {
         setUserRole(null);
         setStudentId(null);
         setIsAuthorizedDomain(true);
+        setArchivedStudentAccount(false);
       }
       setLoading(false);
     });
@@ -364,6 +413,10 @@ const App: React.FC = () => {
 
   if (!isAuthorizedDomain && user.email) {
     return <AccessDenied onLogout={handleLogout} email={user.email} />;
+  }
+
+  if (archivedStudentAccount && user.email) {
+    return <ArchivedAccountMessage onLogout={handleLogout} email={user.email} />;
   }
 
   return (
@@ -414,6 +467,17 @@ const App: React.FC = () => {
           {/* Shared Route - Leaderboard needs userRole to determine behavior */}
           <Route path="/leaderboard" element={<Leaderboard userRole={userRole} />} />
           <Route path="/feedback" element={<FeedbackPage userRole={userRole!} />} />
+          <Route path="/email-notifications" element={<Navigate to="/settings" replace />} />
+          <Route
+            path="/settings"
+            element={
+              <SettingsPage
+                preferenceRole={userRole === 'STUDENT' ? 'STUDENT' : 'TEACHER'}
+                studentId={userRole === 'STUDENT' ? studentId : null}
+                userRole={userRole!}
+              />
+            }
+          />
           
         </Routes>
       </Layout>

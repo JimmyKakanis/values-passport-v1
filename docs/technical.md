@@ -14,7 +14,8 @@
 ## Data Models
 
 ### 1. Core Types (`types.ts`)
-- **`Student`**: Basic profile info + `lastLoginAt` (timestamp).
+- **`Student`**: Basic profile info + `lastLoginAt` (timestamp). Optional **parent / guardian** fields: `parentEmail`, `parentName`, `parentDigestEnabled`, `parentConsentRecordedAt` (used by weekly parent digests when consent is recorded in Admin Console).
+- **`EmailNotificationPreferences`**: Shape stored at `email_preferences/{authEmailLower}` (`role`, digest toggles, `achievementEmailEnabled`, `frequency`).
 - **`Signature`**: Represents a "Stamp". Contains `studentId`, `teacherName`, `subject`, `value`, `subValue` (optional), `note` (optional), `timestamp`, and optional `source` (`DIRECT` | `NOMINATION`) for stamps created from nomination approval.
 - **`Achievement`**: Defines milestones. Types include `TOTAL`, `VALUE`, `SUBJECT_MASTERY`, `FULL_PASSPORT`, and `CUSTOM`.
 - **`Nomination`**: A request for a stamp (Self or Peer). Has a status of `PENDING`, `APPROVED`, or `REJECTED`.
@@ -32,6 +33,24 @@ The notification system is designed to be unobtrusive yet celebratory.
     - **Diffing**: It maintains `useRef` caches of the previous data state. When new data arrives from Firestore, it calculates the difference (A - B) to identify *new* items.
     - **Debouncing**: Small timeouts are used to stagger notifications if multiple stamps arrive simultaneously (e.g., from a bulk award action).
 - **Offline Handling**: On initialization, it compares `signature.timestamp` > `student.lastLoginAt` to determine if a "Welcome Back" summary is needed.
+- **Email (achievements)**: The same diff that drives achievement toasts enqueues [`achievement_email_queue`](../services/emailNotificationService.ts) with `serverTimestamp()`. Custom rewards for the student’s grade are loaded so unlock detection matches the Achievements page.
+
+### Email notifications (Firestore + Functions)
+- **Client**: [`services/emailNotificationService.ts`](../services/emailNotificationService.ts) — subscribe/save `email_preferences`, enqueue achievement emails.
+- **Server**: [`functions/src/index.ts`](../functions/src/index.ts) — `onAchievementEmailQueued`, `onSignatureRecordDigestEvent`, `sendWeeklyDigestEmails` (schedule). Mail is sent as **HTML** via **Microsoft Graph** [`sendMail`](https://learn.microsoft.com/en-us/graph/api/user-sendmail) from [`functions/src/graphMail.ts`](../functions/src/graphMail.ts).
+- **Azure / Microsoft 365 setup** (one-time, with IT):
+  1. In **Entra ID** (Azure Portal), register an **app** (single-tenant is typical for a school).
+  2. Add an **application** permission: **Microsoft Graph → Mail.Send** (not delegated). **Grant admin consent** for the tenant.
+  3. Create a **client secret** (Certificates & secrets) and store it in Firebase:  
+     `firebase functions:secrets:set MICROSOFT_GRAPH_CLIENT_SECRET`
+  4. Configure function **parameters** (Firebase/Google Cloud Console for each function, or first-deploy prompts):  
+     - `MICROSOFT_GRAPH_TENANT_ID` — Directory (tenant) ID  
+     - `MICROSOFT_GRAPH_CLIENT_ID` — Application (client) ID  
+     - `MICROSOFT_GRAPH_SENDER_UPN` — Mailbox that will send mail (user UPN or shared mailbox UPN, e.g. `noreply@sathyasai.nsw.edu.au`). The mailbox must exist in the tenant; app-only send uses this account as the sender.
+  5. Set `APP_PUBLIC_URL` to your live SPA base URL (for links in emails).
+- **Local / emulator**: See [`functions/.env.example`](../functions/.env.example) (do not commit real secrets).
+- **Deploy**: From the repo root, `firebase deploy --only functions,firestore:rules` after `npm --prefix functions run build`.
+- **Rules**: [`firestore.rules`](../firestore.rules) — users may only create their own `achievement_email_queue` rows (studentId must match `students/{id}.email`); server-only collections are denied to clients.
 
 ### Authentication & Teacher Provisioning
 - **Provider**: Microsoft 365 (via Firebase Authentication).

@@ -15,7 +15,8 @@ import {
   onSnapshot,
   orderBy,
   limit,
-  deleteDoc
+  deleteDoc,
+  deleteField
 } from 'firebase/firestore';
 
 // --- CACHE & SYNC HELPERS ---
@@ -23,10 +24,19 @@ import {
 let cachedStudents: Student[] = [...MOCK_STUDENTS];
 let cachedTeachers: Teacher[] = [...TEACHERS.map(t => ({ ...t, role: 'TEACHER' as const }))];
 
-export const getStudents = (): Student[] => cachedStudents.filter(s => !s.grade.startsWith('Graduated'));
+export const getStudents = (): Student[] =>
+  cachedStudents.filter((s) => !s.grade.startsWith('Graduated') && !s.archived);
 export const getStudent = (id: string): Student | undefined => cachedStudents.find(s => s.id === id);
 export const getStudentByEmail = (email: string): Student | undefined => {
-  return cachedStudents.find(s => s.email.toLowerCase() === email.toLowerCase());
+  const s = cachedStudents.find((e) => e.email.toLowerCase() === email.toLowerCase());
+  if (!s || s.archived) return undefined;
+  return s;
+};
+
+/** For auth: true if this email belongs to an archived student record (blocks re-provisioning). */
+export const isArchivedStudentEmail = (email: string): boolean => {
+  const s = cachedStudents.find((e) => e.email.toLowerCase() === email.toLowerCase());
+  return !!s?.archived;
 };
 
 export const isApprovedTeacher = (email: string): boolean => {
@@ -98,6 +108,7 @@ export const addStudent = async (student: Omit<Student, 'id'>): Promise<Student 
     const newStudent = { 
         ...student, 
         id: newRef.id,
+        archived: false,
         avatarConfig: {
             seed: student.name.replace(/\s+/g, ''),
             backgroundColor: 'b6e3f4'
@@ -132,6 +143,56 @@ export const deleteStudent = async (id: string): Promise<boolean> => {
         console.error("Error deleting student:", error);
         return false;
     }
+};
+
+export const archiveStudents = async (
+  ids: string[]
+): Promise<{ success: boolean; error?: string }> => {
+  if (ids.length === 0) return { success: true };
+  try {
+    const now = Date.now();
+    await Promise.all(
+      ids.map((id) =>
+        updateDoc(doc(db, 'students', id), { archived: true, archivedAt: now })
+      )
+    );
+    cachedStudents = cachedStudents.map((s) =>
+      ids.includes(s.id) ? { ...s, archived: true, archivedAt: now } : s
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Error archiving students:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+};
+
+export const unarchiveStudents = async (
+  ids: string[]
+): Promise<{ success: boolean; error?: string }> => {
+  if (ids.length === 0) return { success: true };
+  try {
+    await Promise.all(
+      ids.map((id) =>
+        updateDoc(doc(db, 'students', id), {
+          archived: false,
+          archivedAt: deleteField(),
+        })
+      )
+    );
+    cachedStudents = cachedStudents.map((s) =>
+      ids.includes(s.id) ? { ...s, archived: false, archivedAt: undefined } : s
+    );
+    return { success: true };
+  } catch (error) {
+    console.error('Error unarchiving students:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
 };
 
 // TEACHERS

@@ -497,6 +497,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
         onClose={() => setIsAvatarEditorOpen(false)}
         student={student}
         achievements={achievements}
+        totalStamps={stats.total}
         onSave={async (config) => {
             const success = await updateStudentAvatarConfig(studentId, config);
             if (success) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   BarChart2,
   Users, 
@@ -14,7 +14,11 @@ import {
   Loader2,
   AlertTriangle,
   RotateCcw,
-  MessageSquare
+  MessageSquare,
+  ArrowUp,
+  ArrowDown,
+  Archive,
+  ArchiveRestore
 } from 'lucide-react';
 import { Student, Teacher, SystemSettings, FeedbackSubmission } from '../types';
 import { 
@@ -24,6 +28,8 @@ import {
   addStudent, 
   updateStudent, 
   deleteStudent,
+  archiveStudents,
+  unarchiveStudents,
   addTeacher,
   removeTeacher,
   updateSubjects,
@@ -35,6 +41,19 @@ import {
 } from '../services/dataService';
 
 import { SchoolAnalytics } from './SchoolAnalytics';
+
+type StudentDirectorySortKey = 'firstName' | 'grade';
+
+function gradeSortValue(grade: string): number {
+  const digits = grade.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+function firstNameFromFullName(fullName: string): string {
+  const t = fullName.trim();
+  const space = t.indexOf(' ');
+  return (space === -1 ? t : t.slice(0, space)).toLowerCase();
+}
 
 export const AdminConsole: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'ANALYTICS' | 'STUDENTS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION' | 'FEEDBACK'>('ANALYTICS');
@@ -49,9 +68,14 @@ export const AdminConsole: React.FC = () => {
 
   // Student Management State
   const [searchTerm, setSearchTerm] = useState('');
+  const [studentSortKey, setStudentSortKey] = useState<StudentDirectorySortKey>('grade');
+  const [studentSortDir, setStudentSortDir] = useState<'asc' | 'desc'>('asc');
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [newStudent, setNewStudent] = useState<Partial<Student>>({ name: '', email: '', grade: '' });
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [showArchivedStudents, setShowArchivedStudents] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const selectAllStudentsRef = useRef<HTMLInputElement>(null);
 
   // Teacher Management State
   const [newTeacher, setNewTeacher] = useState<Partial<Teacher>>({ name: '', email: '' });
@@ -165,19 +189,41 @@ export const AdminConsole: React.FC = () => {
     if (!newStudent.name || !newStudent.email || !newStudent.grade) return;
     
     setLoading(true);
-    const studentToAdd = {
+    const studentToAdd: Omit<Student, 'id'> = {
         name: newStudent.name,
         email: newStudent.email,
         grade: newStudent.grade,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newStudent.name.replace(' ', '')}&backgroundColor=b6e3f4`
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newStudent.name.replace(' ', '')}&backgroundColor=b6e3f4`,
+        ...(newStudent.parentEmail?.trim()
+          ? {
+              parentEmail: newStudent.parentEmail.trim(),
+              parentName: newStudent.parentName?.trim() || undefined,
+              parentDigestEnabled: !!newStudent.parentDigestEnabled,
+              parentConsentRecordedAt: newStudent.parentConsentRecordedAt,
+            }
+          : {}),
     };
 
-    const result = await addStudent(studentToAdd as any);
+    if (studentToAdd.parentDigestEnabled && studentToAdd.parentEmail && !studentToAdd.parentConsentRecordedAt) {
+      setLoading(false);
+      setError('Parent weekly digest requires consent. Record consent or leave parent digest off.');
+      return;
+    }
+
+    const result = await addStudent(studentToAdd);
     setLoading(false);
     
     if (result) {
         setSuccess('Student added successfully');
-        setNewStudent({ name: '', email: '', grade: '' });
+        setNewStudent({
+          name: '',
+          email: '',
+          grade: '',
+          parentEmail: undefined,
+          parentName: undefined,
+          parentDigestEnabled: undefined,
+          parentConsentRecordedAt: undefined,
+        });
         setIsAddStudentOpen(false);
         loadData();
     } else {
@@ -190,10 +236,20 @@ export const AdminConsole: React.FC = () => {
     if (!editingStudent) return;
     
     setLoading(true);
+    if (editingStudent.parentDigestEnabled && editingStudent.parentEmail?.trim() && !editingStudent.parentConsentRecordedAt) {
+        setLoading(false);
+        setError('Parent weekly digest requires a consent timestamp. Click “Record parent consent” or disable parent digest.');
+        return;
+    }
+
     const result = await updateStudent(editingStudent.id, {
         name: editingStudent.name,
         email: editingStudent.email,
-        grade: editingStudent.grade
+        grade: editingStudent.grade,
+        parentEmail: editingStudent.parentEmail?.trim() || undefined,
+        parentName: editingStudent.parentName?.trim() || undefined,
+        parentDigestEnabled: !!editingStudent.parentDigestEnabled,
+        parentConsentRecordedAt: editingStudent.parentConsentRecordedAt,
     });
     setLoading(false);
 
@@ -207,7 +263,7 @@ export const AdminConsole: React.FC = () => {
   };
 
   const handleDeleteStudent = async (id: string) => {
-    if(!window.confirm('Are you sure you want to delete this student? This action cannot be undone.')) return;
+    if(!window.confirm('Permanently delete this student and their document? This cannot be undone. Use Archive if you only want to remove access and hide them from lists.')) return;
     
     setLoading(true);
     const result = await deleteStudent(id);
@@ -218,6 +274,89 @@ export const AdminConsole: React.FC = () => {
         loadData();
     } else {
         setError('Failed to delete student');
+    }
+  };
+
+  const handleArchiveSelectedStudents = async () => {
+    const ids = selectedStudentIds.filter((id) => {
+      const s = students.find((x) => x.id === id);
+      return s && !s.archived;
+    });
+    if (ids.length === 0) return;
+    if (
+      !window.confirm(
+        `Archive ${ids.length} student${ids.length === 1 ? '' : 's'}? They will be hidden from teacher lists and the leaderboard and cannot sign in until restored.`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError('');
+    const result = await archiveStudents(ids);
+    setLoading(false);
+    if (result.success) {
+      setSuccess(`Archived ${ids.length} student${ids.length === 1 ? '' : 's'}.`);
+      setSelectedStudentIds((prev) => prev.filter((id) => !ids.includes(id)));
+      loadData();
+    } else {
+      setError(result.error || 'Failed to archive students.');
+    }
+  };
+
+  const handleRestoreSelectedStudents = async () => {
+    const ids = selectedStudentIds.filter((id) => {
+      const s = students.find((x) => x.id === id);
+      return s?.archived;
+    });
+    if (ids.length === 0) return;
+    setLoading(true);
+    setError('');
+    const result = await unarchiveStudents(ids);
+    setLoading(false);
+    if (result.success) {
+      setSuccess(`Restored ${ids.length} student${ids.length === 1 ? '' : 's'}.`);
+      setSelectedStudentIds((prev) => prev.filter((id) => !ids.includes(id)));
+      loadData();
+    } else {
+      setError(result.error || 'Failed to restore students.');
+    }
+  };
+
+  const handleArchiveOneStudent = async (student: Student) => {
+    if (student.archived) return;
+    if (
+      !window.confirm(
+        `Archive ${student.name}? They will be hidden from teacher lists and cannot sign in until restored.`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError('');
+    const result = await archiveStudents([student.id]);
+    setLoading(false);
+    if (result.success) {
+      setSuccess(`Archived ${student.name}.`);
+      setSelectedStudentIds((prev) => prev.filter((id) => id !== student.id));
+      setEditingStudent((e) => (e?.id === student.id ? null : e));
+      loadData();
+    } else {
+      setError(result.error || 'Failed to archive student.');
+    }
+  };
+
+  const handleRestoreOneStudent = async (student: Student) => {
+    if (!student.archived) return;
+    setLoading(true);
+    setError('');
+    const result = await unarchiveStudents([student.id]);
+    setLoading(false);
+    if (result.success) {
+      setSuccess(`Restored ${student.name}.`);
+      setSelectedStudentIds((prev) => prev.filter((id) => id !== student.id));
+      loadData();
+    } else {
+      setError(result.error || 'Failed to restore student.');
     }
   };
 
@@ -300,10 +439,64 @@ export const AdminConsole: React.FC = () => {
     }
   };
 
-  const filteredStudents = students.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const toggleStudentDirectorySort = (key: StudentDirectorySortKey) => {
+    if (studentSortKey === key) {
+      setStudentSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setStudentSortKey(key);
+      setStudentSortDir('asc');
+    }
+  };
+
+  const sortedFilteredStudents = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    const visible = students.filter((s) => showArchivedStudents || !s.archived);
+    const filtered = visible.filter(
+      (s) =>
+        s.name.toLowerCase().includes(term) || s.email.toLowerCase().includes(term)
+    );
+    const mult = studentSortDir === 'asc' ? 1 : -1;
+    const list = [...filtered];
+    list.sort((a, b) => {
+      if (studentSortKey === 'grade') {
+        const g = gradeSortValue(a.grade) - gradeSortValue(b.grade);
+        if (g !== 0) return mult * g;
+        return mult * firstNameFromFullName(a.name).localeCompare(firstNameFromFullName(b.name));
+      }
+      const c = firstNameFromFullName(a.name).localeCompare(firstNameFromFullName(b.name));
+      if (c !== 0) return mult * c;
+      return mult * (gradeSortValue(a.grade) - gradeSortValue(b.grade));
+    });
+    return list;
+  }, [students, searchTerm, showArchivedStudents, studentSortKey, studentSortDir]);
+
+  const toggleStudentRowSelected = (id: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const visibleStudentIds = sortedFilteredStudents.map((s) => s.id);
+  const allVisibleSelected =
+    visibleStudentIds.length > 0 &&
+    visibleStudentIds.every((id) => selectedStudentIds.includes(id));
+  const someVisibleSelected = visibleStudentIds.some((id) => selectedStudentIds.includes(id));
+
+  const selectedToArchive = selectedStudentIds.filter((id) => {
+    const s = students.find((x) => x.id === id);
+    return s && !s.archived;
+  });
+  const selectedToRestore = selectedStudentIds.filter((id) => {
+    const s = students.find((x) => x.id === id);
+    return s?.archived;
+  });
+
+  useEffect(() => {
+    const el = selectAllStudentsRef.current;
+    if (el) {
+      el.indeterminate = someVisibleSelected && !allVisibleSelected;
+    }
+  }, [someVisibleSelected, allVisibleSelected]);
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
@@ -445,41 +638,185 @@ export const AdminConsole: React.FC = () => {
                                 onChange={e => setNewStudent({...newStudent, grade: e.target.value})}
                                 required
                             />
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 md:col-span-4">
                                 <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded font-bold flex-1">Save</button>
                                 <button type="button" onClick={() => setIsAddStudentOpen(false)} className="bg-gray-300 text-gray-700 px-4 py-2 rounded font-bold">Cancel</button>
                             </div>
+                            <p className="md:col-span-4 text-xs text-gray-500 font-semibold uppercase tracking-wide">Parent / guardian (optional)</p>
+                            <input
+                                type="email"
+                                placeholder="Parent email"
+                                className="p-2 border rounded"
+                                value={newStudent.parentEmail || ''}
+                                onChange={(e) => setNewStudent({ ...newStudent, parentEmail: e.target.value })}
+                            />
+                            <input
+                                type="text"
+                                placeholder="Parent name (salutation)"
+                                className="p-2 border rounded"
+                                value={newStudent.parentName || ''}
+                                onChange={(e) => setNewStudent({ ...newStudent, parentName: e.target.value })}
+                            />
+                            <label className="flex items-center gap-2 text-sm text-gray-700 md:col-span-2">
+                                <input
+                                    type="checkbox"
+                                    checked={!!newStudent.parentDigestEnabled}
+                                    onChange={(e) => setNewStudent({ ...newStudent, parentDigestEnabled: e.target.checked })}
+                                />
+                                Weekly digest to parent
+                            </label>
+                            <button
+                                type="button"
+                                className="text-sm text-emerald-700 font-bold underline md:col-span-2"
+                                onClick={() => setNewStudent({ ...newStudent, parentConsentRecordedAt: Date.now() })}
+                            >
+                                Record parent consent (timestamp)
+                            </button>
                         </form>
                     </div>
                 )}
 
-                {/* Search */}
-                <div className="relative mb-4">
+                {/* Search & directory options */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
+                  <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                    <input 
-                        type="text" 
-                        placeholder="Search students by name or email..." 
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
+                    <input
+                      type="text"
+                      placeholder="Search students by name or email..."
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 whitespace-nowrap shrink-0 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showArchivedStudents}
+                      onChange={(e) => {
+                        setShowArchivedStudents(e.target.checked);
+                        setSelectedStudentIds([]);
+                      }}
+                    />
+                    Show archived
+                  </label>
                 </div>
+
+                {selectedStudentIds.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <span className="text-sm font-bold text-emerald-900">
+                      {selectedStudentIds.length} selected
+                    </span>
+                    <button
+                      type="button"
+                      disabled={selectedToArchive.length === 0}
+                      onClick={handleArchiveSelectedStudents}
+                      className="text-sm font-bold px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1"
+                    >
+                      <Archive size={16} /> Archive ({selectedToArchive.length})
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedToRestore.length === 0}
+                      onClick={handleRestoreSelectedStudents}
+                      className="text-sm font-bold px-3 py-1.5 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-40 disabled:pointer-events-none inline-flex items-center gap-1"
+                    >
+                      <ArchiveRestore size={16} /> Restore ({selectedToRestore.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStudentIds([])}
+                      className="text-sm font-medium text-gray-600 hover:text-gray-900 underline"
+                    >
+                      Clear selection
+                    </button>
+                  </div>
+                )}
 
                 {/* Table */}
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider border-b">
-                                <th className="p-3">Name</th>
+                                <th className="p-3 w-10 align-middle">
+                                  <input
+                                    ref={selectAllStudentsRef}
+                                    type="checkbox"
+                                    className="rounded border-gray-300"
+                                    checked={allVisibleSelected}
+                                    onChange={() => {
+                                      if (allVisibleSelected) {
+                                        setSelectedStudentIds((prev) =>
+                                          prev.filter((id) => !visibleStudentIds.includes(id))
+                                        );
+                                      } else {
+                                        setSelectedStudentIds((prev) => {
+                                          const set = new Set([...prev, ...visibleStudentIds]);
+                                          return Array.from(set);
+                                        });
+                                      }
+                                    }}
+                                    title="Select all visible students"
+                                    aria-label="Select all visible students"
+                                  />
+                                </th>
+                                <th className="p-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleStudentDirectorySort('firstName')}
+                                    className="inline-flex items-center gap-1 font-semibold text-gray-600 hover:text-emerald-800 uppercase tracking-wider"
+                                    title="Sort by first name"
+                                  >
+                                    Name
+                                    {studentSortKey === 'firstName' ? (
+                                      studentSortDir === 'asc' ? (
+                                        <ArrowUp className="shrink-0" size={14} aria-hidden />
+                                      ) : (
+                                        <ArrowDown className="shrink-0" size={14} aria-hidden />
+                                      )
+                                    ) : null}
+                                  </button>
+                                </th>
                                 <th className="p-3">Email</th>
-                                <th className="p-3">Grade</th>
+                                <th className="p-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleStudentDirectorySort('grade')}
+                                    className="inline-flex items-center gap-1 font-semibold text-gray-600 hover:text-emerald-800 uppercase tracking-wider"
+                                    title="Sort by grade"
+                                  >
+                                    Grade
+                                    {studentSortKey === 'grade' ? (
+                                      studentSortDir === 'asc' ? (
+                                        <ArrowUp className="shrink-0" size={14} aria-hidden />
+                                      ) : (
+                                        <ArrowDown className="shrink-0" size={14} aria-hidden />
+                                      )
+                                    ) : null}
+                                  </button>
+                                </th>
+                                <th className="p-3">Parent</th>
+                                <th className="p-3">Parent weekly</th>
                                 <th className="p-3 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredStudents.map(student => (
-                                <tr key={student.id} className="border-b hover:bg-gray-50">
-                                    <td className="p-3 font-medium text-emerald-900 flex items-center gap-3">
+                            {sortedFilteredStudents.map(student => (
+                                <tr
+                                  key={student.id}
+                                  className={`border-b hover:bg-gray-50 ${student.archived ? 'opacity-70 bg-gray-50/80' : ''}`}
+                                >
+                                    <td className="p-3 align-middle w-10">
+                                      <input
+                                        type="checkbox"
+                                        className="rounded border-gray-300"
+                                        checked={selectedStudentIds.includes(student.id)}
+                                        disabled={!!editingStudent}
+                                        onChange={() => toggleStudentRowSelected(student.id)}
+                                        aria-label={`Select ${student.name}`}
+                                      />
+                                    </td>
+                                    <td className="p-3 font-medium text-emerald-900">
+                                      <div className="flex items-center gap-3">
                                         <img src={student.avatar} alt={student.name} className="w-8 h-8 rounded-full bg-gray-100" />
                                         {editingStudent?.id === student.id ? (
                                             <input 
@@ -488,8 +825,16 @@ export const AdminConsole: React.FC = () => {
                                                 onChange={e => setEditingStudent({...editingStudent, name: e.target.value})}
                                             />
                                         ) : (
-                                            student.name
+                                            <>
+                                              {student.name}
+                                              {student.archived && (
+                                                <span className="ml-2 text-xs font-bold uppercase tracking-wide text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                                                  Archived
+                                                </span>
+                                              )}
+                                            </>
                                         )}
+                                      </div>
                                     </td>
                                     <td className="p-3 text-gray-600">
                                         {editingStudent?.id === student.id ? (
@@ -513,6 +858,65 @@ export const AdminConsole: React.FC = () => {
                                             <span className="px-2 py-1 bg-gray-100 rounded text-xs font-bold">{student.grade}</span>
                                         )}
                                     </td>
+                                    <td className="p-3 text-gray-600 text-sm max-w-[140px]">
+                                        {editingStudent?.id === student.id ? (
+                                            <div className="flex flex-col gap-1">
+                                                <input
+                                                    className="border p-1 rounded text-xs w-full"
+                                                    placeholder="Parent email"
+                                                    value={editingStudent.parentEmail || ''}
+                                                    onChange={(e) =>
+                                                        setEditingStudent({ ...editingStudent, parentEmail: e.target.value })
+                                                    }
+                                                />
+                                                <input
+                                                    className="border p-1 rounded text-xs w-full"
+                                                    placeholder="Parent name"
+                                                    value={editingStudent.parentName || ''}
+                                                    onChange={(e) =>
+                                                        setEditingStudent({ ...editingStudent, parentName: e.target.value })
+                                                    }
+                                                />
+                                            </div>
+                                        ) : (
+                                            student.parentEmail || '—'
+                                        )}
+                                    </td>
+                                    <td className="p-3 text-sm">
+                                        {editingStudent?.id === student.id ? (
+                                            <div className="flex flex-col gap-1">
+                                                <label className="flex items-center gap-1 text-xs">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!editingStudent.parentDigestEnabled}
+                                                        onChange={(e) =>
+                                                            setEditingStudent({
+                                                                ...editingStudent,
+                                                                parentDigestEnabled: e.target.checked,
+                                                            })
+                                                        }
+                                                    />
+                                                    Enable
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    className="text-xs text-emerald-700 underline text-left"
+                                                    onClick={() =>
+                                                        setEditingStudent({
+                                                            ...editingStudent,
+                                                            parentConsentRecordedAt: Date.now(),
+                                                        })
+                                                    }
+                                                >
+                                                    Record consent
+                                                </button>
+                                            </div>
+                                        ) : student.parentDigestEnabled ? (
+                                            <span className="text-emerald-700 font-bold">On</span>
+                                        ) : (
+                                            '—'
+                                        )}
+                                    </td>
                                     <td className="p-3 text-right">
                                         {editingStudent?.id === student.id ? (
                                             <div className="flex justify-end gap-2">
@@ -520,18 +924,37 @@ export const AdminConsole: React.FC = () => {
                                                 <button onClick={() => setEditingStudent(null)} className="text-gray-500 hover:bg-gray-100 p-1 rounded"><X size={18} /></button>
                                             </div>
                                         ) : (
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex justify-end gap-2 flex-wrap">
                                                 <button onClick={() => setEditingStudent(student)} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Edit"><Edit2 size={18} /></button>
-                                                <button onClick={() => handleResetStudent(student)} className="text-orange-600 hover:bg-orange-50 p-1 rounded" title="Reset Progress"><RotateCcw size={18} /></button>
-                                                <button onClick={() => handleDeleteStudent(student.id)} className="text-red-600 hover:bg-red-50 p-1 rounded" title="Delete"><Trash2 size={18} /></button>
+                                                {student.archived ? (
+                                                  <button
+                                                    onClick={() => handleRestoreOneStudent(student)}
+                                                    className="text-emerald-700 hover:bg-emerald-50 p-1 rounded"
+                                                    title="Restore"
+                                                  >
+                                                    <ArchiveRestore size={18} />
+                                                  </button>
+                                                ) : (
+                                                  <>
+                                                    <button
+                                                      onClick={() => handleArchiveOneStudent(student)}
+                                                      className="text-amber-700 hover:bg-amber-50 p-1 rounded"
+                                                      title="Archive"
+                                                    >
+                                                      <Archive size={18} />
+                                                    </button>
+                                                    <button onClick={() => handleResetStudent(student)} className="text-orange-600 hover:bg-orange-50 p-1 rounded" title="Reset Progress"><RotateCcw size={18} /></button>
+                                                  </>
+                                                )}
+                                                <button onClick={() => handleDeleteStudent(student.id)} className="text-red-600 hover:bg-red-50 p-1 rounded" title="Delete permanently"><Trash2 size={18} /></button>
                                             </div>
                                         )}
                                     </td>
                                 </tr>
                             ))}
-                            {filteredStudents.length === 0 && (
+                            {sortedFilteredStudents.length === 0 && (
                                 <tr>
-                                    <td colSpan={4} className="p-8 text-center text-gray-500">
+                                    <td colSpan={7} className="p-8 text-center text-gray-500">
                                         No students found matching your search.
                                     </td>
                                 </tr>
@@ -763,6 +1186,7 @@ export const AdminConsole: React.FC = () => {
                 )}
               </div>
             )}
+
           </>
         )}
       </div>

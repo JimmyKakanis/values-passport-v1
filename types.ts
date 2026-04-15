@@ -51,6 +51,29 @@ export interface Student {
     [key: string]: any; // Allow other properties for DiceBear config
   };
   lastLoginAt?: number;
+  /** Parent / guardian (email-only; no app login) */
+  parentEmail?: string;
+  parentName?: string;
+  /** When set with parentEmail, weekly parent digest may be sent (Cloud Function). */
+  parentDigestEnabled?: boolean;
+  /** Unix ms when school recorded consent to contact this parent. */
+  parentConsentRecordedAt?: number;
+  /** When true, hidden from teacher pickers and leaderboard; student cannot sign in as active. */
+  archived?: boolean;
+  /** Unix ms when the account was archived (optional audit). */
+  archivedAt?: number;
+}
+
+/** Firestore `email_preferences/{emailLower}` — doc id = auth email lowercased */
+export interface EmailNotificationPreferences {
+  email: string;
+  role: 'STUDENT' | 'TEACHER';
+  achievementEmailEnabled: boolean;
+  studentDigestEnabled: boolean;
+  teacherDigestEnabled: boolean;
+  /** Reserved for future daily digests; weekly job uses studentDigestEnabled / teacherDigestEnabled. */
+  frequency: 'WEEKLY' | 'DAILY';
+  updatedAt: number;
 }
 
 export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';

@@ -37,6 +37,12 @@ export const StudentDetailView: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-4 space-y-6">
+      {student.archived && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          This student account is archived: they are hidden from class lists and the leaderboard and cannot sign in until an
+          admin restores them.
+        </div>
+      )}
       <div className="flex items-center gap-4">
         <img src={student.avatar} alt={student.name} className="w-20 h-20 rounded-full border-4 border-white shadow-lg" />
         <div>

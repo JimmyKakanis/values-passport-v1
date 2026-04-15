@@ -12,6 +12,27 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
+    // Microsoft / OIDC must expose email on the token for email_preferences rules to match doc id.
+    function authEmailLower() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.size() > 0
+        ? request.auth.token.email.lower()
+        : '';
+    }
+
+    function isOwnEmailDoc(emailKey) {
+      return isAuthenticated()
+        && emailKey is string
+        && emailKey.size() > 0
+        && authEmailLower() == emailKey;
+    }
+
+    function studentDocMatchesQueueStudentId(sid) {
+      return authEmailLower() != ''
+        && get(/databases/$(database)/documents/students/$(sid)).data.email.lower() == authEmailLower();
+    }
+
     // Students Collection
     match /students/{studentId} {
       allow read: if isAuthenticated();
@@ -93,6 +114,47 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated();
+    }
+
+    // Email notification preferences (one doc per auth email, lowercase id)
+    match /email_preferences/{emailKey} {
+      allow read: if isOwnEmailDoc(emailKey);
+      allow create, update: if isOwnEmailDoc(emailKey)
+        && request.resource.data.email == emailKey
+        && request.resource.data.role in ['STUDENT', 'TEACHER']
+        && request.resource.data.achievementEmailEnabled is bool
+        && request.resource.data.studentDigestEnabled is bool
+        && request.resource.data.teacherDigestEnabled is bool
+        && request.resource.data.frequency in ['WEEKLY', 'DAILY']
+        && request.resource.data.updatedAt is int;
+      allow delete: if isOwnEmailDoc(emailKey);
+    }
+
+    // Student-requested achievement emails (processed by Cloud Function)
+    match /achievement_email_queue/{queueId} {
+      allow create: if isAuthenticated()
+        && request.resource.data.keys().hasAll(['studentId', 'achievementId', 'achievementTitle', 'requestedAt'])
+        && request.resource.data.studentId is string
+        && request.resource.data.achievementId is string
+        && request.resource.data.achievementTitle is string
+        && request.resource.data.achievementTitle.size() > 0
+        && request.resource.data.achievementTitle.size() <= 200
+        && (!('achievementDescription' in request.resource.data)
+            || (request.resource.data.achievementDescription is string && request.resource.data.achievementDescription.size() <= 2000))
+        && request.resource.data.requestedAt is timestamp
+        && studentDocMatchesQueueStudentId(request.resource.data.studentId);
+      allow read, update, delete: if false;
+    }
+
+    // Server-only collections (Firebase Admin SDK)
+    match /achievement_email_sent/{id} {
+      allow read, write: if false;
+    }
+    match /digest_stamp_events/{id} {
+      allow read, write: if false;
+    }
+    match /digest_sent/{id} {
+      allow read, write: if false;
     }
   }
 }
