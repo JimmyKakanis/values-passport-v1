@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, BrainCircuit, Calendar, Shield } from 'lucide-react';
+import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, BrainCircuit, Calendar, Shield, MessageSquare } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { TeacherConsole } from './components/TeacherConsole';
 import { AdminConsole } from './components/AdminConsole';
@@ -22,6 +22,7 @@ import { NotificationProvider, NotificationController } from './components/Notif
 import { UserRole } from './types';
 
 import { TeacherCorner } from './components/TeacherCorner/TeacherCorner';
+import { FeedbackPage } from './components/FeedbackPage';
 
 // Layout Component
 const Layout: React.FC<{ 
@@ -77,6 +78,9 @@ const Layout: React.FC<{
                   <Link to="/achievements" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/achievements')}`}>
                     <Trophy size={18} /> Achievements
                   </Link>
+                  <Link to="/feedback" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/feedback')}`}>
+                    <MessageSquare size={18} /> Feedback
+                  </Link>
                 </>
               )}
               
@@ -91,6 +95,9 @@ const Layout: React.FC<{
                   </Link>
                   <Link to="/teacher" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/teacher')}`}>
                     <PenTool size={18} /> Teacher Console
+                  </Link>
+                  <Link to="/feedback" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/feedback')}`}>
+                    <MessageSquare size={18} /> Feedback
                   </Link>
                 </>
               )}
@@ -157,6 +164,13 @@ const Layout: React.FC<{
                 >
                   <Trophy size={20} /> Achievements
                 </Link>
+                <Link 
+                  to="/feedback" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/feedback')}`}
+                >
+                  <MessageSquare size={20} /> Feedback
+                </Link>
               </>
             )}
             <Link 
@@ -167,13 +181,22 @@ const Layout: React.FC<{
               <BarChart2 size={20} /> Leaderboard
             </Link>
             {(userRole === 'TEACHER' || userRole === 'ADMIN') && (
-              <Link 
-                to="/teacher" 
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/teacher')}`}
-              >
-                <PenTool size={20} /> Teacher Console
-              </Link>
+              <>
+                <Link 
+                  to="/teacher" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/teacher')}`}
+                >
+                  <PenTool size={20} /> Teacher Console
+                </Link>
+                <Link 
+                  to="/feedback" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/feedback')}`}
+                >
+                  <MessageSquare size={20} /> Feedback
+                </Link>
+              </>
             )}
             {userRole === 'ADMIN' && (
               <Link 
@@ -390,6 +413,7 @@ const App: React.FC = () => {
           
           {/* Shared Route - Leaderboard needs userRole to determine behavior */}
           <Route path="/leaderboard" element={<Leaderboard userRole={userRole} />} />
+          <Route path="/feedback" element={<FeedbackPage userRole={userRole!} />} />
           
         </Routes>
       </Layout>

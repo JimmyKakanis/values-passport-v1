@@ -55,6 +55,17 @@ export interface Student {
 
 export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
 
+export type FeedbackKind = 'feedback' | 'suggestion';
+
+export interface FeedbackSubmission {
+  id: string;
+  submitterRole: UserRole;
+  submitterEmail: string;
+  kind: FeedbackKind;
+  message: string;
+  createdAt: number;
+}
+
 export interface Teacher {
   id?: string;
   name: string;

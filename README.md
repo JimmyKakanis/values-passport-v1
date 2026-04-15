@@ -10,6 +10,9 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ## Features
 
+### 📌 Student dashboard (2026)
+- When the device date is in **2026** and a school integration theme applies, students may see a **This week at school** card aligned with the college’s printed values-integration calendar.
+
 ### 🌟 Real-Time Gamification
 - **Instant Feedback:** Students receive a "New Stamp" notification the moment a teacher awards it, complete with the teacher's note and specific sub-value focus.
 - **Achievements:** An automated system tracks progress and unlocks badges (e.g., "The Optimist", "Subject Explorer") when milestones are met.
@@ -29,7 +32,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **Teacher Corner:** A dedicated professional development section with:
   - **Scenario Simulator:** Practise handling classroom situations.
   - **Value Deep Dives:** Resources and discussion prompts.
-  - **Insights:** Track your own awarding habits.
+  - **Insights:** Track your own awarding habits, plus **Your week & milestones** (private prompts, impact summary, engagement badges, and optional **2026 whole-school values integration** theme when the date falls in a mapped term week).
 - **Student Details:** View any student's full profile, passport, and achievement history.
 
 ## Getting Started
@@ -42,7 +45,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-repo/values-passport-v1.git
+    git clone https://github.com/JimmyKakanis/values-passport-v1.git
     cd values-passport-v1
     ```
 
@@ -62,7 +65,9 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ## Project Structure
 - `components/`: React UI components (Dashboard, Passport, Console, Notifications, etc.)
-- `services/`: Data handling and Firebase integration (`dataService.ts`).
+- `services/`: Data handling and Firebase integration (`dataService.ts`), plus **`teacherEngagement.ts`** (teacher-only metrics, copy, and badges).
+- `schoolCalendar.ts`: Shared term dates and helpers (planner week index vs **integration** week index for the 2026 calendar).
+- `valuesIntegrationCalendar2026.ts`: Whole-school integration themes by term week (2026).
 - `data/`: Static content resources.
 - `docs/`: Comprehensive documentation.
 

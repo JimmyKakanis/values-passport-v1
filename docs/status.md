@@ -66,6 +66,13 @@
     - [x] Updated Dashboard tips
 - [x] **Passport Locations**
     - [x] Added "Camp" to Locations and Events section
+- [x] **Teacher engagement & 2026 values integration**
+    - [x] `schoolCalendar.ts` with `SCHOOL_TERMS`, planner week helper, and integration week anchor (Term 1 aligned to printed calendar)
+    - [x] `valuesIntegrationCalendar2026.ts` with `getValuesIntegrationFocus` and segment data
+    - [x] `services/teacherEngagement.ts` — stats, badges, confetti toasts, `pickDailyNudge` / `getWeeklyThemeLine`, compact tips when integration header shows
+    - [x] `TeacherEngagementPanel` in **Values Development → My Insights**; streamlined **Your week & milestones** (no duplicate theme block; merged week stats)
+    - [x] Student **This week at school** card on `Dashboard` when integration focus exists
+    - [x] Documented in `docs/technical.md`
 
 ## In Progress
 

@@ -1,6 +1,7 @@
-import { Signature, SignatureSource, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType } from '../types';
+import { Signature, SignatureSource, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType, FeedbackSubmission, FeedbackKind, UserRole } from '../types';
 import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS } from '../constants';
 import { db } from '../firebaseConfig';
+import { FirebaseError } from 'firebase/app';
 import { 
   collection, 
   addDoc, 
@@ -1358,5 +1359,63 @@ export const deleteGoal = async (goalId: string) => {
   } catch (error) {
     console.error("Error deleting goal:", error);
     return false;
+  }
+};
+
+// --- FEEDBACK (students & teachers → admin console) ---
+
+export type SubmitFeedbackResult =
+  | { ok: true }
+  | { ok: false; userMessage: string };
+
+export const submitFeedback = async (params: {
+  kind: FeedbackKind;
+  message: string;
+  submitterRole: UserRole;
+  submitterEmail: string;
+}): Promise<SubmitFeedbackResult> => {
+  try {
+    const trimmed = params.message.trim();
+    if (!trimmed) {
+      return { ok: false, userMessage: 'Please enter a message.' };
+    }
+
+    await addDoc(collection(db, "feedback_submissions"), {
+      kind: params.kind,
+      message: trimmed.slice(0, 2000),
+      submitterRole: params.submitterRole,
+      submitterEmail: params.submitterEmail.toLowerCase().trim(),
+      createdAt: Date.now(),
+    });
+    return { ok: true };
+  } catch (error) {
+    console.error("Error submitting feedback:", error);
+    if (error instanceof FirebaseError) {
+      if (error.code === 'permission-denied') {
+        return {
+          ok: false,
+          userMessage:
+            'Saving was blocked by Firestore security rules. Deploy the updated rules from this project (the feedback_submissions block in firestore.rules) with: firebase deploy --only firestore:rules',
+        };
+      }
+      return {
+        ok: false,
+        userMessage: `Could not save (${error.code}). If this keeps happening, contact support.`,
+      };
+    }
+    return { ok: false, userMessage: 'Something went wrong. Please try again later.' };
+  }
+};
+
+export const getAllFeedbackSubmissions = async (): Promise<FeedbackSubmission[]> => {
+  try {
+    const snapshot = await getDocs(collection(db, "feedback_submissions"));
+    const rows = snapshot.docs.map(
+      (d) => ({ id: d.id, ...d.data() } as FeedbackSubmission)
+    );
+    return rows.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+  } catch (error) {
+    console.error("Error loading feedback submissions:", error);
+    return [];
   }
 };

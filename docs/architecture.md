@@ -28,7 +28,11 @@ The application's UI is built from a set of modular React components located in 
     - **`TeacherCorner.tsx`**: The main container for the Values Development page.
     - **`ValueDeepDive.tsx`**: Detailed resources and prompts for each value.
     - **`ScenarioSimulator.tsx`**: Interactive classroom scenarios for teacher training.
-    - **`TeacherInsights.tsx`**: A personal dashboard for teachers to track their awarding habits.
+    - **`TeacherInsights.tsx`**: A personal dashboard for teachers to track their awarding habits. Embeds **`TeacherEngagementPanel`**, which shows optional **2026 school values integration** copy (from `valuesIntegrationCalendar2026.ts` + `schoolCalendar.ts`), daily/weekly-style nudges, merged “this week” stats, collapsible reflection, and engagement badges (logic in `services/teacherEngagement.ts`).
+
+### School calendar & integration data (shared modules)
+- **`schoolCalendar.ts`**: `SCHOOL_TERMS` and date helpers. **`getTermAndWeekInTerm`** drives planner-style “week in term” behaviour; **`getTermAndIntegrationWeekInTerm`** (with **`getValuesIntegrationWeekAnchor`**) aligns **Term 1** with the printed integration grid (Monday one week before official start week).
+- **`valuesIntegrationCalendar2026.ts`**: Segment table and **`getValuesIntegrationFocus(date)`** for teacher copy and the student dashboard strip when the date maps to a segment.
 
 ### Admin Views
 - **`AdminConsole.tsx`**: A protected dashboard for Super Admins.
@@ -46,12 +50,13 @@ The application's UI is built from a set of modular React components located in 
 
 ## Data Flow & State Management
 
-### 1. Service Layer (`services/dataService.ts`)
-All interaction with Firebase Firestore is encapsulated in `dataService.ts`. This service provides:
+### 1. Service Layer (`services/dataService.ts` and `services/teacherEngagement.ts`)
+Firestore access is encapsulated in `dataService.ts`. This service provides:
 - **Fetch Functions**: `getDocs` wrappers for one-time data retrieval (e.g., `getStudents`, `getAllSignatures`).
 - **Subscription Functions**: `onSnapshot` wrappers for real-time data streams (e.g., `subscribeToSignatures`, `subscribeToPlannerItems`).
 - **Mutation Functions**: Functions to write to the database (e.g., `addSignature`, `addPlannerItem`).
 - **Business Logic**: Calculations for stats, mastery levels, and achievement unlocking are performed here to ensure consistency across the app.
+- **`teacherEngagement.ts`**: Teacher-only engagement metrics, badge rules, and copy helpers. It operates on **`Signature[]` in memory** (no Firestore calls); **`TeacherInsights`** fetches signatures and passes the filtered list into **`TeacherEngagementPanel`**.
 
 ### 2. Real-Time Updates
 The application leverages Firestore's real-time capabilities for key features:

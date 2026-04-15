@@ -13,9 +13,10 @@ import {
   Shield,
   Loader2,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  MessageSquare
 } from 'lucide-react';
-import { Student, Teacher, SystemSettings } from '../types';
+import { Student, Teacher, SystemSettings, FeedbackSubmission } from '../types';
 import { 
   getAllStudents, 
   getAllTeachers, 
@@ -29,13 +30,14 @@ import {
   seedDatabase,
   resetAllProgress,
   resetStudentProgress,
-  migrateTeacherName
+  migrateTeacherName,
+  getAllFeedbackSubmissions
 } from '../services/dataService';
 
 import { SchoolAnalytics } from './SchoolAnalytics';
 
 export const AdminConsole: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'ANALYTICS' | 'STUDENTS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION'>('ANALYTICS');
+  const [activeTab, setActiveTab] = useState<'ANALYTICS' | 'STUDENTS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION' | 'FEEDBACK'>('ANALYTICS');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -58,6 +60,8 @@ export const AdminConsole: React.FC = () => {
   // Settings Management State
   const [newSubject, setNewSubject] = useState('');
 
+  const [feedbackSubmissions, setFeedbackSubmissions] = useState<FeedbackSubmission[]>([]);
+
   // Load Initial Data
   useEffect(() => {
     loadData();
@@ -76,6 +80,9 @@ export const AdminConsole: React.FC = () => {
       } else if (activeTab === 'SETTINGS') {
         const data = await getSystemSettings();
         setSettings(data);
+      } else if (activeTab === 'FEEDBACK') {
+        const data = await getAllFeedbackSubmissions();
+        setFeedbackSubmissions(data);
       }
       // Analytics fetches its own data internally
     } catch (err) {
@@ -361,6 +368,16 @@ export const AdminConsole: React.FC = () => {
           }`}
         >
           <AlertTriangle size={20} /> Data Migration
+        </button>
+        <button
+          onClick={() => setActiveTab('FEEDBACK')}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'FEEDBACK' 
+              ? 'bg-emerald-100 text-emerald-900' 
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <MessageSquare size={20} /> Feedback
         </button>
       </div>
 
@@ -691,6 +708,59 @@ export const AdminConsole: React.FC = () => {
                         <Trash2 size={16} /> Reset All Scores & Stamps
                     </button>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'FEEDBACK' && (
+              <div>
+                <h2 className="text-xl font-bold mb-2">Feedback & suggestions</h2>
+                <p className="text-gray-600 text-sm mb-6">
+                  Messages from students and teachers (newest first).
+                </p>
+                {feedbackSubmissions.length === 0 ? (
+                  <p className="text-gray-500 text-center py-12">No submissions yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 text-gray-600 uppercase tracking-wider border-b">
+                          <th className="p-3 whitespace-nowrap">Date</th>
+                          <th className="p-3 whitespace-nowrap">Role</th>
+                          <th className="p-3 whitespace-nowrap">Type</th>
+                          <th className="p-3">Email</th>
+                          <th className="p-3 min-w-[240px]">Message</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {feedbackSubmissions.map((row) => (
+                          <tr key={row.id} className="border-b hover:bg-gray-50 align-top">
+                            <td className="p-3 text-gray-600 whitespace-nowrap">
+                              {row.createdAt
+                                ? new Date(row.createdAt).toLocaleString()
+                                : '—'}
+                            </td>
+                            <td className="p-3">
+                              <span
+                                className={`px-2 py-1 rounded text-xs font-bold ${
+                                  row.submitterRole === 'STUDENT'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : row.submitterRole === 'ADMIN'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : 'bg-amber-100 text-amber-900'
+                                }`}
+                              >
+                                {row.submitterRole}
+                              </span>
+                            </td>
+                            <td className="p-3 capitalize text-gray-800">{row.kind}</td>
+                            <td className="p-3 text-gray-700 break-all">{row.submitterEmail}</td>
+                            <td className="p-3 text-gray-800 whitespace-pre-wrap">{row.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </>
