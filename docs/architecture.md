@@ -23,7 +23,7 @@ The application's UI is built from a set of modular React components located in 
 ### Teacher Views
 - **`TeacherConsole.tsx`**: The main interface for teachers to award signatures and review nominations.
 - **`TeacherRewards.tsx`**: A dashboard for teachers to view and manage unclaimed rewards.
-- **`StudentDetailView.tsx`**: A tabbed view for teachers to see a specific student's Achievements and Values Passport.
+- **`StudentDetailView.tsx`**: Tabbed Achievements and Passport for a student opened from the leaderboard or console (admins use the same route). If the student is **archived**, a banner explains limited access and sign-in restriction until an admin restores them.
 - **`TeacherCorner/`**: A directory containing components for the "Values Development" section:
     - **`TeacherCorner.tsx`**: The main container for the Values Development page.
     - **`ValueDeepDive.tsx`**: Detailed resources and prompts for each value.
@@ -36,10 +36,13 @@ The application's UI is built from a set of modular React components located in 
 
 ### Admin Views
 - **`AdminConsole.tsx`**: A protected dashboard for Super Admins.
-    - **Student Management**: CRUD operations for the student directory.
+    - **Student directory**: Search by name or email; **sort** by **grade** (numeric from grade text, e.g. Year 7 → 7) or **first name** (first token of full name), with the other field as tie-breaker. **Row checkboxes** and a header **select all** (visible rows only) support **bulk Archive** and **bulk Restore**. **Show archived** toggles visibility of soft-archived students (muted rows and an **Archived** badge). Per-row actions: **Edit**, **Archive** or **Restore**, **Reset progress**, and **Delete permanently** (Firestore document removed; distinct from archive).
     - **Teacher Management**: Add/Remove authorized teachers and admins.
     - **System Settings**: Manage dynamic configuration like the active Subjects list.
-    - **Migration Tool**: Utilities to seed or migrate data from hardcoded constants to Firestore.
+    - **Other tabs**: **Analytics** ([`SchoolAnalytics.tsx`](../components/SchoolAnalytics.tsx)), **Data Migration** (seed, progress reset, legacy teacher name fix), and **Feedback** (submissions list).
+
+### Settings (all roles)
+- **`SettingsPage.tsx`**: Routed at `#/settings` (gear in the header). Sections differ by role; includes **email notification preferences** ([`EmailNotificationsSettings.tsx`](../components/EmailNotificationsSettings.tsx)), student **avatar** customization ([`AvatarSettingsSection.tsx`](../components/AvatarSettingsSection.tsx)), and **feedback** entry ([`FeedbackSettingsSection.tsx`](../components/FeedbackSettingsSection.tsx)) where applicable.
 
 ### Notification System
 - **`NotificationSystem.tsx`**: Contains the complete logic for the notification experience.
@@ -58,7 +61,7 @@ The application's UI is built from a set of modular React components located in 
 
 ### 1. Service Layer (`services/dataService.ts` and `services/teacherEngagement.ts`)
 Firestore access is encapsulated in `dataService.ts`. This service provides:
-- **Fetch Functions**: `getDocs` wrappers for one-time data retrieval (e.g., `getStudents`, `getAllSignatures`).
+- **Fetch Functions**: `getDocs` wrappers for one-time data retrieval (e.g., `getStudents`, `getAllStudents`, `getAllSignatures`). **`getStudents()`** (and **`getStudentByEmail()`** for login) **omit archived students** so they do not appear in teacher pickers or the leaderboard cache. **`getStudent(id)`** still resolves archived records so deep links and admin views can show the profile with context. **`archiveStudents` / `unarchiveStudents`** update `archived` and `archivedAt` on student documents.
 - **Subscription Functions**: `onSnapshot` wrappers for real-time data streams (e.g., `subscribeToSignatures`, `subscribeToPlannerItems`).
 - **Mutation Functions**: Functions to write to the database (e.g., `addSignature`, `addPlannerItem`).
 - **Business Logic**: Calculations for stats, mastery levels, and achievement unlocking are performed here to ensure consistency across the app.
@@ -82,6 +85,11 @@ To handle offline activity:
 
 - **Domain Restriction**: Access is restricted to emails ending in the school's domain (configured in `constants.ts`).
 - **Role-Based Access**:
-    - **Student**: Identified if their email exists in the `students` Firestore collection. Access to Passport, Learning, Achievements, Planner.
+    - **Student**: Identified if their email matches a **non-archived** row in the `students` collection (or **auto-provisioned** on first login if they are not a teacher/admin and no student row exists yet—see [`App.tsx`](../App.tsx)). Access to Passport, Learning, Achievements, Planner.
+    - **Archived student**: If the email matches a student document with **`archived: true`**, the app shows an **account archived** screen (no student routes); this prevents duplicate auto-provision for the same email.
     - **Teacher**: Identified if their email exists in the `teachers` Firestore collection (with role `TEACHER`). Access to Teacher Console, Values Development, Student Details.
-    - **Admin**: Identified if their email exists in the `teachers` Firestore collection (with role `ADMIN`). Full access to Teacher Console plus the **Admin Console** for managing users and settings.
+    - **Admin**: Hardcoded bootstrap email and/or `teachers` collection with role `ADMIN`. Full access to Teacher Console plus **Admin Console**.
+- **Teachers** are added through **Admin Console → Teachers**, not auto-created on first login.
+
+## Build layout (SPA vs Cloud Functions)
+- The Vite app is type-checked from the **root** [`tsconfig.json`](../tsconfig.json), which **`exclude`s the `functions/` directory**. Firebase Cloud Functions live in **`functions/`** with their own `package.json` and [`functions/tsconfig.json`](../functions/tsconfig.json); build them with `npm run build` inside `functions/` (or your Firebase deploy pipeline). This keeps `npm run build` at the repo root (e.g. **Vercel**: `tsc && vite build`) from requiring `firebase-admin` / `firebase-functions` at the app root.

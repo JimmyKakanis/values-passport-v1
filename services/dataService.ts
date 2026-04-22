@@ -123,10 +123,15 @@ export const addStudent = async (student: Omit<Student, 'id'>): Promise<Student 
   }
 };
 
+/** Firestore `updateDoc` rejects `undefined` field values. */
+const omitUndefined = <T extends Record<string, unknown>>(obj: T): Partial<T> =>
+  Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
+
 export const updateStudent = async (id: string, updates: Partial<Student>): Promise<boolean> => {
   try {
-    await updateDoc(doc(db, "students", id), updates);
-    cachedStudents = cachedStudents.map(s => s.id === id ? { ...s, ...updates } : s);
+    const payload = omitUndefined(updates as Record<string, unknown>) as Partial<Student>;
+    await updateDoc(doc(db, "students", id), payload);
+    cachedStudents = cachedStudents.map(s => (s.id === id ? { ...s, ...payload } : s));
     return true;
   } catch (error) {
     console.error("Error updating student:", error);

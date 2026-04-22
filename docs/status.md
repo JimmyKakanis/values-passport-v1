@@ -22,8 +22,8 @@
     - [x] Sidebar with Month & Week Indicators
 - [x] **Super Admin Console**
     - [x] Dynamic Data Migration (Firestore-backed Students/Teachers)
-    - [x] Admin Dashboard (Tabs for Students, Teachers, Settings)
-    - [x] Manage Students (Add/Edit/Archive)
+    - [x] Admin Dashboard (tabs: Analytics, Students, Teachers, Subjects & Settings, Data Migration, Feedback)
+    - [x] Manage Students (add/edit, parent fields, reset progress, **archive** / **restore**, permanent delete, **sort** by grade or first name, **multi-select** bulk archive/restore, **Show archived**)
     - [x] Manage Teachers (Add/Remove Access)
     - [x] Manage Subjects (Dynamic Settings)
     - [x] Role-Based Access Control (Admin Role)
@@ -43,8 +43,8 @@
     - [x] Teacher Leaderboard (Top Awarders)
 - [x] **Data Migration Tools**
     - [x] Legacy Teacher Name Migration (Update "Current Teacher" -> "Mr Aaron Shepherd")
-- [x] **Teacher Auto-Registration**
-    - [x] Automatically create teacher profile in Firestore upon first valid login if missing.
+- [x] **Teacher access**
+    - [x] Teachers and admins are added via **Admin Console → Teachers** (`teachers` collection). First login does not auto-create a teacher document.
 - [x] **Secure Authentication V2**
     - [x] Implemented Environment Variables (`.env`) for API Keys and Secrets.
     - [x] Rotated and Secured Firebase API Keys.
@@ -73,6 +73,14 @@
     - [x] `TeacherEngagementPanel` in **Values Development → My Insights**; streamlined **Your week & milestones** (no duplicate theme block; merged week stats)
     - [x] Student **This week at school** card on `Dashboard` when integration focus exists
     - [x] Documented in `docs/technical.md`
+- [x] **Email notifications & Settings (2026-04)**
+    - [x] `email_preferences`, `achievement_email_queue`, digest-related collections; Cloud Functions + Microsoft Graph (`functions/`)
+    - [x] In-app **Settings** page (gear): email toggles, avatar section, feedback; wired in `App.tsx` routes
+    - [x] Firestore rules updates for queue/preferences and related paths
+- [x] **Archived students**
+    - [x] `Student.archived` / `archivedAt`; `archiveStudents` / `unarchiveStudents`; excluded from `getStudents()` and student login; **Account archived** screen; Student Detail banner for staff
+- [x] **Vercel build fix**
+    - [x] Root `tsconfig.json` excludes `functions/` so `npm run build` (`tsc && vite build`) does not require Functions dependencies
 
 ## In Progress
 

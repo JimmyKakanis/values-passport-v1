@@ -7,6 +7,8 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **For Students:** A digital "Passport" that tracks signatures (stamps) for demonstrating core values (Truth, Love, Peace, Right Conduct, Non-Violence). It features real-time updates, achievement unlocking, leaderboards, and a learning lab.
 - **For Teachers:** A powerful console to award stamps, manage nominations, view student progress, and access professional development resources regarding values education.
 - **Security:** Integrated with Microsoft 365 Authentication and Firebase for secure, domain-locked access.
+- **Admin:** Student directory with search, sort by grade or first name, multi-select, **archive** (soft-remove from lists and sign-in) vs **permanent delete**, and optional **Show archived** to restore.
+- **Settings:** In-app **Settings** (`#/settings`) for email notification preferences, student avatar customization, and feedback—see `docs/architecture.md` and `docs/technical.md`.
 
 ## Features
 
@@ -33,7 +35,11 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
   - **Scenario Simulator:** Practise handling classroom situations.
   - **Value Deep Dives:** Resources and discussion prompts.
   - **Insights:** Track your own awarding habits, plus **Your week & milestones** (private prompts, impact summary, engagement badges, and optional **2026 whole-school values integration** theme when the date falls in a mapped term week).
-- **Student Details:** View any student's full profile, passport, and achievement history.
+- **Student Details:** View any student's full profile, passport, and achievement history. Archived students show an explanatory banner when opened by staff.
+
+### Admin Console
+- **Student directory:** Search, sort, bulk or single **Archive** / **Restore**, parent fields for weekly digests, reset progress, and permanent delete when required.
+- **Teachers & subjects:** Authorize staff and maintain the subject list used on stamps.
 
 ## Getting Started
 
@@ -64,16 +70,21 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
     ```
 
 ## Project Structure
-- `components/`: React UI components (Dashboard, Passport, Console, Notifications, etc.)
-- `services/`: Data handling and Firebase integration (`dataService.ts`), plus **`teacherEngagement.ts`** (teacher-only metrics, copy, and badges).
+- `components/`: React UI components (Dashboard, Passport, Console, Notifications, Settings, etc.)
+- `services/`: Data handling and Firebase integration (`dataService.ts`), **`emailNotificationService.ts`** (preferences + achievement email queue), plus **`teacherEngagement.ts`** (teacher-only metrics, copy, and badges).
+- `functions/`: **Firebase Cloud Functions** (weekly digests, achievement email worker, Microsoft Graph). Built separately from the SPA; excluded from root `tsc`—see `docs/technical.md`.
 - `schoolCalendar.ts`: Shared term dates and helpers (planner week index vs **integration** week index for the 2026 calendar).
 - `valuesIntegrationCalendar2026.ts`: Whole-school integration themes by term week (2026).
 - `data/`: Static content resources.
 - `docs/`: Comprehensive documentation.
 
+## Build & deploy (quick)
+- **Frontend (Vercel / static host):** `npm install` then `npm run build` → `dist/`.
+- **Functions:** `cd functions && npm install && npm run build`; deploy with Firebase CLI as needed.
+
 ## Technologies
 - **Frontend:** React, TypeScript, Tailwind CSS, Vite
-- **Backend:** Firebase (Auth, Firestore)
+- **Backend:** Firebase (Auth, Firestore), optional **Cloud Functions** + Microsoft Graph for mail
 - **Libraries:** Framer Motion (Animations), React Confetti, Lucide React (Icons)
 
 ## License

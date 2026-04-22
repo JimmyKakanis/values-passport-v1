@@ -14,7 +14,7 @@
 ## Data Models
 
 ### 1. Core Types (`types.ts`)
-- **`Student`**: Basic profile info + `lastLoginAt` (timestamp). Optional **parent / guardian** fields: `parentEmail`, `parentName`, `parentDigestEnabled`, `parentConsentRecordedAt` (used by weekly parent digests when consent is recorded in Admin Console).
+- **`Student`**: Basic profile info + `lastLoginAt` (timestamp). Optional **parent / guardian** fields: `parentEmail`, `parentName`, `parentDigestEnabled`, `parentConsentRecordedAt` (used by weekly parent digests when consent is recorded in Admin Console). Optional **`archived`** (boolean) and **`archivedAt`** (Unix ms): when `archived` is true, the account is **soft-retired**—hidden from `getStudents()` / teacher pickers / leaderboard inputs, excluded from student login resolution, and blocked from auto-provisioning a second record for the same email (see **Archived students** below). New students created via `addStudent` persist `archived: false`.
 - **`EmailNotificationPreferences`**: Shape stored at `email_preferences/{authEmailLower}` (`role`, digest toggles, `achievementEmailEnabled`, `frequency`).
 - **`Signature`**: Represents a "Stamp". Contains `studentId`, `teacherName`, `subject`, `value`, `subValue` (optional), `note` (optional), `timestamp`, and optional `source` (`DIRECT` | `NOMINATION`) for stamps created from nomination approval.
 - **`Achievement`**: Defines milestones. Types include `TOTAL`, `VALUE`, `SUBJECT_MASTERY`, `FULL_PASSPORT`, and `CUSTOM`.
@@ -52,15 +52,24 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Deploy**: From the repo root, `firebase deploy --only functions,firestore:rules` after `npm --prefix functions run build`.
 - **Rules**: [`firestore.rules`](../firestore.rules) — users may only create their own `achievement_email_queue` rows (studentId must match `students/{id}.email`); server-only collections are denied to clients.
 
-### Authentication & Teacher Provisioning
+### Authentication & roles
 - **Provider**: Microsoft 365 (via Firebase Authentication).
 - **Security**: 
     - API Keys are stored in `import.meta.env` (Vite Environment Variables).
     - Hardcoded secrets have been removed from the codebase.
     - Fallback mechanism handles browser "Popup Blocked" scenarios gracefully.
 - **Domain Locking**: Only emails ending in `@sathyasai.nsw.edu.au` are permitted.
-- **Just-in-Time Provisioning**: If a user logs in with a valid school email but does not exist in the `teachers` collection, the system automatically creates a `TEACHER` profile for them in Firestore. This ensures the Admin Console list stays up-to-date without manual data entry.
+- **Role resolution** ([`App.tsx`](../App.tsx)): After `initializeData()` loads the student/teacher caches, order is: **super-admin bootstrap email** → **match in `teachers`** → otherwise treat as **student path**. **Teachers and admins** are added only via **Admin Console → Teachers** (`addTeacher`); first login does **not** auto-create a teacher document.
+- **Student login**: `getStudentByEmail` returns a record only if it exists and **`archived` is not true**. If no match, the app **auto-provisions** a new `students` document (default grade, avatar) so unknown school emails can still use the student app unless blocked below.
+- **Archived students**: `isArchivedStudentEmail` detects a matching student document with `archived: true`. Those users see an **Account archived** full-screen message and cannot open student routes; this avoids treating them as “new” and creating a duplicate student row.
 - **No In-App Password Change**: With Microsoft 365 login, credential management is handled by the identity provider. The Change Password UI has been removed.
+
+### Archived students (data service)
+- **`archiveStudents(ids)` / `unarchiveStudents(ids)`** ([`dataService.ts`](../services/dataService.ts)): Update Firestore and the in-memory `cachedStudents` list.
+- **`getStudents()`**: Filters out `archived` (and legacy `grade` starting with `Graduated`) so **Teacher Console** pickers and any code using this helper only see active students.
+- **`getStudentByEmail()`**: Returns `undefined` for archived rows (login + student resolution).
+- **`getStudent(id)`**: Still returns the document if present (including archived) for **Student Detail** views and diagnostics.
+- **`getAllStudents()`**: Used by **Admin Console**; returns every student document so admins can toggle **Show archived** and run bulk restore.
 
 ### Real-Time Passport
 - **Subscriptions**: The `StudentPassport` component uses `onSnapshot` from Firestore. This opens a WebSocket connection that pushes changes immediately.
@@ -71,6 +80,7 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Rank Display**: Ranks shown in the table reflect position within the current filtered view (e.g., 1–24 for "Year 8 Truth"), not overall position across all students.
 - **Podium + List**: Top 3 displayed on podium; list below continues from rank 4.
 - **Visibility**: Teachers see full rankings; students see top 20 for overall all-grades, top 10 for grade/value-specific views.
+- **Archived students**: Entries are built from **`getStudents()`**, which omits archived profiles, so archived students do not appear on the leaderboard.
 
 ### Teacher Activity Feed
 - **All Activity / My Activity**: Toggle to view all stamps or only stamps awarded by the logged-in teacher. Filtering uses `teacherName` match.
@@ -133,7 +143,14 @@ The notification system is designed to be unobtrusive yet celebratory.
 ## Deployment
 - The app is configured for deployment on **Vercel** or **Firebase Hosting**.
 - **Build Command**: `npm run build` (runs `tsc && vite build`).
+- **Root TypeScript scope**: [`tsconfig.json`](../tsconfig.json) **`exclude`s `functions/`**. The SPA does not type-check Firebase Cloud Functions; those use [`functions/tsconfig.json`](../functions/tsconfig.json) and dependencies under **`functions/package.json`**. This prevents Vercel (or any root `tsc`) from failing on `firebase-admin` / `firebase-functions` imports.
+- **Cloud Functions**: From `functions/`, run `npm run build` before `firebase deploy --only functions` (see **Email notifications** above).
 - **Configuration**:
     - `vercel.json` (if applicable) for Vercel.
     - `firebase.json` and `.firebaserc` for Firebase Hosting and CLI operations.
 - The output `dist` folder is static and can be deployed to any static host.
+
+### Admin Console (student directory) — behaviour summary
+- **Sort**: Click **Name** (first-name order) or **Grade** (numeric from grade string); click again to reverse. Inactive column participates as secondary sort.
+- **Selection**: Per-row checkbox; header selects/deselects all **currently visible** rows (respects search + **Show archived**). Bulk **Archive** / **Restore** counts only rows that are active vs archived.
+- **Permanent delete**: Removes the Firestore `students` document; distinct from archive. Confirmation copy directs admins to prefer archive when removing access only.
