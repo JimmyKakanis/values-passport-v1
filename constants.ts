@@ -15,7 +15,7 @@ export const STUDENT_TEMP_PASSWORD = import.meta.env.VITE_STUDENT_TEMP_PASSWORD 
 export const TEACHERS: Teacher[] = [
   { name: 'Admin User', email: 'teacher1@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] }, // Kept for testing
   { name: 'Ms Meredith Barrie', email: 'M.Barrie@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 9', 'Year 10'] },
-  { name: 'Mrs Sarah Biersteker', email: 'S.Biersteker@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 7', 'Year 8'] },
+  { name: 'Mrs Sarah Biersteker', email: 'S.Biersteker@sathyasai.nsw.edu.au', role: 'ADMIN', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] },
   { name: 'Mrs Annette Caldicott', email: 'a.caldicott@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mr Flynn Colby', email: 'f.colby@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mrs Simone Coyne', email: 's.coyne@sathyasai.nsw.edu.au', role: 'TEACHER' },
@@ -179,6 +179,14 @@ const createStudent = (id: string, name: string, grade: string, manualEmail?: st
     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name.replace(' ', '')}&backgroundColor=b6e3f4`
   };
 };
+
+/**
+ * Lowercased emails always omitted from leaderboard / year-group views (still in pickers elsewhere).
+ * Add your QA accounts here or set `excludeFromLeaderboard` on the Firestore student doc.
+ */
+export const LEADERBOARD_HIDDEN_STUDENT_EMAILS: readonly string[] = [
+  'studenttest1@sathyasai.nsw.edu.au',
+];
 
 export const MOCK_STUDENTS: Student[] = [
   // --- TEST STUDENT ---

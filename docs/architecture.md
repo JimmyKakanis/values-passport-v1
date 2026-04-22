@@ -16,7 +16,7 @@ The application's UI is built from a set of modular React components located in 
 - **`Dashboard.tsx`**: The main view for students, showing their progress and passport.
 - **`StudentPassport.tsx`**: The core grid view of the values and subjects. It now subscribes to real-time updates, allowing students to see stamps appear instantly. It also supports interactive stamp history viewing via `StampHistoryModal`.
 - **`Achievements.tsx`**: Shows a student's earned achievements and progress bars.
-- **`Leaderboard.tsx`**: Displays student rankings based on stamps or achievements.
+- **`Leaderboard.tsx`**: Nested routes under `/leaderboard/*` — **Students** (`StudentLeaderboard.tsx`) for individual rankings (filters + stamps/badges/quiz scores), **Year groups** (`YearGroupStandings.tsx`) for **overall mean stamps per year** only; shared chrome and tabs in **`leaderboard/LeaderboardLayout.tsx`**.
 - **`ValuesLearning.tsx`**: The "Values Lab" section containing educational resources for students.
 - **`StudentPlanner.tsx`**: A comprehensive calendar and task management tool. It features Term, Month, and Week views, allowing students to track homework and assignments aligned with the school term.
 

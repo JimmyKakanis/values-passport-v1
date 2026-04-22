@@ -61,6 +61,7 @@
     - [x] Podium (top 3) with list continuing from rank 4
     - [x] Top 20 for overall all-grades view; top 10 for grade/value-specific views (students)
     - [x] Teachers see full rankings; students see limited view
+- [x] **Year group leaderboard** (2026-04): own tab; overall mean stamps per enrolled student per year only; student Wall of Fame uses “stamps” labeling for high scores
 - [x] **Change Password Removal**
     - [x] Removed Key icon and Change Password modal (Microsoft 365 login handles credentials)
     - [x] Updated Dashboard tips

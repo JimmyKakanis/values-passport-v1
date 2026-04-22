@@ -1,5 +1,5 @@
 import { Signature, SignatureSource, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType, FeedbackSubmission, FeedbackKind, UserRole } from '../types';
-import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS } from '../constants';
+import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS, LEADERBOARD_HIDDEN_STUDENT_EMAILS } from '../constants';
 import { db } from '../firebaseConfig';
 import { FirebaseError } from 'firebase/app';
 import { 
@@ -22,21 +22,56 @@ import {
 // --- CACHE & SYNC HELPERS ---
 // In a real app, use a Context or Redux. For now, we'll keep a local cache to support legacy sync calls.
 let cachedStudents: Student[] = [...MOCK_STUDENTS];
-let cachedTeachers: Teacher[] = [...TEACHERS.map(t => ({ ...t, role: 'TEACHER' as const }))];
+let cachedTeachers: Teacher[] = [...TEACHERS];
 
-export const getStudents = (): Student[] =>
-  cachedStudents.filter((s) => !s.grade.startsWith('Graduated') && !s.archived);
+/** Active, non-archived students for pickers, leaderboard, and year-group maths (matches Firestore `archived`). */
+const isActiveRosterStudent = (s: Student): boolean =>
+  !s.grade.trim().toLowerCase().startsWith('graduated') && !Boolean(s.archived);
+
+const LEADERBOARD_HIDDEN_EMAILS_LOWER = new Set(
+  LEADERBOARD_HIDDEN_STUDENT_EMAILS.map((e) => e.toLowerCase())
+);
+
+/** False for QA / test accounts hidden from Wall of Fame only (still in teacher pickers). */
+export const isStudentShownOnLeaderboard = (s: Student): boolean => {
+  if (Boolean(s.excludeFromLeaderboard)) return false;
+  const email = (s.email || '').toLowerCase().trim();
+  if (email && LEADERBOARD_HIDDEN_EMAILS_LOWER.has(email)) return false;
+  return true;
+};
+
+export const getStudents = (): Student[] => cachedStudents.filter(isActiveRosterStudent);
+
+/** Entire cached roster including archived (for Admin Console). Prefer after `reloadStudentsCacheFromFirestore`. */
+export const getAllStudentsFromCache = (): Student[] => [...cachedStudents];
+
 export const getStudent = (id: string): Student | undefined => cachedStudents.find(s => s.id === id);
 export const getStudentByEmail = (email: string): Student | undefined => {
   const s = cachedStudents.find((e) => e.email.toLowerCase() === email.toLowerCase());
-  if (!s || s.archived) return undefined;
+  if (!s || Boolean(s.archived)) return undefined;
   return s;
 };
 
 /** For auth: true if this email belongs to an archived student record (blocks re-provisioning). */
 export const isArchivedStudentEmail = (email: string): boolean => {
   const s = cachedStudents.find((e) => e.email.toLowerCase() === email.toLowerCase());
-  return !!s?.archived;
+  return Boolean(s?.archived);
+};
+
+/**
+ * Replaces `cachedStudents` with the latest `students` collection. Call after admin roster changes
+ * or before leaderboard aggregation so archived/deleted rows match Firestore.
+ * Returns false on error (cache left unchanged).
+ */
+export const reloadStudentsCacheFromFirestore = async (): Promise<boolean> => {
+  try {
+    const snapshot = await getDocs(collection(db, 'students'));
+    cachedStudents = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Student));
+    return true;
+  } catch (error) {
+    console.error('Error reloading students cache:', error);
+    return false;
+  }
 };
 
 export const isApprovedTeacher = (email: string): boolean => {
@@ -45,13 +80,13 @@ export const isApprovedTeacher = (email: string): boolean => {
 
 // Initialize Cache from Firestore
 export const initializeData = async () => {
-    try {
-        const [students, teachers] = await Promise.all([getAllStudents(), getAllTeachers()]);
-        if (students.length > 0) cachedStudents = students;
-        if (teachers.length > 0) cachedTeachers = teachers;
-    } catch (e) {
-        console.error("Failed to initialize data cache", e);
-    }
+  try {
+    await reloadStudentsCacheFromFirestore();
+    const teachers = await getAllTeachers();
+    if (teachers.length > 0) cachedTeachers = teachers;
+  } catch (e) {
+    console.error('Failed to initialize data cache', e);
+  }
 };
 
 // --- CRUD OPERATIONS ---
@@ -235,6 +270,19 @@ export const removeTeacher = async (id: string): Promise<boolean> => {
     }
 };
 
+export const updateTeacher = async (id: string, updates: Partial<Teacher>): Promise<boolean> => {
+  try {
+    const payload = omitUndefined(updates as Record<string, unknown>) as Partial<Teacher>;
+    if (Object.keys(payload).length === 0) return true;
+    await updateDoc(doc(db, 'teachers', id), payload as Record<string, unknown>);
+    cachedTeachers = cachedTeachers.map((t) => (t.id === id ? { ...t, ...payload } : t));
+    return true;
+  } catch (error) {
+    console.error('Error updating teacher:', error);
+    return false;
+  }
+};
+
 // SETTINGS (Subjects)
 export const getSystemSettings = async (): Promise<SystemSettings | null> => {
     try {
@@ -355,19 +403,12 @@ export const seedDatabase = async (): Promise<{ success: boolean; error?: string
     });
     
     // Seed Teachers
-    const teacherPromises = TEACHERS.map(teacher => {
-        // Create a safe ID from email
+    const teacherPromises = TEACHERS.map((teacher) => {
         const id = teacher.email.replace(/[^a-zA-Z0-9]/g, '_');
-        
-        // Auto-assign ADMIN role to specific users during seed
-        const role = (teacher.email.toLowerCase() === 'j.kakanis@sathyasai.nsw.edu.au' || teacher.email.includes('itadmin')) 
-            ? 'ADMIN' 
-            : 'TEACHER';
-
-        return setDoc(doc(db, "teachers", id), {
+        return setDoc(doc(db, 'teachers', id), {
             ...teacher,
             id,
-            role
+            role: teacher.role ?? 'TEACHER',
         });
     });
 
@@ -1107,6 +1148,58 @@ export interface LeaderboardEntry {
   quizScore: number;
 }
 
+export type LeaderboardSortKey = CoreValue | 'ALL' | 'ACHIEVEMENTS' | 'POP_QUIZ';
+
+/** Same numeric score used to sort the student leaderboard for the given mode. */
+export const getLeaderboardEntryScore = (
+  entry: LeaderboardEntry,
+  sortBy: LeaderboardSortKey
+): number => {
+  if (sortBy === 'ACHIEVEMENTS') return entry.achievementCount;
+  if (sortBy === 'POP_QUIZ') return entry.quizScore;
+  if (sortBy === 'ALL') return entry.total;
+  return entry.valueCounts[sortBy] || 0;
+};
+
+/** One row per year group: mean total stamps only (overall passport stamps). */
+export interface YearGroupLeaderboardRow {
+  grade: string;
+  /** Mean total stamps per enrolled student in this year (`getStudents()` / non-archived). */
+  meanStamps: number;
+}
+
+/**
+ * Ranks year groups by mean **overall** stamps per enrolled student. Tie-break: lower year number first.
+ */
+export const buildYearGroupLeaderboard = (entries: LeaderboardEntry[]): YearGroupLeaderboardRow[] => {
+  const byGrade = new Map<string, LeaderboardEntry[]>();
+  for (const e of entries) {
+    const g = e.student.grade;
+    if (!byGrade.has(g)) byGrade.set(g, []);
+    byGrade.get(g)!.push(e);
+  }
+
+  const gradeYearOrder = (grade: string): number => {
+    const m = grade.match(/\d+/);
+    return m ? parseInt(m[0], 10) : 0;
+  };
+
+  const rows: YearGroupLeaderboardRow[] = [];
+  for (const [grade, group] of byGrade) {
+    const totals = group.map((e) => e.total);
+    const n = totals.length;
+    const meanStamps = n > 0 ? totals.reduce((a, b) => a + b, 0) / n : 0;
+    rows.push({ grade, meanStamps });
+  }
+
+  rows.sort((a, b) => {
+    if (b.meanStamps !== a.meanStamps) return b.meanStamps - a.meanStamps;
+    return gradeYearOrder(a.grade) - gradeYearOrder(b.grade);
+  });
+
+  return rows;
+};
+
 export const getAllQuizScores = async (): Promise<Record<string, number>> => {
   try {
     const querySnapshot = await getDocs(collection(db, "quiz_scores"));
@@ -1148,11 +1241,15 @@ export const updateQuizScore = async (studentId: string, score: number) => {
 export const fetchLeaderboardData = async (sortByValue?: CoreValue | 'ACHIEVEMENTS' | 'POP_QUIZ'): Promise<LeaderboardEntry[]> => {
   // In a real production app, you would use Firestore Aggregation queries or Cloud Functions
   // to avoid downloading all signatures. For this scale (150 students), downloading all signatures is okay.
-  
+
+  await reloadStudentsCacheFromFirestore();
+
   const allSignatures = await getAllSignatures();
   const quizScores = await getAllQuizScores();
   
-  const allEntries: LeaderboardEntry[] = getStudents().map(student => {
+  const allEntries: LeaderboardEntry[] = getStudents()
+    .filter(isStudentShownOnLeaderboard)
+    .map((student) => {
     // Filter locally
     const studentSigs = allSignatures.filter(s => s.studentId === student.id);
     const stats = calculateStats(studentSigs);

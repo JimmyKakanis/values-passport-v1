@@ -43,6 +43,9 @@ const Layout: React.FC<{
 
   const isActive = (path: string) => location.pathname === path ? 'bg-emerald-900 text-white shadow-md' : 'text-emerald-100 hover:bg-emerald-700 hover:text-white';
 
+  const leaderboardNavActive =
+    location.pathname === '/leaderboard' || location.pathname.startsWith('/leaderboard/');
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
       {/* Navigation */}
@@ -88,7 +91,7 @@ const Layout: React.FC<{
                 </>
               )}
               
-              <Link to="/leaderboard" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/leaderboard')}`}>
+              <Link to="/leaderboard" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${leaderboardNavActive ? 'bg-emerald-900 text-white shadow-md' : 'text-emerald-100 hover:bg-emerald-700 hover:text-white'}`}>
                 <BarChart2 size={18} /> Leaderboard
               </Link>
 
@@ -198,7 +201,7 @@ const Layout: React.FC<{
             <Link 
               to="/leaderboard" 
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/leaderboard')}`}
+              className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${leaderboardNavActive ? 'bg-emerald-900 text-white shadow-md' : 'text-emerald-100 hover:bg-emerald-700 hover:text-white'}`}
             >
               <BarChart2 size={20} /> Leaderboard
             </Link>
@@ -465,7 +468,7 @@ const App: React.FC = () => {
           )}
           
           {/* Shared Route - Leaderboard needs userRole to determine behavior */}
-          <Route path="/leaderboard" element={<Leaderboard userRole={userRole} />} />
+          <Route path="/leaderboard/*" element={<Leaderboard userRole={userRole} />} />
           <Route path="/feedback" element={<FeedbackPage userRole={userRole!} />} />
           <Route path="/email-notifications" element={<Navigate to="/settings" replace />} />
           <Route

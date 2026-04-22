@@ -20,9 +20,11 @@ import {
   Archive,
   ArchiveRestore
 } from 'lucide-react';
-import { Student, Teacher, SystemSettings, FeedbackSubmission } from '../types';
+import { Student, Teacher, SystemSettings, FeedbackSubmission, UserRole } from '../types';
 import { 
   getAllStudents, 
+  getAllStudentsFromCache,
+  reloadStudentsCacheFromFirestore,
   getAllTeachers, 
   getSystemSettings, 
   addStudent, 
@@ -32,6 +34,7 @@ import {
   unarchiveStudents,
   addTeacher,
   removeTeacher,
+  updateTeacher,
   updateSubjects,
   seedDatabase,
   resetAllProgress,
@@ -96,8 +99,8 @@ export const AdminConsole: React.FC = () => {
     setError('');
     try {
       if (activeTab === 'STUDENTS') {
-        const data = await getAllStudents();
-        setStudents(data);
+        const ok = await reloadStudentsCacheFromFirestore();
+        setStudents(ok ? getAllStudentsFromCache() : await getAllStudents());
       } else if (activeTab === 'TEACHERS') {
         const data = await getAllTeachers();
         setTeachers(data);
@@ -395,6 +398,20 @@ export const AdminConsole: React.FC = () => {
         loadData();
     } else {
         setError('Failed to remove teacher');
+    }
+  };
+
+  const handleTeacherRoleChange = async (teacher: Teacher, role: UserRole) => {
+    if (!teacher.id || role === teacher.role) return;
+    setLoading(true);
+    setError('');
+    const ok = await updateTeacher(teacher.id, { role });
+    setLoading(false);
+    if (ok) {
+      setSuccess(`Updated ${teacher.name} to ${role}. They should refresh or sign in again to see all admin menu items.`);
+      loadData();
+    } else {
+      setError('Failed to update teacher role.');
     }
   };
 
@@ -1023,9 +1040,17 @@ export const AdminConsole: React.FC = () => {
                                     <td className="p-3 font-medium text-emerald-900">{teacher.name}</td>
                                     <td className="p-3 text-gray-600">{teacher.email}</td>
                                     <td className="p-3">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold ${teacher.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
-                                            {teacher.role || 'TEACHER'}
-                                        </span>
+                                        <select
+                                            value={teacher.role === 'ADMIN' ? 'ADMIN' : 'TEACHER'}
+                                            onChange={(e) =>
+                                              handleTeacherRoleChange(teacher, e.target.value as UserRole)
+                                            }
+                                            className="text-sm font-bold border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-emerald-900 focus:ring-2 focus:ring-emerald-500"
+                                            aria-label={`Role for ${teacher.name}`}
+                                        >
+                                            <option value="TEACHER">TEACHER</option>
+                                            <option value="ADMIN">ADMIN</option>
+                                        </select>
                                     </td>
                                     <td className="p-3 text-right">
                                         <button 

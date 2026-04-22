@@ -62,6 +62,8 @@ export interface Student {
   archived?: boolean;
   /** Unix ms when the account was archived (optional audit). */
   archivedAt?: number;
+  /** When true, still appears in teacher pickers but is omitted from Wall of Fame / year-group standings. */
+  excludeFromLeaderboard?: boolean;
 }
 
 /** Firestore `email_preferences/{emailLower}` — doc id = auth email lowercased */
