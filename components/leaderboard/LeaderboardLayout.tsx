@@ -4,7 +4,7 @@ import { Trophy, Users } from 'lucide-react';
 import { UserRole } from '../../types';
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
-  `flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-bold transition-all border text-center ${
+  `inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-bold transition-all border text-center min-w-[8.5rem] ${
     isActive
       ? 'bg-blue-900 border-blue-900 text-white shadow-md'
       : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
@@ -34,7 +34,7 @@ export const LeaderboardLayout: React.FC<Props> = ({ userRole }) => {
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 max-w-xl mx-auto">
+      <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2 w-full">
         <NavLink to="/leaderboard" end className={tabClass}>
           <span className="inline-flex items-center justify-center gap-2">
             <Trophy className="w-4 h-4 shrink-0" />
