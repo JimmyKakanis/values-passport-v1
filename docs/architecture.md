@@ -16,7 +16,7 @@ The application's UI is built from a set of modular React components located in 
 - **`Dashboard.tsx`**: The main view for students, showing their progress and passport.
 - **`StudentPassport.tsx`**: The core grid view of the values and subjects. It now subscribes to real-time updates, allowing students to see stamps appear instantly. It also supports interactive stamp history viewing via `StampHistoryModal`.
 - **`Achievements.tsx`**: Shows a student's earned achievements and progress bars.
-- **`Leaderboard.tsx`**: Nested routes under `/leaderboard/*` — **Students** (`StudentLeaderboard.tsx`) for individual rankings (filters + stamps/badges/quiz scores), **Year groups** (`YearGroupStandings.tsx`) for **overall mean stamps per year** only; shared chrome and tabs in **`leaderboard/LeaderboardLayout.tsx`**.
+- **`Leaderboard.tsx`**: Nested routes under `/leaderboard/*` — **Students** (`StudentLeaderboard.tsx`) for individual rankings (filters + stamps/badges/quiz scores), **Year groups** (`YearGroupStandings.tsx`) for **overall mean stamps per year** only; shared chrome in **`leaderboard/LeaderboardLayout.tsx`** (centered **Students** / **Year groups** tabs). Shared filter UI pieces in **`leaderboard/LeaderboardShared.tsx`**.
 - **`ValuesLearning.tsx`**: The "Values Lab" section containing educational resources for students.
 - **`StudentPlanner.tsx`**: A comprehensive calendar and task management tool. It features Term, Month, and Week views, allowing students to track homework and assignments aligned with the school term.
 
@@ -37,7 +37,7 @@ The application's UI is built from a set of modular React components located in 
 ### Admin Views
 - **`AdminConsole.tsx`**: A protected dashboard for Super Admins.
     - **Student directory**: Search by name or email; **sort** by **grade** (numeric from grade text, e.g. Year 7 → 7) or **first name** (first token of full name), with the other field as tie-breaker. **Row checkboxes** and a header **select all** (visible rows only) support **bulk Archive** and **bulk Restore**. **Show archived** toggles visibility of soft-archived students (muted rows and an **Archived** badge). Per-row actions: **Edit**, **Archive** or **Restore**, **Reset progress**, and **Delete permanently** (Firestore document removed; distinct from archive).
-    - **Teacher Management**: Add/Remove authorized teachers and admins.
+    - **Teacher Management**: Add/Remove authorized staff; **role** per row (`TEACHER` | `ADMIN`) via [`updateTeacher`](../services/dataService.ts) (Firestore `teachers` collection).
     - **System Settings**: Manage dynamic configuration like the active Subjects list.
     - **Other tabs**: **Analytics** ([`SchoolAnalytics.tsx`](../components/SchoolAnalytics.tsx)), **Data Migration** (seed, progress reset, legacy teacher name fix), and **Feedback** (submissions list).
 

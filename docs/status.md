@@ -61,7 +61,10 @@
     - [x] Podium (top 3) with list continuing from rank 4
     - [x] Top 20 for overall all-grades view; top 10 for grade/value-specific views (students)
     - [x] Teachers see full rankings; students see limited view
-- [x] **Year group leaderboard** (2026-04): own tab; overall mean stamps per enrolled student per year only; student Wall of Fame uses “stamps” labeling for high scores
+- [x] **Year group leaderboard** (2026-04): tab at `#/leaderboard/year-groups`; overall mean stamps per enrolled student per year; podium for top 3 year groups, full table from 4th; centered Students / Year groups tabs in layout
+- [x] **Leaderboard roster accuracy**: `reloadStudentsCacheFromFirestore` before `fetchLeaderboardData`; admin Students tab reload syncs cache; `initializeData` always loads students from Firestore
+- [x] **Leaderboard exclusions**: `excludeFromLeaderboard` on student doc + `LEADERBOARD_HIDDEN_STUDENT_EMAILS` in constants (e.g. Student Test); stamps label instead of pts for non-badge views
+- [x] **Teacher ADMIN in console**: `updateTeacher`; Teachers tab role dropdown; `TEACHERS` / seed respect `role`; `cachedTeachers` init preserves ADMIN from constants
 - [x] **Change Password Removal**
     - [x] Removed Key icon and Change Password modal (Microsoft 365 login handles credentials)
     - [x] Updated Dashboard tips

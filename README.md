@@ -25,7 +25,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **My Passport:** A visual grid showing mastery levels across Academic Subjects and Locations & Events (including Camp, Excursions, Sports Carnivals). Click any cell to see the full history of stamps and teacher comments.
 - **My Goals:** A goal-setting area where students can create and track Yearly, Subject-specific, and Personal Life goals.
 - **Values Lab:** A learning hub with definitions, sub-values, and resources.
-- **Leaderboard:** A friendly competition tracker with filters (grade, value). Ranks show position within the selected view. Top 20 for overall; top 10 for filtered views.
+- **Leaderboard (Wall of Fame):** **`#/leaderboard`** for student rankings (grade, value, badges, quiz) with a podium for the top three; **`#/leaderboard/year-groups`** for **year-group** standings (mean **stamps** per student, overall only), also with a podium for the top three cohorts. Ranks reflect the current filter. Students see top 20 overall / top 10 when filtered; staff see full lists. Roster for scores is refreshed from Firestore when the leaderboard loads so archived or deleted students drop out. Optional **hide from leaderboard only** for test accounts (`excludeFromLeaderboard` or emails in `LEADERBOARD_HIDDEN_STUDENT_EMAILS` in `constants.ts`).
 
 ### 👨‍🏫 Teacher Console
 - **Quick Awarding:** Award stamps to individual students or bulk groups in seconds.

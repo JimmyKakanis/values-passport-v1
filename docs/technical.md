@@ -76,7 +76,8 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Optimistic UI**: While not strictly "optimistic" (since we wait for the server push), the latency is low enough (~100ms) that it feels instant.
 - **Stamp History**: Clicking a cell opens a modal that filters the local signatures state by `subject` and `value`. This avoids an additional network request.
 
-### Leaderboard
+### Leaderboard (Wall of Fame)
+- **Routes**: Shared nav link **Leaderboard** highlights for both **`#/leaderboard`** and **`#/leaderboard/year-groups`** (`path="/leaderboard/*"` in [`App.tsx`](../App.tsx)). [`Leaderboard.tsx`](../components/Leaderboard.tsx) wraps nested routes; [`LeaderboardLayout.tsx`](../components/leaderboard/LeaderboardLayout.tsx) provides the title, **TEACHER VIEW** badge when applicable, and **Students** / **Year groups** tabs (**centered** under the header, aligned with the search bar on the Students view).
 - **Rank Display**: Ranks shown in the table reflect position within the current filtered view (e.g., 1–24 for "Year 8 Truth"), not overall position across all students.
 - **Podium + List**: Top 3 displayed on podium; list below continues from rank 4.
 - **Visibility**: Teachers see full rankings; students see top 20 for overall all-grades, top 10 for grade/value-specific views.
