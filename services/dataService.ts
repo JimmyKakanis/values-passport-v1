@@ -718,6 +718,574 @@ export const getAllClaimedRewards = async (): Promise<ClaimedReward[]> => {
   }
 };
 
+const ACHIEVEMENT_TITLE_BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a.title] as const));
+const OTHER_REWARD_LABEL = 'Other school rewards';
+
+/** Rolling 7-day window for school highlights (aggregate only; no individual names). */
+const HIGHLIGHTS_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export interface SchoolHighlightsValueSlice {
+  value: CoreValue;
+  count: number;
+}
+
+export interface SchoolHighlightsTopClaim {
+  title: string;
+  count: number;
+}
+
+export interface SchoolHighlightsStats {
+  stampsLast7Days: number;
+  valueSlicesLast7Days: SchoolHighlightsValueSlice[];
+  /** Value with the most stamps in the window, for display; null if none */
+  highlightValue: CoreValue | null;
+  /**
+   * Value with the fewest school-wide stamps in the window (ties: stable order on CoreValue id).
+   * For gentle "invitation" copy; not a competition.
+   */
+  spotlightValueLow: CoreValue | null;
+  /** Min / max stamp count per value (all five values) — used to hide the nudge when all are tied */
+  minSchoolValueCount7d: number;
+  maxSchoolValueCount7d: number;
+  rewardClaimsLast7Days: number;
+  totalRewardClaimsAllTime: number;
+  topClaimedTypesLast7Days: SchoolHighlightsTopClaim[];
+}
+
+const CORE_VALUE_TAB_ORDER: CoreValue[] = [
+  CoreValue.TRUTH,
+  CoreValue.LOVE,
+  CoreValue.PEACE,
+  CoreValue.RIGHT_CONDUCT,
+  CoreValue.NON_VIOLENCE,
+];
+
+export interface SchoolHighlightsPersonal {
+  stampsLast7Days: number;
+  /** This student's most-often recognised value in the window, null if no stamps */
+  topValue: CoreValue | null;
+}
+
+const computeSchoolHighlightsStats = (
+  recentSigs: Signature[],
+  allClaimed: ClaimedReward[],
+  cutoff: number
+): SchoolHighlightsStats => {
+  const valueCounts: Record<CoreValue, number> = {
+    [CoreValue.TRUTH]: 0,
+    [CoreValue.LOVE]: 0,
+    [CoreValue.PEACE]: 0,
+    [CoreValue.RIGHT_CONDUCT]: 0,
+    [CoreValue.NON_VIOLENCE]: 0,
+  };
+  for (const s of recentSigs) {
+    if (valueCounts[s.value] !== undefined) {
+      valueCounts[s.value] += 1;
+    }
+  }
+
+  const valueSlicesLast7Days: SchoolHighlightsValueSlice[] = (Object.values(CoreValue) as CoreValue[])
+    .map((value) => ({ value, count: valueCounts[value] }))
+    .filter((x) => x.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const highlightValue = valueSlicesLast7Days[0]?.value ?? null;
+
+  const minSchoolValueCount7d = Math.min(...CORE_VALUE_TAB_ORDER.map((v) => valueCounts[v]));
+  const maxSchoolValueCount7d = Math.max(...CORE_VALUE_TAB_ORDER.map((v) => valueCounts[v]));
+  const candidatesLow = CORE_VALUE_TAB_ORDER.filter((v) => valueCounts[v] === minSchoolValueCount7d);
+  const spotlightValueLow = candidatesLow[0] ?? null;
+
+  const recentClaims = allClaimed.filter((c) => c.timestamp >= cutoff);
+  const claimCountByAchievement = new Map<string, number>();
+  for (const c of recentClaims) {
+    claimCountByAchievement.set(c.achievementId, (claimCountByAchievement.get(c.achievementId) || 0) + 1);
+  }
+
+  let otherCount = 0;
+  const rows: SchoolHighlightsTopClaim[] = [];
+  for (const [achievementId, count] of claimCountByAchievement) {
+    const title = ACHIEVEMENT_TITLE_BY_ID.get(achievementId);
+    if (title) {
+      rows.push({ title, count });
+    } else {
+      otherCount += count;
+    }
+  }
+  if (otherCount > 0) {
+    rows.push({ title: OTHER_REWARD_LABEL, count: otherCount });
+  }
+  rows.sort((a, b) => b.count - a.count);
+  const topClaimedTypesLast7Days = rows.slice(0, 5);
+
+  return {
+    stampsLast7Days: recentSigs.length,
+    valueSlicesLast7Days,
+    highlightValue,
+    spotlightValueLow,
+    minSchoolValueCount7d,
+    maxSchoolValueCount7d,
+    rewardClaimsLast7Days: recentClaims.length,
+    totalRewardClaimsAllTime: allClaimed.length,
+    topClaimedTypesLast7Days,
+  };
+};
+
+/**
+ * Aggregate school-wide stats for the student-facing highlights page (no per-student identifiers).
+ */
+export const getSchoolHighlightsStats = async (): Promise<SchoolHighlightsStats> => {
+  const [sigs, claimed] = await Promise.all([getAllSignatures(), getAllClaimedRewards()]);
+  const cutoff = Date.now() - HIGHLIGHTS_WINDOW_MS;
+  const recentSigs = sigs.filter((s) => s.timestamp >= cutoff);
+  return computeSchoolHighlightsStats(recentSigs, claimed, cutoff);
+};
+
+/** Good news (no personal names). `line` is varied copy; `detail` drives rich UI. */
+export type GoodNewsFeedActivityKind = 'stamp' | 'claim';
+
+export type GoodNewsFeedMilestoneKind = 'schoolMilestone' | 'yearMilestone' | 'funStat';
+
+export type GoodNewsFeedItemKind = GoodNewsFeedActivityKind | GoodNewsFeedMilestoneKind;
+
+export type GoodNewsFeedItem = {
+  id: string;
+  timestamp: number;
+  line: string;
+  kind: GoodNewsFeedItemKind;
+  detail: GoodNewsFeedDetail;
+};
+
+export type GoodNewsFeedDetail =
+  | {
+      kind: 'stamp';
+      yearLabel: string;
+      value: CoreValue;
+      /** Teacher-selected behaviour tag when present */
+      subValue?: string;
+      /**
+       * e.g. "Truth lived as Honesty" when `subValue` is set, otherwise the core value name only.
+       */
+      livedAsLabel: string;
+      place: string;
+    }
+  | {
+      kind: 'claim';
+      yearLabel: string;
+      achievementTitle: string;
+    }
+  | { kind: 'schoolMilestone' }
+  | { kind: 'yearMilestone'; yearLabel: string }
+  | { kind: 'funStat' };
+
+/** "Truth lived as Honesty" for feed copy; value-only when there is no sub-value on the stamp. */
+export const formatValueLivedAs = (v: CoreValue, subValue?: string): string => {
+  const t = (subValue || '').trim();
+  if (!t) return v;
+  return `${v} lived as ${t}`;
+};
+
+export interface YearLevelSnapshot {
+  gradeLabel: string;
+  /** Active students on the roll for this year */
+  studentCount: number;
+  stampsLast7Days: number;
+  claimsLast7Days: number;
+  /** How many of the five values had at least one stamp (7d) */
+  valuesTouched7d: number;
+  /** All-time stamps for students in this year (excludes unmapped / archived already filtered by getStudents) */
+  totalStampsAllTime: number;
+  milestoneLines: string[];
+}
+
+export interface SchoolHighlightsPageData {
+  stats: SchoolHighlightsStats;
+  personal: SchoolHighlightsPersonal | null;
+  /** Active students (school) */
+  totalStudentsOnRoll: number;
+  myYearGroupLabel: string | null;
+  myYearSnapshot: YearLevelSnapshot | null;
+  /** Same shape as a year card, for all students on roll */
+  schoolWideSnapshot: YearLevelSnapshot;
+  yearSnapshots: YearLevelSnapshot[];
+  feed: GoodNewsFeedItem[];
+}
+
+const YEAR_NUMBERS_7_12 = [7, 8, 9, 10, 11, 12] as const;
+
+const normalizeToYearLabel = (grade: string): string | null => {
+  const m = (grade || '').trim().match(/year\s*(\d{1,2})/i);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  if (n < 7 || n > 12) return null;
+  return `Year ${n}`;
+};
+
+const shortSubject = (s: string, max = 28): string => {
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 1)}…`;
+};
+
+/** Deterministic template pick for feed copy variety */
+const hashPick = (seed: string, modulo: number): number => {
+  let h = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    h = (h * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h) % modulo;
+};
+
+/**
+ * Grammatically natural "where" fragment for student-facing feed (not "in the room" for the playground).
+ */
+const formatPlaceWhere = (place: string): string => {
+  const t = place.trim();
+  const l = t.toLowerCase();
+  if (l === 'playground') return 'on the playground';
+  if (l === 'assembly') return 'at assembly';
+  if (l === 'homeroom') return 'in homeroom';
+  if (l === 'sport') return 'in sport';
+  if (l === 'excursions') return 'on an excursion';
+  if (l === 'sports carnivals') return 'at the sports carnival';
+  if (l === 'camp') return 'at camp';
+  if (l === 'library') return 'in the library';
+  // Subjects and other cells: "in Math", "in Japanese"
+  return `in ${t}`;
+};
+
+const buildStampFeedLine = (
+  yl: string,
+  v: CoreValue,
+  place: string,
+  seed: string,
+  subValue?: string
+): string => {
+  const where = formatPlaceWhere(place);
+  const lived = formatValueLivedAs(v, subValue);
+  const lines = [
+    `Someone in ${yl} was recognised for ${lived} ${where}.`,
+    `Teachers noticed ${lived} ${where} (${yl}).`,
+    `Nice one: ${lived} showed up ${where} — a ${yl} moment worth sharing.`,
+    `A student from ${yl} put ${lived} into action ${where}.`,
+    `This week ${lived} showed up ${where} (${yl}).`,
+    `Spotlight: ${lived} ${where} — thanks to someone in ${yl}.`,
+  ];
+  return lines[hashPick(seed, lines.length)];
+};
+
+const buildClaimFeedLine = (yl: string, title: string, seed: string): string => {
+  const lines = [
+    `Someone in ${yl} unlocked ${title}.`,
+    `New achievement: ${title} (${yl}).`,
+    `${yl} earned ${title} this week.`,
+    `A student in ${yl} claimed ${title}.`,
+    `Another milestone: ${title} (${yl}).`,
+    `Great to see ${title} picked up in ${yl}.`,
+  ];
+  return lines[hashPick(seed, lines.length)];
+};
+
+const buildYearMilestones = (y: YearLevelSnapshot): string[] => {
+  const m: string[] = [];
+  if (y.stampsLast7Days >= 8) {
+    m.push(`A strong week: ${y.stampsLast7Days} new recognitions together.`);
+  } else if (y.stampsLast7Days >= 1) {
+    m.push('Building the story week by week.');
+  }
+  if (y.valuesTouched7d >= 5) {
+    m.push('All five values showed up in your year this week.');
+  } else if (y.valuesTouched7d >= 3) {
+    m.push(`${y.valuesTouched7d} different values in focus this week.`);
+  }
+  if (y.claimsLast7Days >= 2) {
+    m.push(`${y.claimsLast7Days} achievement claims in your year this week.`);
+  } else if (y.claimsLast7Days === 1) {
+    m.push('An achievement was claimed in your year this week.');
+  }
+  for (const tier of [1000, 500, 250, 100] as const) {
+    if (y.totalStampsAllTime >= tier) {
+      m.push(`Together you have passed ${tier} shared value stamps, and counting.`);
+      break;
+    }
+  }
+  return m.slice(0, 4);
+};
+
+const interleaveFeedBuckets = (buckets: GoodNewsFeedItem[][], max: number): GoodNewsFeedItem[] => {
+  const copies = buckets.map((b) => [...b]);
+  const out: GoodNewsFeedItem[] = [];
+  while (out.length < max) {
+    let any = false;
+    for (const b of copies) {
+      if (b.length > 0 && out.length < max) {
+        out.push(b.shift()!);
+        any = true;
+      }
+    }
+    if (!any) break;
+  }
+  return out;
+};
+
+const buildFunStatFeedItems = (
+  stats: SchoolHighlightsStats,
+  schoolWide: YearLevelSnapshot,
+  myYear: YearLevelSnapshot | null,
+  cutoff: number
+): GoodNewsFeedItem[] => {
+  const lines: string[] = [];
+  if (stats.highlightValue) {
+    const name = CORE_VALUES[stats.highlightValue].id;
+    lines.push(`This week, “${name}” has the broadest share of new stamps at school.`);
+  }
+  if (stats.stampsLast7Days > 0) {
+    lines.push(`${stats.stampsLast7Days} value moments were recorded school-wide in the last 7 days.`);
+  }
+  if (stats.rewardClaimsLast7Days > 0) {
+    lines.push(`${stats.rewardClaimsLast7Days} achievement rewards were claimed across the school this week.`);
+  }
+  const top = stats.topClaimedTypesLast7Days[0];
+  if (top) {
+    lines.push(`Top school goal this week: ${top.title} (${top.count}×).`);
+  }
+  if (stats.valueSlicesLast7Days.length >= 5) {
+    lines.push('All five values have at least one new stamp this week — a full set at school.');
+  } else if (myYear && myYear.valuesTouched7d >= 3) {
+    lines.push(`Your year had ${myYear.valuesTouched7d} different values in the spotlight this week.`);
+  }
+  if (schoolWide.totalStampsAllTime > 0) {
+    lines.push(
+      `Together the school has recorded ${schoolWide.totalStampsAllTime} shared value moments all time, and counting.`
+    );
+  }
+  const picked = lines.slice(0, 5);
+  return picked.map((line, i) => ({
+    id: `fun-${i}-${hashPick(line, 1_000_000)}`,
+    timestamp: cutoff + (i + 1) * 60_000,
+    line,
+    kind: 'funStat' as const,
+    detail: { kind: 'funStat' as const },
+  }));
+};
+
+/**
+ * One Firestore read of signatures + claims; school + cohort + feed (no individual names in feed).
+ */
+export const getSchoolHighlightsPageData = async (studentId: string | null): Promise<SchoolHighlightsPageData> => {
+  await reloadStudentsCacheFromFirestore();
+  const [allSigs, allClaimed] = await Promise.all([getAllSignatures(), getAllClaimedRewards()]);
+  const cutoff = Date.now() - HIGHLIGHTS_WINDOW_MS;
+
+  const students = getStudents();
+  const totalStudentsOnRoll = students.length;
+
+  const studentById = new Map(students.map((s) => [s.id, s] as const));
+
+  const sigs7d = allSigs.filter((s) => s.timestamp >= cutoff);
+  const stats = computeSchoolHighlightsStats(sigs7d, allClaimed, cutoff);
+
+  let personal: SchoolHighlightsPersonal | null = null;
+  if (studentId) {
+    const mine = allSigs.filter((s) => s.studentId === studentId && s.timestamp >= cutoff);
+    if (mine.length === 0) {
+      personal = { stampsLast7Days: 0, topValue: null };
+    } else {
+      const byValue: Record<CoreValue, number> = {
+        [CoreValue.TRUTH]: 0,
+        [CoreValue.LOVE]: 0,
+        [CoreValue.PEACE]: 0,
+        [CoreValue.RIGHT_CONDUCT]: 0,
+        [CoreValue.NON_VIOLENCE]: 0,
+      };
+      for (const s of mine) {
+        if (byValue[s.value] !== undefined) {
+          byValue[s.value] += 1;
+        }
+      }
+      let topValue: CoreValue | null = null;
+      let best = 0;
+      for (const v of CORE_VALUE_TAB_ORDER) {
+        if (byValue[v] > best) {
+          best = byValue[v];
+          topValue = v;
+        }
+      }
+      personal = { stampsLast7Days: mine.length, topValue: best > 0 ? topValue : null };
+    }
+  }
+
+  const claims7d = allClaimed.filter((c) => c.timestamp >= cutoff);
+
+  const idsByYear = new Map<string, Set<string>>();
+  for (const n of YEAR_NUMBERS_7_12) {
+    idsByYear.set(`Year ${n}`, new Set());
+  }
+  for (const st of students) {
+    const yl = normalizeToYearLabel(st.grade);
+    if (yl && idsByYear.has(yl)) {
+      idsByYear.get(yl)!.add(st.id);
+    }
+  }
+
+  const buildSnapshot = (gradeLabel: string, ids: Set<string>): YearLevelSnapshot => {
+    const sigYear = allSigs.filter((s) => ids.has(s.studentId));
+    const sig7d = sigYear.filter((s) => s.timestamp >= cutoff);
+    const valuesSeen = new Set<CoreValue>();
+    for (const s of sig7d) {
+      valuesSeen.add(s.value);
+    }
+    const cl7 = claims7d.filter((c) => ids.has(c.studentId));
+    const totalStampsAllTime = sigYear.length;
+    const base: YearLevelSnapshot = {
+      gradeLabel,
+      studentCount: ids.size,
+      stampsLast7Days: sig7d.length,
+      claimsLast7Days: cl7.length,
+      valuesTouched7d: valuesSeen.size,
+      totalStampsAllTime,
+      milestoneLines: [],
+    };
+    base.milestoneLines = buildYearMilestones(base);
+    return base;
+  };
+
+  const yearSnapshots: YearLevelSnapshot[] = [];
+  for (const n of YEAR_NUMBERS_7_12) {
+    const label = `Year ${n}`;
+    const ids = idsByYear.get(label)!;
+    yearSnapshots.push(buildSnapshot(label, ids));
+  }
+
+  const allStudentIds = new Set(students.map((s) => s.id));
+  const schoolWideSnapshot = buildSnapshot('Whole school', allStudentIds);
+
+  let myYearGroupLabel: string | null = null;
+  let myYearSnapshot: YearLevelSnapshot | null = null;
+  if (studentId) {
+    const st = studentById.get(studentId);
+    if (st) {
+      myYearGroupLabel = normalizeToYearLabel(st.grade);
+      if (myYearGroupLabel) {
+        myYearSnapshot = yearSnapshots.find((x) => x.gradeLabel === myYearGroupLabel) ?? null;
+      }
+    }
+  }
+
+  // --- Feed: name-free lines, 7d only, interleave stamps + claims ---
+  const feed: GoodNewsFeedItem[] = [];
+  for (const s of sigs7d) {
+    const stu = studentById.get(s.studentId);
+    if (!stu) continue;
+    const yl = normalizeToYearLabel(stu.grade) ?? 'the school';
+    const subj = shortSubject(String(s.subject));
+    const seed = s.id;
+    const sub = s.subValue?.trim() || undefined;
+    const livedAsLabel = formatValueLivedAs(s.value, sub);
+    feed.push({
+      id: `s-${s.id}`,
+      timestamp: s.timestamp,
+      line: buildStampFeedLine(yl, s.value, subj, seed, sub),
+      kind: 'stamp',
+      detail: { kind: 'stamp', yearLabel: yl, value: s.value, subValue: sub, livedAsLabel, place: subj },
+    });
+  }
+  for (const c of claims7d) {
+    const stu = studentById.get(c.studentId);
+    if (!stu) continue;
+    const yl = normalizeToYearLabel(stu.grade) ?? 'the school';
+    const title = ACHIEVEMENT_TITLE_BY_ID.get(c.achievementId) ?? OTHER_REWARD_LABEL;
+    feed.push({
+      id: `c-${c.id}`,
+      timestamp: c.timestamp,
+      line: buildClaimFeedLine(yl, title, c.id),
+      kind: 'claim',
+      detail: { kind: 'claim', yearLabel: yl, achievementTitle: title },
+    });
+  }
+  feed.sort((a, b) => b.timestamp - a.timestamp);
+  const seenLine = new Set<string>();
+  const activityFeed: GoodNewsFeedItem[] = [];
+  for (const f of feed) {
+    if (seenLine.has(f.line)) continue;
+    seenLine.add(f.line);
+    activityFeed.push(f);
+    if (activityFeed.length >= 14) break;
+  }
+
+  const schoolMilestoneFeed: GoodNewsFeedItem[] = schoolWideSnapshot.milestoneLines.slice(0, 3).map((line, i) => ({
+    id: `msch-${i}`,
+    timestamp: cutoff + (i + 1) * 30_000,
+    line,
+    kind: 'schoolMilestone' as const,
+    detail: { kind: 'schoolMilestone' as const },
+  }));
+
+  const schoolMilestoneLineSet = new Set(schoolWideSnapshot.milestoneLines);
+  const yearLines = (myYearSnapshot?.milestoneLines ?? []).filter((l) => !schoolMilestoneLineSet.has(l)).slice(0, 3);
+  const yearMilestoneFeed: GoodNewsFeedItem[] =
+    myYearSnapshot && yearLines.length > 0
+      ? yearLines.map((line, i) => ({
+          id: `myr-${i}`,
+          timestamp: cutoff + (i + 1) * 45_000,
+          line,
+          kind: 'yearMilestone' as const,
+          detail: { kind: 'yearMilestone' as const, yearLabel: myYearSnapshot.gradeLabel },
+        }))
+      : [];
+
+  const funStatFeed = buildFunStatFeedItems(stats, schoolWideSnapshot, myYearSnapshot, cutoff).slice(0, 4);
+
+  const feedFinal = interleaveFeedBuckets(
+    [activityFeed, schoolMilestoneFeed, yearMilestoneFeed, funStatFeed],
+    20
+  );
+
+  return {
+    stats,
+    personal,
+    totalStudentsOnRoll,
+    myYearGroupLabel,
+    myYearSnapshot,
+    schoolWideSnapshot,
+    yearSnapshots,
+    feed: feedFinal,
+  };
+};
+
+/**
+ * Logged-in student's own 7-day snapshot for School highlights (not compared to others).
+ */
+export const getSchoolHighlightsPersonal = async (studentId: string): Promise<SchoolHighlightsPersonal> => {
+  const sigs = await getSignaturesForStudent(studentId);
+  const cutoff = Date.now() - HIGHLIGHTS_WINDOW_MS;
+  const recent = sigs.filter((s) => s.timestamp >= cutoff);
+  if (recent.length === 0) {
+    return { stampsLast7Days: 0, topValue: null };
+  }
+  const byValue: Record<CoreValue, number> = {
+    [CoreValue.TRUTH]: 0,
+    [CoreValue.LOVE]: 0,
+    [CoreValue.PEACE]: 0,
+    [CoreValue.RIGHT_CONDUCT]: 0,
+    [CoreValue.NON_VIOLENCE]: 0,
+  };
+  for (const s of recent) {
+    if (byValue[s.value] !== undefined) {
+      byValue[s.value] += 1;
+    }
+  }
+  let topValue: CoreValue | null = null;
+  let best = 0;
+  for (const v of CORE_VALUE_TAB_ORDER) {
+    const c = byValue[v];
+    if (c > best) {
+      best = c;
+      topValue = v;
+    }
+  }
+  return { stampsLast7Days: recent.length, topValue: best > 0 ? topValue : null };
+};
+
 export const claimReward = async (studentId: string, achievementId: string, teacherName: string): Promise<boolean> => {
   try {
     const newClaim = {
@@ -1161,15 +1729,26 @@ export const getLeaderboardEntryScore = (
   return entry.valueCounts[sortBy] || 0;
 };
 
-/** One row per year group: mean total stamps only (overall passport stamps). */
+/** One row per year group (overall passport stamps). */
 export interface YearGroupLeaderboardRow {
   grade: string;
-  /** Mean total stamps per enrolled student in this year (`getStudents()` / non-archived). */
+  /**
+   * Sum of all stamps in this year — what the student UI shows (cohort “together”, not a per-person
+   * average in the copy).
+   */
+  totalStamps: number;
+  /** Roster size for this year (shown lightly if needed). */
+  studentCount: number;
+  /**
+   * Mean total stamps per enrolled student — used only to rank when cohort sizes differ, not shown
+   * in the year-group view.
+   */
   meanStamps: number;
 }
 
 /**
- * Ranks year groups by mean **overall** stamps per enrolled student. Tie-break: lower year number first.
+ * Ranks year groups by mean **overall** stamps per enrolled student (fair across cohort sizes).
+ * The UI surfaces {@link YearGroupLeaderboardRow.totalStamps} instead. Tie-break: lower year number first.
  */
 export const buildYearGroupLeaderboard = (entries: LeaderboardEntry[]): YearGroupLeaderboardRow[] => {
   const byGrade = new Map<string, LeaderboardEntry[]>();
@@ -1188,8 +1767,9 @@ export const buildYearGroupLeaderboard = (entries: LeaderboardEntry[]): YearGrou
   for (const [grade, group] of byGrade) {
     const totals = group.map((e) => e.total);
     const n = totals.length;
-    const meanStamps = n > 0 ? totals.reduce((a, b) => a + b, 0) / n : 0;
-    rows.push({ grade, meanStamps });
+    const totalStamps = n > 0 ? totals.reduce((a, b) => a + b, 0) : 0;
+    const meanStamps = n > 0 ? totalStamps / n : 0;
+    rows.push({ grade, meanStamps, totalStamps, studentCount: n });
   }
 
   rows.sort((a, b) => {

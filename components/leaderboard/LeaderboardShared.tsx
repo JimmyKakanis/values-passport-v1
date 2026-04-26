@@ -4,6 +4,7 @@ import { LeaderboardSortKey } from '../../services/dataService';
 
 export const getLeaderboardMetricUnit = (filter: LeaderboardSortKey): string => {
   if (filter === 'ACHIEVEMENTS') return 'badges';
+  if (filter === 'POP_QUIZ') return 'pts';
   return 'stamps';
 };
 

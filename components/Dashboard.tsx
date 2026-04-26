@@ -42,7 +42,7 @@ const DID_YOU_KNOW_TIPS = [
   "You can **Self-Nominate**! If you did something good and no one saw, use the Request Stamp button to tell your teacher.",
   "See a friend doing something great? Use the **'For a Friend'** option in the Request Stamp form to advocate for them.",
   "Check your **Achievements** page to see special badges you can unlock, like 'The Optimist' or 'Guardian of Nature'.",
-  "The **Leaderboard** has filters! You can see who is leading specifically in 'Truth' or 'Non-Violence'.",
+  "Open **School** to see how everyone is doing together: highlights of values across the school, plus year group snapshots.",
   "Teachers can tag your stamps with specific behaviours like **'Curiosity'** or **'Leadership'**. Check your Recent History to see them!",
   "The **'Head, Heart, Hand'** achievement requires you to earn stamps in Academic, Creative, and Active subjects.",
   "With **Microsoft 365** login, your school account keeps your Values Passport secure.",
@@ -293,7 +293,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
 
       <div className="flex justify-end">
         <Link to="/leaderboard" className="bg-white px-4 py-2 rounded-lg shadow-sm text-blue-900 font-bold text-sm hover:bg-blue-50 flex items-center gap-2 transition-colors border border-blue-100">
-           <BarChart2 size={16} /> View School Leaderboard
+           <BarChart2 size={16} /> School highlights and year groups
         </Link>
       </div>
 

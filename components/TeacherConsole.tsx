@@ -2,19 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent, getStudents, getAllTeachers } from '../services/dataService';
 import { Student, Subject, CoreValue, Nomination, Teacher } from '../types';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck, Gift, Activity } from 'lucide-react';
+import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck, Gift, Activity, UserSearch } from 'lucide-react';
 import { TeacherRewards } from './TeacherRewards';
 import { TeacherActivityFeed } from './TeacherActivityFeed';
+import { TeacherAttentionPanel } from './TeacherAttentionPanel';
 import { auth } from '../firebaseConfig';
 
 
 interface TeacherConsoleProps {
-  initialTab?: 'AWARD' | 'INBOX' | 'REWARDS' | 'FEED';
+  initialTab?: 'AWARD' | 'ATTENTION' | 'INBOX' | 'REWARDS' | 'FEED';
 }
 
 export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AWARD' }) => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [activeTab, setActiveTab] = useState<'AWARD' | 'INBOX' | 'REWARDS' | 'FEED'>(initialTab);
+  const [activeTab, setActiveTab] = useState<
+    'AWARD' | 'ATTENTION' | 'INBOX' | 'REWARDS' | 'FEED'
+  >(initialTab);
   
   // Award Form State
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
@@ -161,12 +164,24 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
     await rejectNomination(id);
     setRefreshTrigger(prev => prev + 1);
   };
+
+  const handleJumpToAward = (opts: { studentId: string; subject?: Subject; value?: CoreValue }) => {
+    setSelectedStudentIds([opts.studentId]);
+    if (opts.subject) setSelectedSubject(opts.subject);
+    if (opts.value) setSelectedValue(opts.value);
+    const s = getStudents().find((st) => st.id === opts.studentId);
+    if (s) {
+      setSelectedGrade(s.grade);
+      setStudentSearchTerm('');
+    }
+    setActiveTab('AWARD');
+  };
   
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
+    <div className="max-w-5xl mx-auto p-4 space-y-6">
       
       {/* Tab Navigation */}
-      <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 p-1">
+      <div className="flex flex-wrap gap-1 bg-white rounded-xl shadow-sm border border-gray-200 p-1">
         <button
           onClick={() => setActiveTab('AWARD')}
           className={`flex-1 py-3 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
@@ -175,6 +190,15 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
         >
           <UserCheck className="w-5 h-5" />
           Award Stamps
+        </button>
+        <button
+          onClick={() => setActiveTab('ATTENTION')}
+          className={`flex-1 py-3 px-4 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
+            activeTab === 'ATTENTION' ? 'bg-emerald-600 text-white shadow' : 'text-gray-500 hover:bg-gray-50'
+          }`}
+        >
+          <UserSearch className="w-5 h-5" />
+          Student attention
         </button>
         <button
           onClick={() => setActiveTab('FEED')}
@@ -486,6 +510,13 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
         </div>
       )} 
       
+      {activeTab === 'ATTENTION' && (
+        <TeacherAttentionPanel
+          currentTeacher={currentTeacher}
+          onJumpToAward={handleJumpToAward}
+        />
+      )}
+
       {activeTab === 'FEED' && (
         <TeacherActivityFeed currentTeacher={currentTeacher} />
       )}

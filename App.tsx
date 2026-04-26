@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, LogOut, ShieldAlert, BrainCircuit, Calendar, Shield, Settings, Archive } from 'lucide-react';
+import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, Building2, LogOut, ShieldAlert, BrainCircuit, Calendar, Shield, Settings, Archive } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { TeacherConsole } from './components/TeacherConsole';
 import { AdminConsole } from './components/AdminConsole';
@@ -92,7 +92,15 @@ const Layout: React.FC<{
               )}
               
               <Link to="/leaderboard" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${leaderboardNavActive ? 'bg-emerald-900 text-white shadow-md' : 'text-emerald-100 hover:bg-emerald-700 hover:text-white'}`}>
-                <BarChart2 size={18} /> Leaderboard
+                {userRole === 'STUDENT' ? (
+                  <>
+                    <Building2 size={18} /> School
+                  </>
+                ) : (
+                  <>
+                    <BarChart2 size={18} /> Leaderboard
+                  </>
+                )}
               </Link>
 
               {(userRole === 'TEACHER' || userRole === 'ADMIN') && (
@@ -203,7 +211,15 @@ const Layout: React.FC<{
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${leaderboardNavActive ? 'bg-emerald-900 text-white shadow-md' : 'text-emerald-100 hover:bg-emerald-700 hover:text-white'}`}
             >
-              <BarChart2 size={20} /> Leaderboard
+              {userRole === 'STUDENT' ? (
+                <>
+                  <Building2 size={20} /> School
+                </>
+              ) : (
+                <>
+                  <BarChart2 size={20} /> Leaderboard
+                </>
+              )}
             </Link>
             {(userRole === 'TEACHER' || userRole === 'ADMIN') && (
               <>
@@ -468,7 +484,10 @@ const App: React.FC = () => {
           )}
           
           {/* Shared Route - Leaderboard needs userRole to determine behavior */}
-          <Route path="/leaderboard/*" element={<Leaderboard userRole={userRole} />} />
+          <Route
+            path="/leaderboard/*"
+            element={<Leaderboard userRole={userRole} studentId={userRole === 'STUDENT' ? studentId : null} />}
+          />
           <Route path="/feedback" element={<FeedbackPage userRole={userRole!} />} />
           <Route path="/email-notifications" element={<Navigate to="/settings" replace />} />
           <Route

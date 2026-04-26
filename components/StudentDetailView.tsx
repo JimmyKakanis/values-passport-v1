@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { Achievements } from './Achievements';
 import { StudentPassport } from './StudentPassport';
 import { getStudent } from '../services/dataService';
@@ -8,9 +8,11 @@ import { Trophy, BookOpen, ArrowLeft, Loader2 } from 'lucide-react';
 
 export const StudentDetailView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [student, setStudent] = useState<Student | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'achievements' | 'passport'>('achievements');
+  const activeTab: 'achievements' | 'passport' =
+    searchParams.get('tab') === 'passport' ? 'passport' : 'achievements';
 
   useEffect(() => {
     if (id) {
@@ -54,7 +56,8 @@ export const StudentDetailView: React.FC = () => {
       <div className="flex items-center justify-between border-b border-gray-200">
         <div className="flex space-x-1">
           <button
-            onClick={() => setActiveTab('achievements')}
+            type="button"
+            onClick={() => setSearchParams({}, { replace: true })}
             className={`px-4 py-3 font-bold flex items-center gap-2 transition-all ${
               activeTab === 'achievements'
                 ? 'border-b-2 border-emerald-600 text-emerald-600'
@@ -65,7 +68,8 @@ export const StudentDetailView: React.FC = () => {
             Achievements
           </button>
           <button
-            onClick={() => setActiveTab('passport')}
+            type="button"
+            onClick={() => setSearchParams({ tab: 'passport' }, { replace: true })}
             className={`px-4 py-3 font-bold flex items-center gap-2 transition-all ${
               activeTab === 'passport'
                 ? 'border-b-2 border-emerald-600 text-emerald-600'
