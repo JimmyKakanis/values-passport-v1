@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Loader2, Trophy, Crown, Search, X } from 'lucide-react';
 import { fetchLeaderboardData, LeaderboardEntry, getLeaderboardEntryScore } from '../../services/dataService';
 import { getLeaderboardMetricUnit } from './LeaderboardShared';
+import { LeaderboardFace } from './LeaderboardFace';
 
 const FILTER: 'POP_QUIZ' = 'POP_QUIZ';
 
@@ -107,9 +108,8 @@ export const StudentQuizLeaderboard: React.FC<{
           {topThree[1] && (
             <div className="order-2 md:order-1 flex flex-col items-center group">
               <div className="relative">
-                <img
-                  src={topThree[1].student.avatar}
-                  alt=""
+                <LeaderboardFace
+                  student={topThree[1].student}
                   className="w-20 h-20 rounded-full border-4 border-gray-300 shadow-lg"
                 />
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-full border-2 border-white">
@@ -131,9 +131,8 @@ export const StudentQuizLeaderboard: React.FC<{
             <div className="order-1 md:order-2 flex flex-col items-center z-10 transform md:-translate-y-4 group">
               <div className="relative">
                 <Crown className="absolute -top-10 left-1/2 -translate-x-1/2 w-12 h-12 text-yellow-500" />
-                <img
-                  src={topThree[0].student.avatar}
-                  alt=""
+                <LeaderboardFace
+                  student={topThree[0].student}
                   className="w-28 h-28 rounded-full border-4 border-yellow-400 shadow-xl"
                 />
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-white">
@@ -157,9 +156,8 @@ export const StudentQuizLeaderboard: React.FC<{
           {topThree[2] && (
             <div className="order-3 flex flex-col items-center group">
               <div className="relative">
-                <img
-                  src={topThree[2].student.avatar}
-                  alt=""
+                <LeaderboardFace
+                  student={topThree[2].student}
                   className="w-20 h-20 rounded-full border-4 border-orange-300 shadow-lg"
                 />
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full border-2 border-white">
@@ -200,7 +198,7 @@ export const StudentQuizLeaderboard: React.FC<{
                   }`}
                 >
                   <div className="w-8 font-bold text-gray-400 text-center">{tableRank}</div>
-                  <img src={entry.student.avatar} alt="" className="w-10 h-10 rounded-full ml-4" />
+                  <LeaderboardFace student={entry.student} className="w-10 h-10 rounded-full ml-4" />
                   <div className="ml-4 flex-1 min-w-0">
                     <div className="font-bold text-blue-900 truncate">
                       {entry.student.name}

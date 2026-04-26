@@ -19,6 +19,7 @@ import { fetchLeaderboardData, LeaderboardEntry, getLeaderboardEntryScore } from
 import { CORE_VALUES } from '../../constants';
 import { CoreValue, UserRole } from '../../types';
 import { FilterCard, getLeaderboardMetricUnit } from './LeaderboardShared';
+import { LeaderboardFace } from './LeaderboardFace';
 
 interface Props {
   userRole?: UserRole | null;
@@ -174,9 +175,8 @@ export const StudentLeaderboard: React.FC<Props> = ({ userRole }) => {
               onClick={() => handleRowClick(topThree[1].student.id)}
             >
               <div className="relative">
-                <img
-                  src={topThree[1].student.avatar}
-                  alt=""
+                <LeaderboardFace
+                  student={topThree[1].student}
                   className="w-20 h-20 rounded-full border-4 border-gray-300 shadow-lg group-hover:scale-110 transition-transform"
                 />
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-full border-2 border-white">
@@ -201,9 +201,8 @@ export const StudentLeaderboard: React.FC<Props> = ({ userRole }) => {
             >
               <div className="relative">
                 <Crown className="absolute -top-10 left-1/2 -translate-x-1/2 w-12 h-12 text-yellow-500 animate-bounce" />
-                <img
-                  src={topThree[0].student.avatar}
-                  alt=""
+                <LeaderboardFace
+                  student={topThree[0].student}
                   className="w-28 h-28 rounded-full border-4 border-yellow-400 shadow-xl group-hover:scale-110 transition-transform"
                 />
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-white">
@@ -230,9 +229,8 @@ export const StudentLeaderboard: React.FC<Props> = ({ userRole }) => {
               onClick={() => handleRowClick(topThree[2].student.id)}
             >
               <div className="relative">
-                <img
-                  src={topThree[2].student.avatar}
-                  alt=""
+                <LeaderboardFace
+                  student={topThree[2].student}
                   className="w-20 h-20 rounded-full border-4 border-orange-300 shadow-lg group-hover:scale-110 transition-transform"
                 />
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full border-2 border-white">
@@ -277,7 +275,7 @@ export const StudentLeaderboard: React.FC<Props> = ({ userRole }) => {
                   }`}
                 >
                   <div className="w-8 font-bold text-gray-400 text-center">{tableRank}</div>
-                  <img src={entry.student.avatar} alt="" className="w-10 h-10 rounded-full ml-4" />
+                  <LeaderboardFace student={entry.student} className="w-10 h-10 rounded-full ml-4" />
                   <div className="ml-4 flex-1">
                     <div className="font-bold text-blue-900 flex items-center gap-2">
                       {entry.student.name}
