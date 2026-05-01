@@ -29,13 +29,14 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ### 👨‍🏫 Teacher Console
 - **Quick Awarding:** Award stamps to individual students or bulk groups in seconds.
+- **Student attention:** A staff-only “fair recognition” view: who is due for a stamp, 7d peer context, and subject/value gaps, with a switch between whole school (capped) and one year at a time. Links open each student’s **Values Passport**; **Award** can jump over with a prefilled form when gaps suggest it. (See `docs/technical.md`.)
 - **Activity Feed:** View all recent stamps or filter to "My Activity" (stamps you awarded). Teacher avatars show initials (e.g., JK).
 - **Nomination Review:** Approve or reject self/peer nominations from students.
 - **Teacher Corner:** A dedicated professional development section with:
   - **Scenario Simulator:** Practise handling classroom situations.
   - **Value Deep Dives:** Resources and discussion prompts.
   - **Insights:** Track your own awarding habits, plus **Your week & milestones** (private prompts, impact summary, engagement badges, and optional **2026 whole-school values integration** theme when the date falls in a mapped term week).
-- **Student Details:** View any student's full profile, passport, and achievement history. Archived students show an explanatory banner when opened by staff.
+- **Student Details:** View any student's full profile, passport, and achievement history. Use `#/student/:id?tab=passport` to open straight to the passport. Archived students show an explanatory banner when opened by staff.
 
 ### Admin Console
 - **Student directory:** Search, sort, bulk or single **Archive** / **Restore**, parent fields for weekly digests, reset progress, and permanent delete when required.
@@ -71,7 +72,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ## Project Structure
 - `components/`: React UI components (Dashboard, Passport, Console, Notifications, Settings, etc.)
-- `services/`: Data handling and Firebase integration (`dataService.ts`), **`emailNotificationService.ts`** (preferences + achievement email queue), plus **`teacherEngagement.ts`** (teacher-only metrics, copy, and badges).
+- `services/`: Data handling and Firebase integration (`dataService.ts`), **`emailNotificationService.ts`** (preferences + achievement email queue), **`teacherEngagement.ts`** (teacher-only metrics, copy, and badges), **`studentAttention.ts`** (teacher “student attention” dashboard metrics; no extra backend), **`avatarUrl.ts`** (safe DiceBear URLs and fallbacks for leaderboard faces).
 - `functions/`: **Firebase Cloud Functions** (weekly digests, achievement email worker, Microsoft Graph). Built separately from the SPA; excluded from root `tsc`—see `docs/technical.md`.
 - `schoolCalendar.ts`: Shared term dates and helpers (planner week index vs **integration** week index for the 2026 calendar).
 - `valuesIntegrationCalendar2026.ts`: Whole-school integration themes by term week (2026).

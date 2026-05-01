@@ -1,7 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { getRecentSignatures, getTeacherSignatures, getStudent } from '../services/dataService';
-import { Signature, CoreValue, Subject, Teacher } from '../types';
-import { Clock, ChevronDown, ChevronUp, Tag, Users, User } from 'lucide-react';
+import {
+  getRecentSignatures,
+  getTeacherSignatures,
+  getStudent,
+  deleteSignatureAsStaff,
+  updateSignatureAsStaff,
+  type SignatureTeacherEditable,
+  type SignatureStaffActor,
+} from '../services/dataService';
+import { Signature, CoreValue, Subject, Teacher, UserRole } from '../types';
+import {
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Tag,
+  Users,
+  User,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
+import { EditMyStampModal } from './EditMyStampModal';
 
 interface TeacherActivityFeedProps {
   currentTeacher?: Teacher | null;
@@ -21,10 +39,16 @@ interface GroupedActivity {
 
 export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ currentTeacher }) => {
   const [activities, setActivities] = useState<GroupedActivity[]>([]);
-  const [myActivities, setMyActivities] = useState<GroupedActivity[]>([]);
+  const [mySignaturesList, setMySignaturesList] = useState<Signature[]>([]);
+  /** Recent signatures (same query as grouped “All”) — used for admins’ flat, editable list. */
+  const [recentSignaturesList, setRecentSignaturesList] = useState<Signature[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<'all' | 'my'>('all');
+  const [editingSignature, setEditingSignature] = useState<Signature | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchActivities();
@@ -39,11 +63,13 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
           getTeacherSignatures(currentTeacher.name)
         ]);
         setActivities(groupSignatures(recentSigs));
-        setMyActivities(groupSignatures(mySigs));
+        setRecentSignaturesList(recentSigs);
+        setMySignaturesList(mySigs);
       } else {
         const signatures = await getRecentSignatures(100);
         setActivities(groupSignatures(signatures));
-        setMyActivities([]);
+        setRecentSignaturesList(signatures);
+        setMySignaturesList([]);
       }
     } catch (error) {
       console.error("Failed to fetch activities", error);
@@ -153,6 +179,146 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
+  const staffActor = (): SignatureStaffActor | null => {
+    if (!currentTeacher?.name) return null;
+    const role: UserRole =
+      currentTeacher.role === 'ADMIN'
+        ? 'ADMIN'
+        : 'TEACHER';
+    return { teacherName: currentTeacher.name, role };
+  };
+
+  const isAdminViewer = currentTeacher?.role === 'ADMIN';
+
+  const handleDeleteStamp = async (sig: Signature) => {
+    const actor = staffActor();
+    if (!actor) return;
+    const warnOtherTeacher =
+      isAdminViewer && sig.teacherName !== actor.teacherName
+        ? ' This stamp was awarded under another teacher’s name.'
+        : '';
+    if (
+      !window.confirm(
+        `Remove this stamp from the student's passport?${warnOtherTeacher} Students and families may have already seen it. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setBusyDeleteId(sig.id);
+    const res = await deleteSignatureAsStaff(sig.id, actor);
+    setBusyDeleteId(null);
+    if (res.ok) {
+      await fetchActivities();
+    } else {
+      window.alert(res.message);
+    }
+  };
+
+  const handleSaveEdit = async (updates: SignatureTeacherEditable): Promise<boolean> => {
+    if (!editingSignature) return false;
+    const actor = staffActor();
+    if (!actor) return false;
+    setEditError(null);
+    setIsSavingEdit(true);
+    const res = await updateSignatureAsStaff(editingSignature.id, actor, updates);
+    setIsSavingEdit(false);
+    if (res.ok) {
+      setEditingSignature(null);
+      await fetchActivities();
+      return true;
+    }
+    setEditError(res.message);
+    return false;
+  };
+
+  const renderManageableStampRow = (sig: Signature, canManage: boolean) => {
+    const student = getStudent(sig.studentId);
+    const studentData = {
+      id: sig.studentId,
+      name: student?.name || 'Unknown Student',
+      avatar: student?.avatar || '',
+    };
+    return (
+      <div
+        key={sig.id}
+        className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+      >
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+              {getInitials(sig.teacherName)}
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-start gap-2">
+              <div className="min-w-0">
+                <span className="font-bold text-gray-900">{sig.teacherName}</span>
+                <span className="text-gray-500 text-sm"> awarded </span>
+                <span className="font-bold text-emerald-700">{sig.value}</span>
+                <span className="text-gray-500 text-sm"> in </span>
+                <span className="font-medium text-gray-700">{sig.subject}</span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {canManage && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditError(null);
+                        setEditingSignature(sig);
+                      }}
+                      disabled={busyDeleteId === sig.id}
+                      className="p-2 rounded-lg text-gray-500 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-40"
+                      title="Edit stamp"
+                      aria-label="Edit stamp"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteStamp(sig)}
+                      disabled={busyDeleteId === sig.id}
+                      className="p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+                      title="Delete stamp"
+                      aria-label="Delete stamp"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
+                <span className="text-xs text-gray-400 flex items-center gap-1 whitespace-nowrap">
+                  <Clock size={12} />
+                  {formatTime(sig.timestamp)}
+                </span>
+              </div>
+            </div>
+
+            {sig.subValue && (
+              <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
+                <Tag size={10} />
+                {sig.subValue}
+              </div>
+            )}
+
+            {sig.note && (
+              <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg italic border-l-2 border-emerald-200">
+                &ldquo;{sig.note}&rdquo;
+              </div>
+            )}
+
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center gap-2">
+                <img src={studentData.avatar} className="w-6 h-6 rounded-full bg-gray-200" alt="" />
+                <span className="text-sm font-medium text-gray-700">To {studentData.name}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -161,10 +327,14 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
     );
   }
 
-  const displayActivities = activeSection === 'my' ? myActivities : activities;
-  const emptyMessage = activeSection === 'my'
-    ? 'No stamps awarded by you yet.'
-    : 'No recent activity found.';
+  const emptyMessage =
+    activeSection === 'my'
+      ? 'No stamps awarded by you yet.'
+      : 'No recent activity found.';
+  const myEmpty = mySignaturesList.length === 0;
+  const allEmpty = isAdminViewer ? recentSignaturesList.length === 0 : activities.length === 0;
+  const showEmpty = activeSection === 'my' ? myEmpty : allEmpty;
+  const canEditAnyStampAsAdmin = Boolean(isAdminViewer && staffActor());
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
@@ -195,13 +365,33 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
              </button>
         </div>
 
-      {displayActivities.length === 0 ? (
+      {activeSection === 'my' && staffActor() && (
+        <p className="text-xs text-gray-500 -mt-1 mb-2">
+          Each row is one stamp. Use edit or delete to fix mistakes — the student passport updates for everyone straight away.
+          {isAdminViewer && ' Admins can edit or delete their own awards here; use All Activity to manage any teacher’s stamps.'}
+        </p>
+      )}
+
+      {activeSection === 'all' && canEditAnyStampAsAdmin && (
+        <p className="text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 -mt-1 mb-2">
+          Administrator view: recent stamps are listed one per row so you can edit or delete awards from any teacher. Standard
+          teachers still see a grouped feed without these controls.
+        </p>
+      )}
+
+      {showEmpty ? (
         <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
           <Clock className="w-12 h-12 mx-auto text-gray-300 mb-2" />
           <p className="text-gray-500">{emptyMessage}</p>
         </div>
+      ) : activeSection === 'my' ? (
+        mySignaturesList.map((sig) =>
+          renderManageableStampRow(sig, Boolean(staffActor()))
+        )
+      ) : canEditAnyStampAsAdmin ? (
+        recentSignaturesList.map((sig) => renderManageableStampRow(sig, true))
       ) : (
-      displayActivities.map((group) => {
+      activities.map((group) => {
         const isExpanded = expandedGroups.has(group.id);
         const hasManyStudents = group.count > 1;
         
@@ -239,7 +429,7 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
 
                 {group.note && (
                   <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg italic border-l-2 border-emerald-200">
-                    "{group.note}"
+                    &ldquo;{group.note}&rdquo;
                   </div>
                 )}
 
@@ -292,6 +482,22 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
         );
       })
       )}
+
+      <EditMyStampModal
+        signature={editingSignature}
+        viewerMayEditAnyStamp={
+          canEditAnyStampAsAdmin &&
+          !!editingSignature &&
+          editingSignature.teacherName.trim() !== currentTeacher?.name?.trim()
+        }
+        errorText={editError}
+        isSubmitting={isSavingEdit}
+        onClose={() => {
+          setEditingSignature(null);
+          setEditError(null);
+        }}
+        onSubmit={handleSaveEdit}
+      />
     </div>
   );
 };

@@ -16,14 +16,14 @@ The application's UI is built from a set of modular React components located in 
 - **`Dashboard.tsx`**: The main view for students, showing their progress and passport.
 - **`StudentPassport.tsx`**: The core grid view of the values and subjects. It now subscribes to real-time updates, allowing students to see stamps appear instantly. It also supports interactive stamp history viewing via `StampHistoryModal`.
 - **`Achievements.tsx`**: Shows a student's earned achievements and progress bars.
-- **`Leaderboard.tsx`**: Nested routes under `/leaderboard/*`, passing **`studentId`** where needed. **Students**: **`/leaderboard`** — **`SchoolHighlights.tsx`**. **`/leaderboard/year-groups`** — **`YearGroupStandings.tsx`**. **`/leaderboard/quiz`** — **`StudentQuizLeaderboard.tsx`** (quiz high-score list; **staff** are **`Navigate`**d to the index). **Teachers and admins** see **`StudentLeaderboard.tsx`** on the index route and **Year groups** only (no quiz tab — quiz is a filter on the staff list). Layout: **`LeaderboardLayout.tsx`** (student tabs: Highlights, Year groups, **Quiz**). Shared filters: **`LeaderboardShared.tsx`**.
+- **`Leaderboard.tsx`**: Nested routes under `/leaderboard/*`; passes **`studentId`** to student-only views (`SchoolHighlights`, `YearGroupStandings`, `StudentQuizLeaderboard`). **Students**: `#/leaderboard` → **`SchoolHighlights`**; `#/leaderboard/year-groups` → **`YearGroupStandings`**; `#/leaderboard/quiz` → **`StudentQuizLeaderboard`** (staff hitting `/quiz` are redirected to `#/leaderboard`). **Teachers/admins**: index → **`StudentLeaderboard`** (Wall of Fame); year-groups → **`YearGroupStandings`**; **Quiz** is a **sort mode** inside `StudentLeaderboard`, not a separate tab. **`LeaderboardLayout.tsx`**: nav tabs and route-based **title/subtitle** for students. Supporting: **`GoodNewsFeedList`**, **`YearLevelSnapshotCard`**, **`LeaderboardShared`**.
 - **`ValuesLearning.tsx`**: The "Values Lab" section containing educational resources for students.
 - **`StudentPlanner.tsx`**: A comprehensive calendar and task management tool. It features Term, Month, and Week views, allowing students to track homework and assignments aligned with the school term.
 
 ### Teacher Views
-- **`TeacherConsole.tsx`**: The main interface for teachers to award signatures and review nominations.
+- **`TeacherConsole.tsx`**: The main staff workspace: **Award Stamps**; **Student attention** (fair-recognition dashboard: suggested sort modes, up to 20 students school-wide and up to 5 per year with a view switcher, optional search, links to each student’s Values Passport, total stamp counts — see [`TeacherAttentionPanel`](../components/TeacherAttentionPanel.tsx) and [`studentAttention`](../services/studentAttention.ts)); **Activity**; **Review Requests** (nominations); **Rewards**. Jumping to **Award** from the attention list can preselect a student and prefill subject/value from gaps.
 - **`TeacherRewards.tsx`**: A dashboard for teachers to view and manage unclaimed rewards.
-- **`StudentDetailView.tsx`**: Tabbed Achievements and Passport for a student opened from the leaderboard or console (admins use the same route). If the student is **archived**, a banner explains limited access and sign-in restriction until an admin restores them.
+- **`StudentDetailView.tsx`**: Tabbed **Achievements** and **Values Passport** for a student opened from the leaderboard or console (admins use the same route). The active tab follows the URL query: `#/student/:id?tab=passport` opens the passport; without `tab` (or with another value) the default is Achievements. Tab buttons keep the query string in sync. If the student is **archived**, a banner explains limited access and sign-in restriction until an admin restores them.
 - **`TeacherCorner/`**: A directory containing components for the "Values Development" section:
     - **`TeacherCorner.tsx`**: The main container for the Values Development page.
     - **`ValueDeepDive.tsx`**: Detailed resources and prompts for each value.
@@ -59,13 +59,15 @@ The application's UI is built from a set of modular React components located in 
 
 ## Data Flow & State Management
 
-### 1. Service Layer (`services/dataService.ts` and `services/teacherEngagement.ts`)
+### 1. Service Layer (`services/dataService.ts`, `services/teacherEngagement.ts`, `services/studentAttention.ts`, `services/avatarUrl.ts`)
 Firestore access is encapsulated in `dataService.ts`. This service provides:
 - **Fetch Functions**: `getDocs` wrappers for one-time data retrieval (e.g., `getStudents`, `getAllStudents`, `getAllSignatures`). **`getStudents()`** (and **`getStudentByEmail()`** for login) **omit archived students** so they do not appear in teacher pickers or the leaderboard cache. **`getStudent(id)`** still resolves archived records so deep links and admin views can show the profile with context. **`archiveStudents` / `unarchiveStudents`** update `archived` and `archivedAt` on student documents.
 - **Subscription Functions**: `onSnapshot` wrappers for real-time data streams (e.g., `subscribeToSignatures`, `subscribeToPlannerItems`).
 - **Mutation Functions**: Functions to write to the database (e.g., `addSignature`, `addPlannerItem`).
 - **Business Logic**: Calculations for stats, mastery levels, and achievement unlocking are performed here to ensure consistency across the app.
 - **`teacherEngagement.ts`**: Teacher-only engagement metrics, badge rules, and copy helpers. It operates on **`Signature[]` in memory** (no Firestore calls); **`TeacherInsights`** fetches signatures and passes the filtered list into **`TeacherEngagementPanel`**.
+- **`studentAttention.ts`**: In-memory **student attention** rows for the teacher **Student attention** tab: recency, 7d stamps vs year median, this-term / all-time value & subject gaps, suggestion strings; `filterStudentsByTeacherGrades` uses each teacher’s optional **`assignedGrades`**; display names listed in `STUDENT_NAMES_EXCLUDED_FROM_ATTENTION` (e.g. **Student Test**) are omitted from the roster for this feature.
+- **`avatarUrl.ts`**: **`resolveStudentAvatarUrl`** / **`defaultAvatarUrlForName`** so UI can fall back to a DiceBear URL when `Student.avatar` is missing or not a valid `https` image URL. Used with **`onError`** by [`LeaderboardFace`](../components/leaderboard/LeaderboardFace.tsx) on staff and student quiz leaderboards.
 
 ### 2. Real-Time Updates
 The application leverages Firestore's real-time capabilities for key features:

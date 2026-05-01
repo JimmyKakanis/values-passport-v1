@@ -588,6 +588,91 @@ export const getTeacherSignatures = async (teacherName: string): Promise<Signatu
   }
 };
 
+/** Who is performing the edit/delete (teacher: own stamps only; admin: any stamp). */
+export type SignatureStaffActor = {
+  teacherName: string;
+  role: UserRole;
+};
+
+/** Fields a teacher or admin may change on a stamp (recipient and timestamp stay fixed). */
+export interface SignatureTeacherEditable {
+  subject: Subject;
+  value: CoreValue;
+  /** Empty string clears the optional tag on the stamp. */
+  subValue: string;
+  note: string;
+}
+
+function staffMayModifyStamp(docTeacherName: string | undefined, actor: SignatureStaffActor): boolean {
+  if (actor.role === 'ADMIN') return true;
+  return docTeacherName === actor.teacherName;
+}
+
+export const deleteSignatureAsStaff = async (
+  signatureId: string,
+  actor: SignatureStaffActor
+): Promise<{ ok: true } | { ok: false; message: string }> => {
+  try {
+    const ref = doc(db, 'signatures', signatureId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      return {
+        ok: false,
+        message: 'This stamp could not be found. It may have already been removed.',
+      };
+    }
+    const data = snap.data() as { teacherName?: string };
+    if (!staffMayModifyStamp(data.teacherName, actor)) {
+      return { ok: false, message: 'You can only delete stamps you awarded.' };
+    }
+    await deleteDoc(ref);
+    return { ok: true };
+  } catch (e) {
+    console.error('deleteSignatureAsStaff:', e);
+    return { ok: false, message: 'Could not delete stamp. Try again.' };
+  }
+};
+
+export const updateSignatureAsStaff = async (
+  signatureId: string,
+  actor: SignatureStaffActor,
+  updates: SignatureTeacherEditable
+): Promise<{ ok: true } | { ok: false; message: string }> => {
+  try {
+    const ref = doc(db, 'signatures', signatureId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      return {
+        ok: false,
+        message: 'This stamp could not be found. It may have already been removed.',
+      };
+    }
+    const data = snap.data() as { teacherName?: string };
+    if (!staffMayModifyStamp(data.teacherName, actor)) {
+      return { ok: false, message: 'You can only edit stamps you awarded.' };
+    }
+
+    const note = updates.note.trim();
+    const trimmedSub = updates.subValue.trim();
+    const payload: Record<string, unknown> = {
+      subject: updates.subject,
+      value: updates.value,
+      note,
+    };
+    if (trimmedSub) {
+      payload.subValue = trimmedSub;
+    } else {
+      payload.subValue = deleteField();
+    }
+
+    await updateDoc(ref, payload);
+    return { ok: true };
+  } catch (e) {
+    console.error('updateSignatureAsStaff:', e);
+    return { ok: false, message: 'Could not save changes. Try again.' };
+  }
+};
+
 // --- NOMINATIONS (Database) ---
 
 export const getPendingNominations = async (): Promise<Nomination[]> => {
