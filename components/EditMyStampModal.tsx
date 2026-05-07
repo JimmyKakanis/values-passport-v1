@@ -6,6 +6,8 @@ import { X } from 'lucide-react';
 
 export interface EditMyStampModalProps {
   signature: Signature | null;
+  /** When set (> 1), saving applies the same details to every recipient in the batch. */
+  batchRecipientCount?: number;
   /** Logged-in user is admin and may correct any teacher's stamp — show contextual notice. */
   viewerMayEditAnyStamp?: boolean;
   errorText: string | null;
@@ -16,6 +18,7 @@ export interface EditMyStampModalProps {
 
 export const EditMyStampModal: React.FC<EditMyStampModalProps> = ({
   signature,
+  batchRecipientCount,
   viewerMayEditAnyStamp,
   errorText,
   isSubmitting,
@@ -84,6 +87,12 @@ export const EditMyStampModal: React.FC<EditMyStampModalProps> = ({
           <p className="text-sm text-gray-600">
             You can change subject, value, tag, and note. The student and time of the award stay the same.
           </p>
+          {batchRecipientCount != null && batchRecipientCount > 1 && (
+            <p className="text-xs text-blue-900 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+              This award was given to {batchRecipientCount} students together. Saving will update every recipient&apos;s passport
+              stamp with the same subject, value, tag, and note.
+            </p>
+          )}
           {viewerMayEditAnyStamp && (
             <p className="text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
               You are signed in as an administrator. Saving changes updates this stamp regardless of which teacher originally

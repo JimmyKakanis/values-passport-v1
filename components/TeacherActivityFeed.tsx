@@ -34,18 +34,19 @@ interface GroupedActivity {
   note?: string;
   timestamp: number;
   students: { id: string; name: string; avatar: string }[];
+  /** Same order as `students` — used for admin edit/delete. */
+  signatures: Signature[];
   count: number;
 }
 
 export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ currentTeacher }) => {
   const [activities, setActivities] = useState<GroupedActivity[]>([]);
   const [mySignaturesList, setMySignaturesList] = useState<Signature[]>([]);
-  /** Recent signatures (same query as grouped “All”) — used for admins’ flat, editable list. */
-  const [recentSignaturesList, setRecentSignaturesList] = useState<Signature[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [activeSection, setActiveSection] = useState<'all' | 'my'>('all');
-  const [editingSignature, setEditingSignature] = useState<Signature | null>(null);
+  /** One modal session; all IDs get the same field updates (batch awards). */
+  const [editingStampGroup, setEditingStampGroup] = useState<Signature[] | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [busyDeleteId, setBusyDeleteId] = useState<string | null>(null);
@@ -63,12 +64,10 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
           getTeacherSignatures(currentTeacher.name)
         ]);
         setActivities(groupSignatures(recentSigs));
-        setRecentSignaturesList(recentSigs);
         setMySignaturesList(mySigs);
       } else {
         const signatures = await getRecentSignatures(100);
         setActivities(groupSignatures(signatures));
-        setRecentSignaturesList(signatures);
         setMySignaturesList([]);
       }
     } catch (error) {
@@ -88,6 +87,7 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
       note: sig.note,
       timestamp: sig.timestamp,
       students: [student],
+      signatures: [sig],
       count: 1,
     };
   };
@@ -121,6 +121,7 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
         if (isSameTeacher && isSameSubject && isSameValue && isSameSubValue && isSameNote && isCloseTime) {
           // Add to current group
           currentGroup.students.push(studentData);
+          currentGroup.signatures.push(sig);
           currentGroup.count++;
         } else {
           // Push current group and start new one
@@ -215,20 +216,24 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
   };
 
   const handleSaveEdit = async (updates: SignatureTeacherEditable): Promise<boolean> => {
-    if (!editingSignature) return false;
+    const group = editingStampGroup;
+    if (!group?.length) return false;
     const actor = staffActor();
     if (!actor) return false;
     setEditError(null);
     setIsSavingEdit(true);
-    const res = await updateSignatureAsStaff(editingSignature.id, actor, updates);
-    setIsSavingEdit(false);
-    if (res.ok) {
-      setEditingSignature(null);
-      await fetchActivities();
-      return true;
+    for (const sig of group) {
+      const res = await updateSignatureAsStaff(sig.id, actor, updates);
+      if (!res.ok) {
+        setIsSavingEdit(false);
+        setEditError(res.message);
+        return false;
+      }
     }
-    setEditError(res.message);
-    return false;
+    setIsSavingEdit(false);
+    setEditingStampGroup(null);
+    await fetchActivities();
+    return true;
   };
 
   const renderManageableStampRow = (sig: Signature, canManage: boolean) => {
@@ -266,7 +271,7 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
                       type="button"
                       onClick={() => {
                         setEditError(null);
-                        setEditingSignature(sig);
+                        setEditingStampGroup([sig]);
                       }}
                       disabled={busyDeleteId === sig.id}
                       className="p-2 rounded-lg text-gray-500 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-40"
@@ -332,7 +337,7 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
       ? 'No stamps awarded by you yet.'
       : 'No recent activity found.';
   const myEmpty = mySignaturesList.length === 0;
-  const allEmpty = isAdminViewer ? recentSignaturesList.length === 0 : activities.length === 0;
+  const allEmpty = activities.length === 0;
   const showEmpty = activeSection === 'my' ? myEmpty : allEmpty;
   const canEditAnyStampAsAdmin = Boolean(isAdminViewer && staffActor());
 
@@ -374,8 +379,9 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
 
       {activeSection === 'all' && canEditAnyStampAsAdmin && (
         <p className="text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 -mt-1 mb-2">
-          Administrator view: recent stamps are listed one per row so you can edit or delete awards from any teacher. Standard
-          teachers still see a grouped feed without these controls.
+          Administrator view: the feed matches the grouped teacher layout. Use edit to change subject, value, tag, and note for an
+          award — when several students received the same award together, one save updates every recipient. Expand a multi-recipient
+          row to remove one student&apos;s stamp. Standard teachers see this feed without edit controls.
         </p>
       )}
 
@@ -388,112 +394,168 @@ export const TeacherActivityFeed: React.FC<TeacherActivityFeedProps> = ({ curren
         mySignaturesList.map((sig) =>
           renderManageableStampRow(sig, Boolean(staffActor()))
         )
-      ) : canEditAnyStampAsAdmin ? (
-        recentSignaturesList.map((sig) => renderManageableStampRow(sig, true))
       ) : (
-      activities.map((group) => {
-        const isExpanded = expandedGroups.has(group.id);
-        const hasManyStudents = group.count > 1;
-        
-        return (
-          <div key={group.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-start gap-4">
-              {/* Teacher Avatar/Icon */}
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
-                  {getInitials(group.teacherName)}
-                </div>
-              </div>
+        activities.map((group) => {
+          const isExpanded = expandedGroups.has(group.id);
+          const hasManyStudents = group.count > 1;
+          const adminAll = canEditAnyStampAsAdmin;
+          const busyInGroup = adminAll && group.signatures.some((s) => busyDeleteId === s.id);
 
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="font-bold text-gray-900">{group.teacherName}</span>
-                    <span className="text-gray-500 text-sm"> awarded </span>
-                    <span className="font-bold text-emerald-700">{group.value}</span>
-                    <span className="text-gray-500 text-sm"> in </span>
-                    <span className="font-medium text-gray-700">{group.subject}</span>
+          return (
+            <div
+              key={group.id}
+              className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm">
+                    {getInitials(group.teacherName)}
                   </div>
-                  <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
-                    <Clock size={12} />
-                    {formatTime(group.timestamp)}
-                  </span>
                 </div>
 
-                {group.subValue && (
-                  <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
-                    <Tag size={10} />
-                    {group.subValue}
-                  </div>
-                )}
-
-                {group.note && (
-                  <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg italic border-l-2 border-emerald-200">
-                    &ldquo;{group.note}&rdquo;
-                  </div>
-                )}
-
-                {/* Students Section */}
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  {hasManyStudents ? (
-                    <div>
-                      <div 
-                        className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 -ml-1 rounded transition-colors"
-                        onClick={() => toggleGroup(group.id)}
-                      >
-                         <div className="flex -space-x-2">
-                            {group.students.slice(0, 3).map((s) => (
-                                <img 
-                                    key={s.id} 
-                                    src={s.avatar} 
-                                    alt={s.name}
-                                    className="w-6 h-6 rounded-full border-2 border-white bg-gray-200"
-                                    title={s.name}
-                                />
-                            ))}
-                         </div>
-                         <div className="text-sm text-gray-600 font-medium">
-                            To {group.students[0].name.split(' ')[0]} and {group.count - 1} others
-                         </div>
-                         {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-                      </div>
-                      
-                      {isExpanded && (
-                         <div className="mt-2 pl-2 grid grid-cols-2 gap-2 text-sm">
-                            {group.students.map(s => (
-                                <div key={s.id} className="flex items-center gap-2">
-                                    <img src={s.avatar} className="w-5 h-5 rounded-full bg-gray-100" alt="" />
-                                    <span className="truncate text-gray-700">{s.name}</span>
-                                </div>
-                            ))}
-                         </div>
-                      )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="min-w-0">
+                      <span className="font-bold text-gray-900">{group.teacherName}</span>
+                      <span className="text-gray-500 text-sm"> awarded </span>
+                      <span className="font-bold text-emerald-700">{group.value}</span>
+                      <span className="text-gray-500 text-sm"> in </span>
+                      <span className="font-medium text-gray-700">{group.subject}</span>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                       <img src={group.students[0].avatar} className="w-6 h-6 rounded-full bg-gray-200" alt="" />
-                       <span className="text-sm font-medium text-gray-700">To {group.students[0].name}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {adminAll && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditError(null);
+                              setEditingStampGroup(group.signatures);
+                            }}
+                            disabled={busyInGroup}
+                            className="p-2 rounded-lg text-gray-500 hover:bg-emerald-50 hover:text-emerald-800 disabled:opacity-40"
+                            title={hasManyStudents ? 'Edit stamp (all recipients)' : 'Edit stamp'}
+                            aria-label={hasManyStudents ? 'Edit stamp for all recipients' : 'Edit stamp'}
+                          >
+                            <Pencil size={18} />
+                          </button>
+                          {!hasManyStudents && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteStamp(group.signatures[0]!)}
+                              disabled={busyInGroup}
+                              className="p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-40"
+                              title="Delete stamp"
+                              aria-label="Delete stamp"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      <span className="text-xs text-gray-400 flex items-center gap-1 whitespace-nowrap">
+                        <Clock size={12} />
+                        {formatTime(group.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {group.subValue && (
+                    <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100">
+                      <Tag size={10} />
+                      {group.subValue}
                     </div>
                   )}
+
+                  {group.note && (
+                    <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg italic border-l-2 border-emerald-200">
+                      &ldquo;{group.note}&rdquo;
+                    </div>
+                  )}
+
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    {hasManyStudents ? (
+                      <div>
+                        <div
+                          className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 -ml-1 rounded transition-colors"
+                          onClick={() => toggleGroup(group.id)}
+                        >
+                          <div className="flex -space-x-2">
+                            {group.students.slice(0, 3).map((s) => (
+                              <img
+                                key={s.id}
+                                src={s.avatar}
+                                alt={s.name}
+                                className="w-6 h-6 rounded-full border-2 border-white bg-gray-200"
+                                title={s.name}
+                              />
+                            ))}
+                          </div>
+                          <div className="text-sm text-gray-600 font-medium">
+                            To {group.students[0]!.name.split(' ')[0]} and {group.count - 1} others
+                          </div>
+                          {isExpanded ? (
+                            <ChevronUp size={16} className="text-gray-400" />
+                          ) : (
+                            <ChevronDown size={16} className="text-gray-400" />
+                          )}
+                        </div>
+
+                        {isExpanded && (
+                          <div className="mt-2 pl-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                            {group.signatures.map((sig, idx) => {
+                              const s = group.students[idx];
+                              if (!s) return null;
+                              return (
+                                <div key={sig.id} className="flex items-center gap-2 min-w-0">
+                                  <img src={s.avatar} className="w-5 h-5 rounded-full bg-gray-100 flex-shrink-0" alt="" />
+                                  <span className="truncate text-gray-700 flex-1 min-w-0">{s.name}</span>
+                                  {adminAll && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteStamp(sig);
+                                      }}
+                                      disabled={busyDeleteId === sig.id}
+                                      className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 flex-shrink-0"
+                                      title="Remove this student’s stamp"
+                                      aria-label={`Delete stamp for ${s.name}`}
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <img src={group.students[0]!.avatar} className="w-6 h-6 rounded-full bg-gray-200" alt="" />
+                        <span className="text-sm font-medium text-gray-700">To {group.students[0]!.name}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      })
+          );
+        })
       )}
 
       <EditMyStampModal
-        signature={editingSignature}
+        signature={editingStampGroup?.[0] ?? null}
+        batchRecipientCount={editingStampGroup && editingStampGroup.length > 1 ? editingStampGroup.length : undefined}
         viewerMayEditAnyStamp={
           canEditAnyStampAsAdmin &&
-          !!editingSignature &&
-          editingSignature.teacherName.trim() !== currentTeacher?.name?.trim()
+          !!editingStampGroup?.[0] &&
+          editingStampGroup[0].teacherName.trim() !== currentTeacher?.name?.trim()
         }
         errorText={editError}
         isSubmitting={isSavingEdit}
         onClose={() => {
-          setEditingSignature(null);
+          setEditingStampGroup(null);
           setEditError(null);
         }}
         onSubmit={handleSaveEdit}
