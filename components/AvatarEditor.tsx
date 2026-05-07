@@ -82,6 +82,9 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  const beginnerAchievements = achievements.filter((a) => a.difficulty === 'BEGINNER');
+  const hasFullCustomization = beginnerAchievements.every((a) => a.isUnlocked);
+
   useEffect(() => {
     if (isOpen) {
         setConfig({
@@ -94,9 +97,6 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
 
   if (!isOpen) return null;
 
-  // Unlocking: Randomize after 1+ stamp; full controls after all Beginner achievements
-  const beginnerAchievements = achievements.filter(a => a.difficulty === 'BEGINNER');
-  const hasFullCustomization = beginnerAchievements.every(a => a.isUnlocked);
   const canRandomize = totalStamps >= 1;
 
   // For testing/demo purposes, you might want to uncomment these to force unlock
@@ -129,11 +129,17 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row">
+    <>
+      <div
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+        aria-hidden
+      />
+      <div className="fixed inset-0 z-[51] overflow-y-auto pointer-events-none">
+        <div className="flex min-h-[100dvh] items-center justify-center p-4">
+          <div className="pointer-events-auto bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[min(90dvh,calc(100dvh-2rem))] overflow-hidden flex flex-col md:flex-row min-h-0 my-auto">
         
         {/* Preview Section */}
-        <div className="w-full md:w-1/3 bg-gray-50 p-8 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-200 relative">
+        <div className="w-full md:w-1/3 min-h-0 md:max-h-full md:overflow-y-auto md:shrink-0 overflow-x-hidden bg-gray-50 p-8 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-200 relative">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">Avatar Studio</h2>
             <div className="relative w-48 h-48 md:w-64 md:h-64 bg-white rounded-full shadow-lg p-2 mb-6 ring-4 ring-indigo-100">
                 <img 
@@ -164,8 +170,8 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
             )}
         </div>
 
-        {/* Controls Section */}
-        <div className="w-full md:w-2/3 flex flex-col h-full bg-white">
+        {/* Controls Section — grid keeps middle row scrollable (flex 1fr is flaky in some browsers) */}
+        <div className="w-full md:w-2/3 min-h-0 md:self-stretch grid grid-rows-[auto_minmax(0,1fr)_auto] bg-white">
             <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                 <h3 className="font-semibold text-gray-700">Customization Options</h3>
                 <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-500">
@@ -173,7 +179,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                 </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-6 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]">
                 {!hasFullCustomization && (
                      <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
                         <Lock className="text-amber-500 mt-1 shrink-0" size={20} />
@@ -235,7 +241,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                 </div>
             </div>
 
-            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
+            <div className="shrink-0 px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] border-t border-gray-100 flex flex-wrap justify-end gap-3 bg-gray-50">
                 <button 
                     onClick={onClose}
                     className="px-5 py-2.5 rounded-lg text-gray-700 hover:bg-gray-200 font-medium transition-colors"
@@ -245,14 +251,16 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                 <button 
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium shadow-sm transition-colors flex items-center gap-2"
+                    className="px-5 py-2.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium transition-colors flex items-center gap-2"
                 >
                     {isSaving ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
                     Save Avatar
                 </button>
             </div>
         </div>
+        </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
