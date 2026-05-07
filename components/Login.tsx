@@ -7,13 +7,50 @@ import {
   signOut,
   linkWithCredential,
   OAuthProvider,
-  AuthCredential
+  AuthCredential,
+  sendPasswordResetEmail,
+  verifyPasswordResetCode,
+  confirmPasswordReset,
 } from 'firebase/auth';
 import { auth, microsoftProvider } from '../firebaseConfig';
 import { Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN, TEACHER_TEMP_PASSWORD, STUDENT_TEMP_PASSWORD } from '../constants';
 import { isApprovedTeacher, getStudentByEmail } from '../services/dataService';
 import { Logo } from './Logo';
+
+// #region agent log
+const agentDebugLog = (payload: {
+  location: string;
+  message: string;
+  hypothesisId: string;
+  data?: Record<string, unknown>;
+  runId?: string;
+}) => {
+  fetch('http://127.0.0.1:7734/ingest/93bf1b1a-8bad-4cdd-ba40-041ea4a0ad57', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '663475' },
+    body: JSON.stringify({
+      sessionId: '663475',
+      timestamp: Date.now(),
+      ...payload,
+    }),
+  }).catch(() => {});
+};
+// #endregion
+
+/** Firebase auth action params may arrive on the query string (including handleCodeInApp redirects). */
+function parseAuthActionFromLocation(): { mode: string | null; oobCode: string | null } {
+  const searchParams = new URLSearchParams(window.location.search);
+  let mode = searchParams.get('mode');
+  let oobCode = searchParams.get('oobCode');
+  if (!mode && window.location.hash.includes('?')) {
+    const q = window.location.hash.split('?')[1];
+    const h = new URLSearchParams(q);
+    mode = mode ?? h.get('mode');
+    oobCode = oobCode ?? h.get('oobCode');
+  }
+  return { mode, oobCode };
+}
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -24,6 +61,12 @@ export const Login: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [pendingCred, setPendingCred] = useState<AuthCredential | null>(null);
   const [showEmailLogin, setShowEmailLogin] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [passwordResetOob, setPasswordResetOob] = useState<string | null>(null);
+  const [passwordResetEmailHint, setPasswordResetEmailHint] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   // Shared Logic: Handle Successful Microsoft Login (Popup or Redirect)
   const handleMicrosoftSuccess = async (user: any) => {
@@ -89,6 +132,191 @@ export const Login: React.FC = () => {
     };
     checkRedirect();
   }, []);
+
+  // Complete password reset when opened via Firebase email link (handleCodeInApp).
+  useEffect(() => {
+    const { mode, oobCode } = parseAuthActionFromLocation();
+    // #region agent log
+    agentDebugLog({
+      location: 'Login.tsx:resetLinkEffect',
+      message: 'parse auth action landing',
+      hypothesisId: 'H4',
+      data: {
+        mode,
+        hasOobCode: !!oobCode,
+        oobCodeLength: oobCode?.length ?? 0,
+        searchEmpty: window.location.search.length === 0,
+        hashHasQuery: window.location.hash.includes('?'),
+      },
+    });
+    // #endregion
+    if (mode !== 'resetPassword' || !oobCode) return;
+
+    const dedupeKey = `vp_pwd_reset_oob:${oobCode}`;
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(dedupeKey)) {
+      // #region agent log
+      agentDebugLog({
+        location: 'Login.tsx:resetLinkEffect:deduped',
+        message: 'skipped duplicate reset verify (sessionStorage / StrictMode)',
+        hypothesisId: 'H3',
+        data: { oobCodeLength: oobCode.length },
+      });
+      // #endregion
+      return;
+    }
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(dedupeKey, '1');
+    }
+
+    let alive = true;
+    const run = async () => {
+      // #region agent log
+      agentDebugLog({
+        location: 'Login.tsx:verifyPasswordResetCode:before',
+        message: 'about to verify password reset oobCode',
+        hypothesisId: 'H1',
+        data: { oobCodeLength: oobCode.length },
+      });
+      // #endregion
+      try {
+        const verifiedEmail = await verifyPasswordResetCode(auth, oobCode);
+        if (!alive) return;
+        // #region agent log
+        agentDebugLog({
+          location: 'Login.tsx:verifyPasswordResetCode:after',
+          message: 'verifyPasswordResetCode ok',
+          hypothesisId: 'H1',
+          data: {
+            emailDomain: verifiedEmail.includes('@')
+              ? verifiedEmail.split('@')[1]?.toLowerCase()
+              : 'unknown',
+          },
+        });
+        // #endregion
+        setPasswordResetOob(oobCode);
+        setPasswordResetEmailHint(verifiedEmail);
+        setShowEmailLogin(true);
+        setSuccessMsg('Choose a new password below.');
+        window.history.replaceState({}, '', window.location.pathname + window.location.hash.split('?')[0]);
+      } catch (err: unknown) {
+        if (!alive) return;
+        const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: string }).code) : 'unknown';
+        // #region agent log
+        agentDebugLog({
+          location: 'Login.tsx:verifyPasswordResetCode:catch',
+          message: 'verifyPasswordResetCode failed',
+          hypothesisId: 'H1',
+          data: { firebaseCode: code },
+        });
+        // #endregion
+        if (code === 'auth/expired-action-code' || code === 'auth/invalid-action-code') {
+          setError(
+            'That reset link has expired or was already used. Request a new link with Forgot password (or your email scanner may have opened the link first—try again from a personal device).',
+          );
+        } else {
+          setError('Could not validate the password reset link. Please use Forgot password to send a new one.');
+        }
+      }
+    };
+    void run();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const sendPasswordResetFromForm = async () => {
+    setError('');
+    setSuccessMsg('');
+    if (!email.toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN)) {
+      setError(`Only emails ending in @${SCHOOL_EMAIL_DOMAIN} are allowed.`);
+      return;
+    }
+    setLoading(true);
+    const continueUrl = `${window.location.origin}${window.location.pathname || '/'}`;
+    // #region agent log
+    agentDebugLog({
+      location: 'Login.tsx:sendPasswordResetEmail:before',
+      message: 'sending password reset email',
+      hypothesisId: 'H2',
+      data: { continueUrl, handleCodeInApp: true },
+    });
+    // #endregion
+    try {
+      await sendPasswordResetEmail(auth, email, {
+        url: continueUrl,
+        handleCodeInApp: true,
+      });
+      setForgotSent(true);
+      setSuccessMsg('If that account exists, a reset email was sent. Check your inbox.');
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: string }).code) : 'unknown';
+      // #region agent log
+      agentDebugLog({
+        location: 'Login.tsx:sendPasswordResetEmail:catch',
+        message: 'sendPasswordResetEmail failed',
+        hypothesisId: 'H2',
+        data: { firebaseCode: code },
+      });
+      // #endregion
+      setError('Could not send reset email. Try again later or contact support.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompletePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+    if (!passwordResetOob) return;
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setLoading(true);
+    // #region agent log
+    agentDebugLog({
+      location: 'Login.tsx:confirmPasswordReset:before',
+      message: 'confirmPasswordReset',
+      hypothesisId: 'H3',
+      data: { passwordLength: newPassword.length },
+    });
+    // #endregion
+    try {
+      await confirmPasswordReset(auth, passwordResetOob, newPassword);
+      // #region agent log
+      agentDebugLog({
+        location: 'Login.tsx:confirmPasswordReset:after',
+        message: 'confirmPasswordReset ok',
+        hypothesisId: 'H3',
+      });
+      // #endregion
+      setPasswordResetOob(null);
+      setPasswordResetEmailHint(null);
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setForgotSent(false);
+      setShowForgotPassword(false);
+      setSuccessMsg('Password updated. Sign in with your new password below.');
+    } catch (err: unknown) {
+      const code = err && typeof err === 'object' && 'code' in err ? String((err as { code?: string }).code) : 'unknown';
+      // #region agent log
+      agentDebugLog({
+        location: 'Login.tsx:confirmPasswordReset:catch',
+        message: 'confirmPasswordReset failed',
+        hypothesisId: 'H3',
+        data: { firebaseCode: code },
+      });
+      // #endregion
+      setError('Could not save the new password. Request a fresh reset link.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,6 +394,12 @@ export const Login: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (passwordResetEmailHint) {
+      setEmail(passwordResetEmailHint);
+    }
+  }, [passwordResetEmailHint]);
+
   const handleMicrosoftLogin = async () => {
     setError('');
     setSuccessMsg('');
@@ -222,10 +456,51 @@ export const Login: React.FC = () => {
 
            {successMsg && (
              <div className="bg-green-50 text-green-600 p-3 rounded-lg text-sm flex items-center gap-2">
-               <Loader2 size={16} className="animate-spin" /> {successMsg}
+               {!passwordResetOob && loading ? (
+                 <Loader2 size={16} className="animate-spin" />
+               ) : null}{' '}
+               {successMsg}
              </div>
            )}
 
+           {passwordResetOob ? (
+             <form onSubmit={handleCompletePasswordReset} className="space-y-4">
+               <h3 className="font-bold text-gray-800">Set a new password</h3>
+               <p className="text-sm text-gray-600">Your email: {passwordResetEmailHint ? '***@' + (passwordResetEmailHint.split('@')[1] ?? '') : '—'}</p>
+               <div>
+                 <label className="block text-sm font-bold text-gray-700 mb-1">New password</label>
+                 <input
+                   type="password"
+                   required
+                   value={newPassword}
+                   onChange={(e) => setNewPassword(e.target.value)}
+                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-gray-900 bg-white"
+                   minLength={6}
+                   autoComplete="new-password"
+                 />
+               </div>
+               <div>
+                 <label className="block text-sm font-bold text-gray-700 mb-1">Confirm new password</label>
+                 <input
+                   type="password"
+                   required
+                   value={confirmNewPassword}
+                   onChange={(e) => setConfirmNewPassword(e.target.value)}
+                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 text-gray-900 bg-white"
+                   minLength={6}
+                   autoComplete="new-password"
+                 />
+               </div>
+               <button
+                 type="submit"
+                 disabled={loading}
+                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow-md transition-all flex items-center justify-center gap-2 disabled:bg-gray-400"
+               >
+                 {loading ? <Loader2 className="animate-spin" /> : 'Save new password'}
+               </button>
+             </form>
+           ) : (
+             <>
            {/* Microsoft Login - Primary Action */}
            <div className={pendingCred ? 'opacity-50 pointer-events-none' : ''}>
               <button
@@ -294,6 +569,43 @@ export const Login: React.FC = () => {
                  />
                </div>
 
+               {!pendingCred && (
+                 <div className="text-right">
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setShowForgotPassword(!showForgotPassword);
+                       setForgotSent(false);
+                       setError('');
+                     }}
+                     className="text-xs font-medium text-emerald-700 hover:text-emerald-900"
+                   >
+                     {showForgotPassword ? 'Cancel reset' : 'Forgot password?'}
+                   </button>
+                 </div>
+               )}
+
+               {showForgotPassword && !pendingCred && (
+                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                   <p className="text-xs text-gray-600">
+                     Sends a reset link that opens this app (recommended for school email; avoids some broken Firebase
+                     pages).
+                   </p>
+                   {forgotSent ? (
+                     <p className="text-sm text-green-700 font-medium">Check your email for the reset link.</p>
+                   ) : (
+                     <button
+                       type="button"
+                       onClick={() => void sendPasswordResetFromForm()}
+                       disabled={loading || !email}
+                       className="w-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-2 rounded-lg disabled:bg-gray-300"
+                     >
+                       Send reset email
+                     </button>
+                   )}
+                 </div>
+               )}
+
                <button
                  type="submit"
                  disabled={loading}
@@ -324,6 +636,9 @@ export const Login: React.FC = () => {
                  )}
                </button>
              </div>
+           )}
+
+             </>
            )}
 
         </div>
