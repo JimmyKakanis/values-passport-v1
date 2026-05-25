@@ -16,6 +16,7 @@ function defaultPrefsFallback(
     email: emailLower,
     role,
     achievementEmailEnabled: false,
+    unseenStampsEmailEnabled: false,
     studentDigestEnabled: false,
     teacherDigestEnabled: false,
     frequency: 'WEEKLY',
@@ -138,7 +139,8 @@ export const EmailNotificationsSettings: React.FC<Props> = ({ preferenceRole }) 
       <p className="text-sm text-gray-600 mb-6">
         Choose what we may send via email. Messages are sent through the school’s Microsoft 365 mail system. Digests run on
         a schedule (currently weekly on Friday afternoon, Sydney time). Achievement emails are sent shortly after you unlock
-        an achievement in the app.
+        an achievement in the app. The &ldquo;stamps waiting&rdquo; reminder runs daily at 4pm if you have five or more new
+        stamps since your last visit.
       </p>
 
       <div className="space-y-4 mb-6">
@@ -154,6 +156,20 @@ export const EmailNotificationsSettings: React.FC<Props> = ({ preferenceRole }) 
               <span>
                 <span className="font-semibold text-gray-900">Achievement unlocked</span>
                 <span className="block text-sm text-gray-600">Email when you earn a new achievement badge.</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                checked={prefs.unseenStampsEmailEnabled}
+                onChange={(e) => updateLocal({ unseenStampsEmailEnabled: e.target.checked })}
+              />
+              <span>
+                <span className="font-semibold text-gray-900">Stamps waiting reminder</span>
+                <span className="block text-sm text-gray-600">
+                  Email if you have 5 or more new stamps and have not opened the app since they were awarded.
+                </span>
               </span>
             </label>
             <label className="flex items-start gap-3 cursor-pointer">

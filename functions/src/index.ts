@@ -12,6 +12,7 @@ import {
 import { acquireGraphAccessToken, sendMailWithGraph } from "./graphMail";
 import { escapeHtml } from "./mail";
 import { runWeeklyDigests } from "./digestWeekly";
+import { runUnseenStampsEmails } from "./unseenStampsEmail";
 
 admin.initializeApp();
 
@@ -155,6 +156,22 @@ export const sendWeeklyDigestEmails = onSchedule(
       graph: g,
       appUrl: appPublicUrl.value(),
       periodId,
+    });
+  }
+);
+
+/** Email students who have 5+ stamps newer than lastLoginAt and have not opened the app since. */
+export const sendUnseenStampsEmails = onSchedule(
+  {
+    schedule: "every day 16:00",
+    timeZone: "Australia/Sydney",
+    secrets: [graphClientSecret],
+  },
+  async () => {
+    const g = graphConfigFromEnv();
+    await runUnseenStampsEmails({
+      graph: g,
+      appUrl: appPublicUrl.value(),
     });
   }
 );

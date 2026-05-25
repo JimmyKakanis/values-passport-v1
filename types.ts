@@ -71,6 +71,8 @@ export interface EmailNotificationPreferences {
   email: string;
   role: 'STUDENT' | 'TEACHER';
   achievementEmailEnabled: boolean;
+  /** Email when 5+ stamps exist since the student's last login (scheduled job). */
+  unseenStampsEmailEnabled: boolean;
   studentDigestEnabled: boolean;
   teacherDigestEnabled: boolean;
   /** Reserved for future daily digests; weekly job uses studentDigestEnabled / teacherDigestEnabled. */

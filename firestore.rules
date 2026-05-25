@@ -123,6 +123,7 @@ service cloud.firestore {
         && request.resource.data.email == emailKey
         && request.resource.data.role in ['STUDENT', 'TEACHER']
         && request.resource.data.achievementEmailEnabled is bool
+        && request.resource.data.unseenStampsEmailEnabled is bool
         && request.resource.data.studentDigestEnabled is bool
         && request.resource.data.teacherDigestEnabled is bool
         && request.resource.data.frequency in ['WEEKLY', 'DAILY']
@@ -154,6 +155,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /digest_sent/{id} {
+      allow read, write: if false;
+    }
+    match /unseen_stamps_email_sent/{id} {
       allow read, write: if false;
     }
   }

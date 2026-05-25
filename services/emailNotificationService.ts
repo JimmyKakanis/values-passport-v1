@@ -16,6 +16,7 @@ const defaultPreferences = (
   email: emailLower,
   role,
   achievementEmailEnabled: false,
+  unseenStampsEmailEnabled: false,
   studentDigestEnabled: false,
   teacherDigestEnabled: false,
   frequency: 'WEEKLY',
@@ -33,7 +34,10 @@ export function subscribeEmailPreferences(
     ref,
     (snap) => {
       if (snap.exists()) {
-        callback(snap.data() as EmailNotificationPreferences);
+        callback({
+          ...defaultPreferences(emailLower, role),
+          ...(snap.data() as EmailNotificationPreferences),
+        });
       } else {
         callback(defaultPreferences(emailLower, role));
       }
