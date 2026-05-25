@@ -12,6 +12,21 @@ export interface UnseenStampsEmailContext {
   appUrl: string;
 }
 
+export interface UnseenStampsEmailOptions {
+  /** When true (default), only students with unseenStampsEmailEnabled in email_preferences. */
+  requireOptIn?: boolean;
+}
+
+export interface UnseenStampsEmailResult {
+  sent: number;
+  skippedAlreadySent: number;
+  skippedBelowThreshold: number;
+  skippedNoEmail: number;
+  skippedNotOptedIn: number;
+  skippedArchived: number;
+  failed: number;
+}
+
 function passportLink(appUrl: string): string {
   return `${appUrl.replace(/\/$/, "")}/#/passport`;
 }
@@ -20,29 +35,44 @@ function sentDocId(studentId: string, lastLoginAt: number): string {
   return `${studentId}_${lastLoginAt}`.replace(/[/.#$\[\]]/g, "_");
 }
 
-export async function runUnseenStampsEmails(ctx: UnseenStampsEmailContext): Promise<void> {
+export async function runUnseenStampsEmails(
+  ctx: UnseenStampsEmailContext,
+  options: UnseenStampsEmailOptions = {}
+): Promise<UnseenStampsEmailResult> {
+  const requireOptIn = options.requireOptIn !== false;
+  const result: UnseenStampsEmailResult = {
+    sent: 0,
+    skippedAlreadySent: 0,
+    skippedBelowThreshold: 0,
+    skippedNoEmail: 0,
+    skippedNotOptedIn: 0,
+    skippedArchived: 0,
+    failed: 0,
+  };
+
   const tokenRes = await acquireGraphAccessToken(ctx.graph);
   if (!tokenRes.ok) {
     console.error("Unseen stamps email: Graph token failed:", tokenRes.error);
-    return;
+    throw new Error(tokenRes.error);
   }
   const accessToken = tokenRes.accessToken;
   const senderUpn = ctx.graph.senderUpn;
   const now = Date.now();
 
-  const prefsSnap = await db().collection("email_preferences").get();
   const optedIn = new Set<string>();
-  prefsSnap.docs.forEach((docSnap) => {
-    const data = docSnap.data() as {
-      role?: string;
-      unseenStampsEmailEnabled?: boolean;
-    };
-    if (data.role === "STUDENT" && data.unseenStampsEmailEnabled === true) {
-      optedIn.add(docSnap.id.toLowerCase());
-    }
-  });
-
-  if (optedIn.size === 0) return;
+  if (requireOptIn) {
+    const prefsSnap = await db().collection("email_preferences").get();
+    prefsSnap.docs.forEach((docSnap) => {
+      const data = docSnap.data() as {
+        role?: string;
+        unseenStampsEmailEnabled?: boolean;
+      };
+      if (data.role === "STUDENT" && data.unseenStampsEmailEnabled === true) {
+        optedIn.add(docSnap.id.toLowerCase());
+      }
+    });
+    if (optedIn.size === 0) return result;
+  }
 
   const studentsSnap = await db().collection("students").get();
   const sentRef = db().collection("unseen_stamps_email_sent");
@@ -50,11 +80,21 @@ export async function runUnseenStampsEmails(ctx: UnseenStampsEmailContext): Prom
   for (const studentDoc of studentsSnap.docs) {
     const student = studentDoc.data();
     const studentId = studentDoc.id;
-    if (student.archived === true) continue;
+    if (student.archived === true) {
+      result.skippedArchived++;
+      continue;
+    }
 
     const email = student.email ? String(student.email) : "";
     const emailLower = email.toLowerCase();
-    if (!email || !optedIn.has(emailLower)) continue;
+    if (!email) {
+      result.skippedNoEmail++;
+      continue;
+    }
+    if (requireOptIn && !optedIn.has(emailLower)) {
+      result.skippedNotOptedIn++;
+      continue;
+    }
 
     const lastLoginAt =
       typeof student.lastLoginAt === "number" && student.lastLoginAt > 0
@@ -68,16 +108,22 @@ export async function runUnseenStampsEmails(ctx: UnseenStampsEmailContext): Prom
       .get();
 
     const unseenCount = sigsSnap.size;
-    if (unseenCount < UNSEEN_STAMPS_EMAIL_THRESHOLD) continue;
+    if (unseenCount < UNSEEN_STAMPS_EMAIL_THRESHOLD) {
+      result.skippedBelowThreshold++;
+      continue;
+    }
 
     const sentId = sentDocId(studentId, lastLoginAt);
     const already = await sentRef.doc(sentId).get();
-    if (already.exists) continue;
+    if (already.exists) {
+      result.skippedAlreadySent++;
+      continue;
+    }
 
     const name = escapeHtml(String(student.name || "there"));
     const html = `<p>Hi ${name},</p><p>You have <strong>${unseenCount}</strong> new stamp${unseenCount === 1 ? "" : "s"} waiting in Values Passport — teachers have been recognising your values while you've been away.</p><p><a href="${passportLink(ctx.appUrl)}">Open your passport</a></p>`;
 
-    const result = await sendMailWithGraph(
+    const sendResult = await sendMailWithGraph(
       accessToken,
       senderUpn,
       email,
@@ -85,15 +131,20 @@ export async function runUnseenStampsEmails(ctx: UnseenStampsEmailContext): Prom
       html
     );
 
-    if (result.ok) {
+    if (sendResult.ok) {
       await sentRef.doc(sentId).set({
         studentId,
         lastLoginAt,
         unseenCount,
         sentAt: now,
+        blast: requireOptIn ? undefined : "oneoff_all_eligible",
       });
+      result.sent++;
     } else {
-      console.error(`Unseen stamps email failed for ${studentId}:`, result.error);
+      console.error(`Unseen stamps email failed for ${studentId}:`, sendResult.error);
+      result.failed++;
     }
   }
+
+  return result;
 }

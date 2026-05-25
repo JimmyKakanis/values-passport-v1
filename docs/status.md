@@ -83,6 +83,13 @@
     - [x] `email_preferences`, `achievement_email_queue`, digest-related collections; Cloud Functions + Microsoft Graph (`functions/`)
     - [x] In-app **Settings** page (gear): email toggles, avatar section, feedback; wired in `App.tsx` routes
     - [x] Firestore rules updates for queue/preferences and related paths
+- [x] **Microsoft 365 outbound mail (2026-05)**
+    - [x] Entra app + Firebase Secret Manager; production sender `noreply-VP@sathyasai.nsw.edu.au`
+    - [x] E2E verified (Graph `sendMail` + achievement queue function)
+- [x] **Stamps waiting reminder (2026-05)**
+    - [x] Daily scheduled `sendUnseenStampsEmails` (≥ 5 unseen stamps since `lastLoginAt`, opt-in)
+    - [x] Settings toggle; `unseen_stamps_email_sent` idempotency; `firestore.indexes.json`
+    - [x] One-off school-wide blast support via `runUnseenStampsEmails(..., { requireOptIn: false })` (May 2026: 32 students)
 - [x] **Archived students**
     - [x] `Student.archived` / `archivedAt`; `archiveStudents` / `unarchiveStudents`; excluded from `getStudents()` and student login; **Account archived** screen; Student Detail banner for staff
 - [x] **Vercel build fix**

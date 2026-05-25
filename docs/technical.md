@@ -15,7 +15,7 @@
 
 ### 1. Core Types (`types.ts`)
 - **`Student`**: Basic profile info + `lastLoginAt` (timestamp). Optional **parent / guardian** fields: `parentEmail`, `parentName`, `parentDigestEnabled`, `parentConsentRecordedAt` (used by weekly parent digests when consent is recorded in Admin Console). Optional **`archived`** (boolean) and **`archivedAt`** (Unix ms): when `archived` is true, the account is **soft-retired**—hidden from `getStudents()` / teacher pickers / leaderboard inputs, excluded from student login resolution, and blocked from auto-provisioning a second record for the same email (see **Archived students** below). New students created via `addStudent` persist `archived: false`.
-- **`EmailNotificationPreferences`**: Shape stored at `email_preferences/{authEmailLower}` (`role`, digest toggles, `achievementEmailEnabled`, `frequency`).
+- **`EmailNotificationPreferences`**: Shape stored at `email_preferences/{authEmailLower}` (`role`, digest toggles, `achievementEmailEnabled`, `unseenStampsEmailEnabled`, `frequency`).
 - **`Signature`**: Represents a "Stamp". Contains `studentId`, `teacherName`, `subject`, `value`, `subValue` (optional), `note` (optional), `timestamp`, and optional `source` (`DIRECT` | `NOMINATION`) for stamps created from nomination approval.
 - **`Achievement`**: Defines milestones. Types include `TOTAL`, `VALUE`, `SUBJECT_MASTERY`, `FULL_PASSPORT`, and `CUSTOM`.
 - **`Nomination`**: A request for a stamp (Self or Peer). Has a status of `PENDING`, `APPROVED`, or `REJECTED`.
@@ -37,7 +37,9 @@ The notification system is designed to be unobtrusive yet celebratory.
 
 ### Email notifications (Firestore + Functions)
 - **Client**: [`services/emailNotificationService.ts`](../services/emailNotificationService.ts) — subscribe/save `email_preferences`, enqueue achievement emails.
-- **Server**: [`functions/src/index.ts`](../functions/src/index.ts) — `onAchievementEmailQueued`, `onSignatureRecordDigestEvent`, `sendWeeklyDigestEmails` (schedule). Mail is sent as **HTML** via **Microsoft Graph** [`sendMail`](https://learn.microsoft.com/en-us/graph/api/user-sendmail) from [`functions/src/graphMail.ts`](../functions/src/graphMail.ts).
+- **Server**: [`functions/src/index.ts`](../functions/src/index.ts) — `onAchievementEmailQueued`, `onSignatureRecordDigestEvent`, `sendWeeklyDigestEmails`, `sendUnseenStampsEmails` (schedules). Mail is sent as **HTML** via **Microsoft Graph** [`sendMail`](https://learn.microsoft.com/en-us/graph/api/user-sendmail) from [`functions/src/graphMail.ts`](../functions/src/graphMail.ts).
+- **Stamps waiting reminder** ([`functions/src/unseenStampsEmail.ts`](../functions/src/unseenStampsEmail.ts)): Daily **16:00 Australia/Sydney**, emails students who have **≥ 5** signatures with `timestamp > students/{id}.lastLoginAt` (same rule as in-app Welcome Back). **Opt-in** via Settings → **Stamps waiting reminder** (`unseenStampsEmailEnabled`). Idempotency: one email per login period in `unseen_stamps_email_sent/{studentId}_{lastLoginAt}`. Requires Firestore composite index on `signatures` (`studentId` + `timestamp`) — see [`firestore.indexes.json`](../firestore.indexes.json).
+- **One-off blast (all eligible, ignore opt-in)**: Call `runUnseenStampsEmails(ctx, { requireOptIn: false })` from a secured admin path (e.g. temporary HTTP function with a Secret Manager key, then delete). Returns send/skip counts. Uses the same idempotency collection so recipients are not emailed again until they log in and accumulate another 5+ unseen stamps.
 - **Azure / Microsoft 365 setup** (one-time, with IT):
   1. In **Entra ID** (Azure Portal), register an **app** (single-tenant is typical for a school).
   2. Add an **application** permission: **Microsoft Graph → Mail.Send** (not delegated). **Grant admin consent** for the tenant.
@@ -49,8 +51,8 @@ The notification system is designed to be unobtrusive yet celebratory.
      - `MICROSOFT_GRAPH_SENDER_UPN` — Mailbox that will send mail (user UPN or shared mailbox UPN, e.g. `noreply@sathyasai.nsw.edu.au`). The mailbox must exist in the tenant; app-only send uses this account as the sender.
   5. Set `APP_PUBLIC_URL` to your live SPA base URL (for links in emails).
 - **Local / emulator**: See [`functions/.env.example`](../functions/.env.example) (do not commit real secrets).
-- **Deploy**: From the repo root, `firebase deploy --only functions,firestore:rules` after `npm --prefix functions run build`.
-- **Rules**: [`firestore.rules`](../firestore.rules) — users may only create their own `achievement_email_queue` rows (studentId must match `students/{id}.email`); server-only collections are denied to clients.
+- **Deploy**: From the repo root, `firebase deploy --only functions,firestore` after `npm --prefix functions run build` (includes rules and indexes).
+- **Rules**: [`firestore.rules`](../firestore.rules) — users may only create their own `achievement_email_queue` rows (studentId must match `students/{id}.email`); server-only collections (`achievement_email_sent`, `digest_*`, `unseen_stamps_email_sent`) are denied to clients.
 
 ### Authentication & roles
 - **Provider**: Microsoft 365 (via Firebase Authentication).
