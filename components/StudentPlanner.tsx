@@ -607,14 +607,18 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
                 <p className="pt-1 text-[10px] text-amber-800/80 italic">
                   {isSelectedPast
                     ? "Past intentions can't be changed."
-                    : "You can't set intentions for future days."}
+                    : isSelectedFuture
+                      ? "You can't set intentions for future days."
+                      : null}
                 </p>
               </div>
             ) : (
               <p className="text-sm text-amber-900/80 italic">
                 {isSelectedPast
                   ? 'No intention was saved for this day.'
-                  : "You can't set intentions for future days — only today."}
+                  : isSelectedFuture
+                    ? "You can't set intentions for future days — only today."
+                    : null}
               </p>
             )}
           </div>
