@@ -7,6 +7,30 @@
         { "fieldPath": "studentId", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "daily_intentions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentId", "order": "ASCENDING" },
+        { "fieldPath": "ownerEmail", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "value_reflections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentId", "order": "ASCENDING" },
+        { "fieldPath": "ownerEmail", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "goal_check_ins",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentId", "order": "ASCENDING" },
+        { "fieldPath": "ownerEmail", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

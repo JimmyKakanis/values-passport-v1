@@ -14,6 +14,9 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ### 📌 Student dashboard (2026)
 - When the device date is in **2026** and a school integration theme applies, students may see a **This week at school** card aligned with the college’s printed values-integration calendar.
+- **Daily intention** (private): set one short intention per day on the dashboard; view and edit on the **Planner** calendar (amber dot on days with an intention).
+- **Values Lab reflections** (private): save reflections in Values Explorer; unlock practice-based achievements (counts and word totals).
+- **Fortnightly goal check-ins** (private): in **Planner → My Goals**, note progress each school fortnight (term weeks 1–2, 3–4, …).
 
 ### 🌟 Real-Time Gamification
 - **Instant Feedback:** Students receive a "New Stamp" notification the moment a teacher awards it, complete with the teacher's note and specific sub-value focus.

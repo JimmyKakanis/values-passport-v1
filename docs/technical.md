@@ -20,6 +20,10 @@
 - **`Achievement`**: Defines milestones. Types include `TOTAL`, `VALUE`, `SUBJECT_MASTERY`, `FULL_PASSPORT`, and `CUSTOM`.
 - **`Nomination`**: A request for a stamp (Self or Peer). Has a status of `PENDING`, `APPROVED`, or `REJECTED`.
 - **`PlannerItem`**: Represents a task or event in the student planner. Contains `studentId`, `title`, `dueDate` (timestamp), `category` (TASK, HOMEWORK, ASSIGNMENT), and `isCompleted`.
+- **`DailyIntention`**: Private one-per-day note (`dateKey` `YYYY-MM-DD`, `text` max 280 chars, optional `coreValue`). Doc id `{studentId}_{dateKey}`.
+- **`ValueReflection`**: Private Values Lab entry (`coreValue`, `subValue`, `text` max 2000, `wordCount`).
+- **`GoalCheckIn`**: Private fortnightly progress note (`goalId`, `periodKey` e.g. `2026-T1-F3`, `progressText` max 500). One per goal per period.
+- **`StudentEngagementStats`**: Client-computed counts for achievement progress (not stored).
 
 ### 2. Constants for Core Data
 Static, foundational data such as the list of subjects, core values, and achievement definitions live in `constants.ts`. **School term calendar** (`SCHOOL_TERMS`) is shared from [`schoolCalendar.ts`](../schoolCalendar.ts) for the student planner and teacher engagement logic.
@@ -145,8 +149,13 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Locations and Events**: Homeroom, Playground, Sport, Excursions, Assembly, Sports Carnivals, **Camp**.
 - **Academic Subjects**: Maths, English, Science, etc. Defined in `constants.ts` (`SUBJECTS`). `StudentPassport` splits these via `LOCATION_SUBJECTS` vs `ACADEMIC_SUBJECTS`.
 
+### Student engagement achievements
+- **CUSTOM** ids (private practice, not stamps): `intention-first`, `intention-5`, `intention-10`, `intention-25`, `intention-50`; `reflection-first`, `reflection-5`, `reflection-10`, `reflection-25`, `reflection-words-250`, `reflection-words-1000`, `reflection-five-values`; `goal-checkin-first`, `goal-checkin-5`, `goal-checkin-10`.
+- **Fortnight key**: `{year}-T{termId}-F{ceil(weekInTerm/2)}` via [`getFortnightPeriodKey`](../services/studentEngagement.ts).
+- **Reset progress**: `resetStudentProgress` / `resetAllProgress` delete all three engagement collections for affected students.
+
 ### Statistics & Achievements
-- **Client-Side Calculation**: Given the dataset size (~150 students, ~1000s of signatures), statistics and achievement progress are calculated client-side in `dataService.ts`.
+- **Client-Side Calculation**: Given the dataset size (~150 students, ~1000s of signatures), statistics and achievement progress are calculated client-side in `dataService.ts`. Pass optional **`StudentEngagementStats`** into `calculateStudentAchievements` for engagement badges.
 - **Efficiency**: Calculations are memoized or run only on data updates to prevent performance bottlenecks.
 
 ### Student Planner & Goals

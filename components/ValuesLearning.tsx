@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
-import { BookOpen, RefreshCw, Lightbulb, CheckCircle2, XCircle, BrainCircuit, GraduationCap, ArrowRight } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { BookOpen, RefreshCw, Lightbulb, CheckCircle2, XCircle, BrainCircuit, GraduationCap, ArrowRight, Lock, Loader2, Save } from 'lucide-react';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { CoreValue } from '../types';
-import { updateQuizScore } from '../services/dataService';
+import { CoreValue, ValueReflection } from '../types';
+import { addValueReflection, subscribeToValueReflections, updateQuizScore } from '../services/dataService';
+import { countWords, pickStudentReflectionPrompt, REFLECTION_TEXT_MAX } from '../services/studentEngagement';
 
 interface Props {
   studentId?: string | null;
@@ -57,7 +58,7 @@ export const ValuesLearning: React.FC<Props> = ({ studentId, onQuizComplete }) =
       </div>
 
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden min-h-[500px]">
-        {activeTab === 'EXPLORE' && <ValuesExplorer />}
+        {activeTab === 'EXPLORE' && <ValuesExplorer studentId={studentId} />}
         {activeTab === 'SPIN' && <IdeaGenerator />}
         {activeTab === 'QUIZ' && <ValuesQuiz studentId={studentId} onComplete={onQuizComplete} />}
       </div>
@@ -66,13 +67,75 @@ export const ValuesLearning: React.FC<Props> = ({ studentId, onQuizComplete }) =
 };
 
 // --- SUB-COMPONENT: EXPLORER ---
-const ValuesExplorer: React.FC = () => {
+const ValuesExplorer: React.FC<{ studentId?: string | null }> = ({ studentId }) => {
   const [selectedValue, setSelectedValue] = useState<CoreValue>(CoreValue.TRUTH);
+  const [selectedSubValue, setSelectedSubValue] = useState('');
+  const [reflectionText, setReflectionText] = useState('');
+  const [reflections, setReflections] = useState<ValueReflection[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const def = CORE_VALUES[selectedValue];
+  const wordCount = countWords(reflectionText);
+
+  useEffect(() => {
+    if (!studentId) return;
+    const unsub = subscribeToValueReflections(studentId, setReflections);
+    return () => unsub();
+  }, [studentId]);
+
+  useEffect(() => {
+    const first = def.subValues[0] ?? '';
+    setSelectedSubValue(first);
+    setReflectionText('');
+    setSaveSuccess(false);
+    setSaveError(null);
+  }, [selectedValue, def.subValues]);
+
+  const valueReflections = useMemo(
+    () => reflections.filter((r) => r.coreValue === selectedValue).slice(0, 10),
+    [reflections, selectedValue]
+  );
+
+  const reflectionPrompt = useMemo(
+    () =>
+      pickStudentReflectionPrompt(
+        studentId ?? 'guest',
+        selectedSubValue || 'this value'
+      ),
+    [studentId, selectedSubValue]
+  );
+
+  const handleSaveReflection = async () => {
+    if (!studentId) {
+      setSaveError('Sign in as a student to save reflections.');
+      return;
+    }
+    if (!selectedSubValue || !reflectionText.trim()) {
+      setSaveError('Choose a sub-value and write your reflection.');
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    const result = await addValueReflection(
+      studentId,
+      selectedValue,
+      selectedSubValue,
+      reflectionText
+    );
+    setSaving(false);
+    if (result.ok) {
+      setReflectionText('');
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+    } else {
+      setSaveError(result.userMessage);
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row h-full min-h-[600px]">
-      {/* Sidebar */}
       <div className="w-full md:w-1/4 bg-gray-50 border-r border-gray-200 p-4 space-y-2">
         <h3 className="font-bold text-gray-400 text-xs uppercase tracking-wider mb-4 px-2">Core Values</h3>
         {Object.values(CORE_VALUES).map(val => (
@@ -90,7 +153,6 @@ const ValuesExplorer: React.FC = () => {
         ))}
       </div>
 
-      {/* Content Area */}
       <div className="flex-1 p-8 bg-white overflow-y-auto">
         <div className={`inline-block px-4 py-1 rounded-full text-sm font-bold mb-4 ${def.color}`}>
           {def.id}
@@ -98,33 +160,94 @@ const ValuesExplorer: React.FC = () => {
         <h2 className="text-3xl font-bold text-blue-900 mb-2">{def.description.split(':')[0]}</h2>
         <p className="text-gray-600 text-lg mb-8 italic">{def.description.split(':')[1]}</p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
           <div>
             <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
               <CheckCircle2 className="text-emerald-500" size={20} /> Key Sub-Values
             </h3>
             <div className="flex flex-wrap gap-2">
               {def.subValues.map(sub => (
-                <span 
-                  key={sub} 
-                  className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium border border-gray-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors cursor-default"
+                <button
+                  key={sub}
+                  type="button"
+                  onClick={() => setSelectedSubValue(sub)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                    selectedSubValue === sub
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-emerald-50'
+                  }`}
                 >
                   {sub}
-                </span>
+                </button>
               ))}
             </div>
           </div>
 
           <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 h-fit">
-            <h3 className="font-bold text-blue-900 mb-4">Reflection Question</h3>
-            <p className="text-blue-800 mb-6">
-              "When was the last time you demonstrated <strong>{def.subValues[Math.floor(Math.random() * def.subValues.length)]}</strong>? How did it make you feel?"
-            </p>
-            <div className="w-full h-32 bg-white rounded-lg border border-blue-200 p-3 text-sm text-gray-400 italic">
-              (Think about your answer...)
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-blue-900">Reflect on your values</h3>
+              <span className="text-[10px] text-blue-800/80 flex items-center gap-1">
+                <Lock size={10} /> Private
+              </span>
             </div>
+            <p className="text-blue-800 mb-1 text-[10px] uppercase tracking-wide font-bold opacity-80">
+              Today&apos;s question
+            </p>
+            <p className="text-blue-800 mb-4 text-sm leading-relaxed">
+              {reflectionPrompt.prefix}
+              <strong>{selectedSubValue || 'this sub-value'}</strong>
+              {reflectionPrompt.suffix}
+            </p>
+            <textarea
+              value={reflectionText}
+              onChange={(e) => setReflectionText(e.target.value.slice(0, REFLECTION_TEXT_MAX))}
+              rows={5}
+              disabled={!studentId}
+              className="w-full rounded-lg border border-blue-200 bg-white p-3 text-sm text-gray-800 focus:ring-2 focus:ring-blue-400 outline-none disabled:bg-gray-50"
+              placeholder={
+                studentId ? reflectionPrompt.placeholder : 'Sign in to save reflections'
+              }
+            />
+            <div className="flex justify-between items-center mt-2 text-xs text-blue-800/80">
+              <span>{wordCount} words</span>
+              <span>{reflectionText.length}/{REFLECTION_TEXT_MAX}</span>
+            </div>
+            {saveError && <p className="text-xs text-red-600 mt-2">{saveError}</p>}
+            {saveSuccess && (
+              <p className="text-xs text-emerald-700 font-medium mt-2">Reflection saved.</p>
+            )}
+            <button
+              type="button"
+              onClick={handleSaveReflection}
+              disabled={saving || !studentId || !reflectionText.trim()}
+              className="mt-3 flex items-center gap-2 bg-blue-700 hover:bg-blue-600 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              Save reflection
+            </button>
           </div>
         </div>
+
+        {valueReflections.length > 0 && (
+          <div>
+            <h3 className="font-bold text-gray-800 mb-4">My reflections — {def.id}</h3>
+            <ul className="space-y-3">
+              {valueReflections.map((r) => (
+                <li
+                  key={r.id}
+                  className="p-4 rounded-xl border border-gray-100 bg-gray-50 text-sm"
+                >
+                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <span className="font-bold text-emerald-800">{r.subValue}</span>
+                    <span>{new Date(r.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-gray-700 whitespace-pre-wrap">{r.text}</p>
+                  <span className="text-[10px] text-gray-400">{r.wordCount} words</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

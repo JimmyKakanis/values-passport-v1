@@ -3,7 +3,20 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Confetti from 'react-confetti';
 import { X, Award, Star, Gift, CheckCircle } from 'lucide-react';
-import { subscribeToSignatures, subscribeToClaimedRewards, calculateStudentAchievements, getStudentProfile, updateLastLogin, subscribeToPlannerItems, getCustomRewardsForGrade } from '../services/dataService';
+import {
+  subscribeToSignatures,
+  subscribeToClaimedRewards,
+  calculateStudentAchievements,
+  getStudentProfile,
+  updateLastLogin,
+  subscribeToPlannerItems,
+  getCustomRewardsForGrade,
+  subscribeToDailyIntentions,
+  subscribeToValueReflections,
+  subscribeToGoalCheckIns,
+} from '../services/dataService';
+import { computeEngagementStats } from '../services/studentEngagement';
+import type { DailyIntention, ValueReflection, GoalCheckIn, StudentEngagementStats } from '../types';
 import { enqueueAchievementEmailNotification } from '../services/emailNotificationService';
 import { Signature, PlannerItem, AchievementDefinition } from '../types';
 import { ACHIEVEMENTS } from '../constants';
@@ -250,6 +263,16 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
   const prevClaimedRef = useRef<string[]>([]);
   const prevUnlockedRef = useRef<string[]>([]);
   const prevPlannerItemsRef = useRef<PlannerItem[]>([]);
+  const engagementStatsRef = useRef<StudentEngagementStats>({
+    intentionCount: 0,
+    reflectionCount: 0,
+    totalReflectionWords: 0,
+    coreValuesReflected: 0,
+    goalCheckInCount: 0,
+  });
+  const intentionsRef = useRef<DailyIntention[]>([]);
+  const reflectionsRef = useRef<ValueReflection[]>([]);
+  const checkInsRef = useRef<GoalCheckIn[]>([]);
   const lastLoginRef = useRef<number | undefined>(undefined);
   const isInitialLoad = useRef(true);
   const hasCheckedWelcomeBack = useRef(false);
@@ -291,13 +314,22 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
     loadProfile();
   }, [studentId]);
 
+  const refreshEngagementStats = () => {
+    engagementStatsRef.current = computeEngagementStats(
+      intentionsRef.current,
+      reflectionsRef.current,
+      checkInsRef.current
+    );
+  };
+
   // Logic Handler
   const checkAchievements = (sid: string, signatures: Signature[], claimedIds: string[], plannerItems: PlannerItem[]) => {
     const achievements = calculateStudentAchievements(
       signatures,
       claimedIds,
       plannerItems,
-      customRewardsRef.current
+      customRewardsRef.current,
+      engagementStatsRef.current
     );
     const unlockedIds = achievements.filter(a => a.isUnlocked).map(a => a.id);
     
@@ -343,6 +375,16 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
       prevClaimedRef.current = [];
       prevUnlockedRef.current = [];
       prevPlannerItemsRef.current = [];
+      intentionsRef.current = [];
+      reflectionsRef.current = [];
+      checkInsRef.current = [];
+      engagementStatsRef.current = {
+        intentionCount: 0,
+        reflectionCount: 0,
+        totalReflectionWords: 0,
+        coreValuesReflected: 0,
+        goalCheckInCount: 0,
+      };
       isInitialLoad.current = true;
       hasCheckedWelcomeBack.current = false;
       return;
@@ -438,10 +480,46 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
         checkAchievements(studentId, prevSignaturesRef.current, claimedIds, prevPlannerItemsRef.current);
     });
 
+    const runEngagementAchievementCheck = () => {
+      checkAchievements(
+        studentId,
+        prevSignaturesRef.current,
+        prevClaimedRef.current,
+        prevPlannerItemsRef.current
+      );
+    };
+
+    const unsubIntentions = subscribeToDailyIntentions(studentId, (items) => {
+      intentionsRef.current = items;
+      refreshEngagementStats();
+      if (!isInitialLoad.current) {
+        runEngagementAchievementCheck();
+      }
+    });
+
+    const unsubReflections = subscribeToValueReflections(studentId, (items) => {
+      reflectionsRef.current = items;
+      refreshEngagementStats();
+      if (!isInitialLoad.current) {
+        runEngagementAchievementCheck();
+      }
+    });
+
+    const unsubCheckIns = subscribeToGoalCheckIns(studentId, (items) => {
+      checkInsRef.current = items;
+      refreshEngagementStats();
+      if (!isInitialLoad.current) {
+        runEngagementAchievementCheck();
+      }
+    });
+
     return () => {
       unsubSig();
       unsubPlanner();
       unsubClaimed();
+      unsubIntentions();
+      unsubReflections();
+      unsubCheckIns();
     };
   }, [studentId, loadingProfile, addNotification]);
 

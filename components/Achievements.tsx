@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft, Calendar, ListChecks, CheckCircle2 } from 'lucide-react';
+import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft, Calendar, ListChecks, CheckCircle2, Sunrise, BookOpen, PenLine, Target } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards, getPlannerItems, getCustomRewardsForGrade } from '../services/dataService';
+import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards, getPlannerItems, getCustomRewardsForGrade, getEngagementDataForStudent } from '../services/dataService';
 import { StudentAchievement, AchievementDifficulty, AchievementDefinition } from '../types';
 
 interface Props {
@@ -15,7 +15,7 @@ const IconMap: Record<string, React.FC<any>> = {
   Calculator, FlaskConical, Pizza, Crown, Star,
   Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield,
   Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake,
-  Calendar, ListChecks, CheckCircle2
+  Calendar, ListChecks, CheckCircle2, Sunrise, BookOpen, PenLine, Target
 };
 
 export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false }) => {
@@ -28,11 +28,12 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
     const load = async () => {
       setLoading(true);
       try {
-        const [sigs, claimedIds, plannerItems, customRewards] = await Promise.all([
+        const [sigs, claimedIds, plannerItems, customRewards, engagement] = await Promise.all([
           getSignaturesForStudent(studentId),
           getClaimedRewards(studentId),
           getPlannerItems(studentId),
-          student ? getCustomRewardsForGrade(student.grade) : Promise.resolve([])
+          student ? getCustomRewardsForGrade(student.grade) : Promise.resolve([]),
+          getEngagementDataForStudent(studentId),
         ]);
 
         const normalizedCustomRewards: AchievementDefinition[] = customRewards.map(cr => ({
@@ -47,7 +48,13 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
           target: cr.criteria.value || cr.criteria.subject // Normalize target based on type
         }));
 
-        const calculated = calculateStudentAchievements(sigs, claimedIds, plannerItems, normalizedCustomRewards);
+        const calculated = calculateStudentAchievements(
+          sigs,
+          claimedIds,
+          plannerItems,
+          normalizedCustomRewards,
+          engagement.stats
+        );
         setAchievements(calculated);
       } catch (error) {
         console.error("Failed to load achievements", error);

@@ -13,12 +13,13 @@ The application's UI is built from a set of modular React components located in 
 - **`Login.tsx`**: The sign-in page, which handles user authentication against Firebase Auth.
 
 ### Student Views
-- **`Dashboard.tsx`**: The main view for students, showing their progress and passport.
+- **`Dashboard.tsx`**: The main view for students, showing their progress and passport. Includes **`DailyIntentionCard`** (private daily intention, saved to Firestore).
 - **`StudentPassport.tsx`**: The core grid view of the values and subjects. It now subscribes to real-time updates, allowing students to see stamps appear instantly. It also supports interactive stamp history viewing via `StampHistoryModal`.
 - **`Achievements.tsx`**: Shows a student's earned achievements and progress bars.
 - **`Leaderboard.tsx`**: Nested routes under `/leaderboard/*`; passes **`studentId`** to student-only views (`SchoolHighlights`, `YearGroupStandings`, `StudentQuizLeaderboard`). **Students**: `#/leaderboard` → **`SchoolHighlights`**; `#/leaderboard/year-groups` → **`YearGroupStandings`**; `#/leaderboard/quiz` → **`StudentQuizLeaderboard`** (staff hitting `/quiz` are redirected to `#/leaderboard`). **Teachers/admins**: index → **`StudentLeaderboard`** (Wall of Fame); year-groups → **`YearGroupStandings`**; **Quiz** is a **sort mode** inside `StudentLeaderboard`, not a separate tab. **`LeaderboardLayout.tsx`**: nav tabs and route-based **title/subtitle** for students. Supporting: **`GoodNewsFeedList`**, **`YearLevelSnapshotCard`**, **`LeaderboardShared`**.
-- **`ValuesLearning.tsx`**: The "Values Lab" section containing educational resources for students.
-- **`StudentPlanner.tsx`**: A comprehensive calendar and task management tool. It features Term, Month, and Week views, allowing students to track homework and assignments aligned with the school term.
+- **`ValuesLearning.tsx`**: The "Values Lab" section containing educational resources for students. **Values Explorer** supports saving private reflections per core value/sub-value.
+- **`StudentPlanner.tsx`**: A comprehensive calendar and task management tool. It features Term, Month, and Week views, allowing students to track homework and assignments aligned with the school term. Calendar cells show an **amber dot** when a **daily intention** exists; the day sidebar can edit intentions inline.
+- **`StudentGoals.tsx`**: Yearly, subject, and life goals plus **fortnightly check-ins** (school-term weeks 1–2, 3–4, …) with private progress notes.
 
 ### Teacher Views
 - **`TeacherConsole.tsx`**: The main staff workspace: **Award Stamps**; **Student attention** (fair-recognition dashboard: suggested sort modes, up to 20 students school-wide and up to 5 per year with a view switcher, optional search, links to each student’s Values Passport, total stamp counts — see [`TeacherAttentionPanel`](../components/TeacherAttentionPanel.tsx) and [`studentAttention`](../services/studentAttention.ts)); **Activity**; **Review Requests** (nominations); **Rewards**. Jumping to **Award** from the attention list can preselect a student and prefill subject/value from gaps.
@@ -60,7 +61,12 @@ The application's UI is built from a set of modular React components located in 
 
 ## Data Flow & State Management
 
-### 1. Service Layer (`services/dataService.ts`, `services/teacherEngagement.ts`, `services/studentAttention.ts`, `services/avatarUrl.ts`)
+### Student engagement (private Firestore)
+- Collections: **`daily_intentions`**, **`value_reflections`**, **`goal_check_ins`**. Rules restrict read/write to the authenticated student’s own `studentId` (matched via `students` email). Staff have no in-app read path.
+- Logic: [`services/studentEngagement.ts`](../services/studentEngagement.ts) (`getDateKey`, `getFortnightPeriodKey`, `computeEngagementStats`).
+- Achievements: CUSTOM ids (`intention-*`, `reflection-*`, `goal-checkin-*`) in [`calculateStudentAchievements`](../services/dataService.ts).
+
+### 1. Service Layer (`services/dataService.ts`, `services/teacherEngagement.ts`, `services/studentAttention.ts`, `services/avatarUrl.ts`, `services/studentEngagement.ts`)
 Firestore access is encapsulated in `dataService.ts`. This service provides:
 - **Fetch Functions**: `getDocs` wrappers for one-time data retrieval (e.g., `getStudents`, `getAllStudents`, `getAllSignatures`). **`getStudents()`** (and **`getStudentByEmail()`** for login) **omit archived students** so they do not appear in teacher pickers or the leaderboard cache. **`getStudent(id)`** still resolves archived records so deep links and admin views can show the profile with context. **`archiveStudents` / `unarchiveStudents`** update `archived` and `archivedAt` on student documents.
 - **Subscription Functions**: `onSnapshot` wrappers for real-time data streams (e.g., `subscribeToSignatures`, `subscribeToPlannerItems`).

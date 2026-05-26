@@ -1,6 +1,16 @@
-import { Signature, SignatureSource, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType, FeedbackSubmission, FeedbackKind, UserRole } from '../types';
+import { Signature, SignatureSource, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType, FeedbackSubmission, FeedbackKind, UserRole, DailyIntention, ValueReflection, GoalCheckIn, StudentEngagementStats } from '../types';
+import {
+  computeEngagementStats,
+  countWords,
+  dailyIntentionDocId,
+  getDateKey,
+  goalCheckInDocId,
+  INTENTION_TEXT_MAX,
+  REFLECTION_TEXT_MAX,
+  GOAL_CHECKIN_TEXT_MAX,
+} from './studentEngagement';
 import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS, LEADERBOARD_HIDDEN_STUDENT_EMAILS } from '../constants';
-import { db } from '../firebaseConfig';
+import { auth, db } from '../firebaseConfig';
 import { FirebaseError } from 'firebase/app';
 import { 
   collection, 
@@ -352,8 +362,24 @@ export const resetStudentProgress = async (studentId: string): Promise<{ success
     // 4. Quiz Scores
     const quizDoc = await getDoc(doc(db, "quiz_scores", studentId));
     const quizPromises = quizDoc.exists() ? [deleteDoc(quizDoc.ref)] : [];
+
+    // 5. Private engagement (intentions, reflections, goal check-ins)
+    const intentionsSnapshot = await getDocs(query(collection(db, "daily_intentions"), where("studentId", "==", studentId)));
+    const intentionPromises = intentionsSnapshot.docs.map((d) => deleteDoc(d.ref));
+    const reflectionsSnapshot = await getDocs(query(collection(db, "value_reflections"), where("studentId", "==", studentId)));
+    const reflectionPromises = reflectionsSnapshot.docs.map((d) => deleteDoc(d.ref));
+    const checkInsSnapshot = await getDocs(query(collection(db, "goal_check_ins"), where("studentId", "==", studentId)));
+    const checkInPromises = checkInsSnapshot.docs.map((d) => deleteDoc(d.ref));
     
-    await Promise.all([...sigPromises, ...rewardPromises, ...nomPromises, ...quizPromises]);
+    await Promise.all([
+      ...sigPromises,
+      ...rewardPromises,
+      ...nomPromises,
+      ...quizPromises,
+      ...intentionPromises,
+      ...reflectionPromises,
+      ...checkInPromises,
+    ]);
     
     console.log(`Progress reset successfully for student ${studentId}!`);
     return { success: true };
@@ -382,9 +408,25 @@ export const resetAllProgress = async (): Promise<{ success: boolean; error?: st
     // 4. Quiz Scores
     const quizSnapshot = await getDocs(collection(db, "quiz_scores"));
     const quizPromises = quizSnapshot.docs.map(doc => deleteDoc(doc.ref));
-    
-    await Promise.all([...sigPromises, ...rewardPromises, ...nomPromises, ...quizPromises]);
-    
+
+    // 5. Private engagement
+    const intentionsSnapshot = await getDocs(collection(db, "daily_intentions"));
+    const intentionPromises = intentionsSnapshot.docs.map((d) => deleteDoc(d.ref));
+    const reflectionsSnapshot = await getDocs(collection(db, "value_reflections"));
+    const reflectionPromises = reflectionsSnapshot.docs.map((d) => deleteDoc(d.ref));
+    const checkInsSnapshot = await getDocs(collection(db, "goal_check_ins"));
+    const checkInPromises = checkInsSnapshot.docs.map((d) => deleteDoc(d.ref));
+
+    await Promise.all([
+      ...sigPromises,
+      ...rewardPromises,
+      ...nomPromises,
+      ...quizPromises,
+      ...intentionPromises,
+      ...reflectionPromises,
+      ...checkInPromises,
+    ]);
+
     console.log("Progress reset successfully!");
     return { success: true };
   } catch (error: any) {
@@ -1403,7 +1445,20 @@ export const calculateStats = (signatures: Signature[]) => {
   return { total, byValue, bySubject };
 };
 
-export const calculateStudentAchievements = (signatures: Signature[], claimedRewardIds: string[] = [], plannerItems: PlannerItem[] = [], customRewards: AchievementDefinition[] = []): StudentAchievement[] => {
+export const calculateStudentAchievements = (
+  signatures: Signature[],
+  claimedRewardIds: string[] = [],
+  plannerItems: PlannerItem[] = [],
+  customRewards: AchievementDefinition[] = [],
+  engagement?: StudentEngagementStats
+): StudentAchievement[] => {
+  const eng = engagement ?? {
+    intentionCount: 0,
+    reflectionCount: 0,
+    totalReflectionWords: 0,
+    coreValuesReflected: 0,
+    goalCheckInCount: 0,
+  };
   const stats = calculateStats(signatures);
   const sigs = signatures;
 
@@ -1652,6 +1707,82 @@ export const calculateStudentAchievements = (signatures: Signature[], claimedRew
                 maxProgress = 5;
                 currentProgress = plannerItems.filter(item => item.isCompleted).length;
                 isUnlocked = currentProgress >= maxProgress;
+                break;
+
+            case 'intention-first':
+                maxProgress = 1;
+                currentProgress = eng.intentionCount >= 1 ? 1 : 0;
+                isUnlocked = eng.intentionCount >= 1;
+                break;
+            case 'intention-5':
+                maxProgress = 5;
+                currentProgress = Math.min(eng.intentionCount, 5);
+                isUnlocked = eng.intentionCount >= 5;
+                break;
+            case 'intention-10':
+                maxProgress = 10;
+                currentProgress = Math.min(eng.intentionCount, 10);
+                isUnlocked = eng.intentionCount >= 10;
+                break;
+            case 'intention-25':
+                maxProgress = 25;
+                currentProgress = Math.min(eng.intentionCount, 25);
+                isUnlocked = eng.intentionCount >= 25;
+                break;
+            case 'intention-50':
+                maxProgress = 50;
+                currentProgress = Math.min(eng.intentionCount, 50);
+                isUnlocked = eng.intentionCount >= 50;
+                break;
+            case 'reflection-first':
+                maxProgress = 1;
+                currentProgress = eng.reflectionCount >= 1 ? 1 : 0;
+                isUnlocked = eng.reflectionCount >= 1;
+                break;
+            case 'reflection-5':
+                maxProgress = 5;
+                currentProgress = Math.min(eng.reflectionCount, 5);
+                isUnlocked = eng.reflectionCount >= 5;
+                break;
+            case 'reflection-10':
+                maxProgress = 10;
+                currentProgress = Math.min(eng.reflectionCount, 10);
+                isUnlocked = eng.reflectionCount >= 10;
+                break;
+            case 'reflection-25':
+                maxProgress = 25;
+                currentProgress = Math.min(eng.reflectionCount, 25);
+                isUnlocked = eng.reflectionCount >= 25;
+                break;
+            case 'reflection-words-250':
+                maxProgress = 250;
+                currentProgress = Math.min(eng.totalReflectionWords, 250);
+                isUnlocked = eng.totalReflectionWords >= 250;
+                break;
+            case 'reflection-words-1000':
+                maxProgress = 1000;
+                currentProgress = Math.min(eng.totalReflectionWords, 1000);
+                isUnlocked = eng.totalReflectionWords >= 1000;
+                break;
+            case 'reflection-five-values':
+                maxProgress = 5;
+                currentProgress = Math.min(eng.coreValuesReflected, 5);
+                isUnlocked = eng.coreValuesReflected >= 5;
+                break;
+            case 'goal-checkin-first':
+                maxProgress = 1;
+                currentProgress = eng.goalCheckInCount >= 1 ? 1 : 0;
+                isUnlocked = eng.goalCheckInCount >= 1;
+                break;
+            case 'goal-checkin-5':
+                maxProgress = 5;
+                currentProgress = Math.min(eng.goalCheckInCount, 5);
+                isUnlocked = eng.goalCheckInCount >= 5;
+                break;
+            case 'goal-checkin-10':
+                maxProgress = 10;
+                currentProgress = Math.min(eng.goalCheckInCount, 10);
+                isUnlocked = eng.goalCheckInCount >= 10;
                 break;
 
             case 'dependable-deputy':
@@ -2187,6 +2318,321 @@ export const deleteGoal = async (goalId: string) => {
   } catch (error) {
     console.error("Error deleting goal:", error);
     return false;
+  }
+};
+
+// --- STUDENT ENGAGEMENT (private: intentions, reflections, goal check-ins) ---
+
+const emptyEngagementStats = (): StudentEngagementStats => ({
+  intentionCount: 0,
+  reflectionCount: 0,
+  totalReflectionWords: 0,
+  coreValuesReflected: 0,
+  goalCheckInCount: 0,
+});
+
+/** Auth email for Firestore rules (ownerEmail field). Matches authEmailLower() in firestore.rules. */
+export const getEngagementOwnerEmail = (): string | null => {
+  const user = auth.currentUser;
+  if (!user) return null;
+  const direct = user.email?.toLowerCase().trim();
+  if (direct) return direct;
+  const fromProvider = user.providerData
+    .map((p) => p.email?.toLowerCase().trim())
+    .find(Boolean);
+  return fromProvider || null;
+};
+
+export const subscribeToDailyIntentions = (
+  studentId: string,
+  callback: (items: DailyIntention[]) => void
+) => {
+  const ownerEmail = getEngagementOwnerEmail();
+  const q = ownerEmail
+    ? query(
+        collection(db, 'daily_intentions'),
+        where('studentId', '==', studentId),
+        where('ownerEmail', '==', ownerEmail)
+      )
+    : query(collection(db, 'daily_intentions'), where('studentId', '==', studentId));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() } as DailyIntention))
+        .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+      callback(items);
+    },
+    (error) => {
+      console.error('Error subscribing to daily intentions:', error);
+      callback([]);
+    }
+  );
+};
+
+export type UpsertDailyIntentionResult =
+  | { ok: true; intention: DailyIntention }
+  | { ok: false; userMessage: string };
+
+export const upsertDailyIntention = async (
+  studentId: string,
+  dateKey: string,
+  text: string,
+  coreValue?: CoreValue,
+  subValue?: string
+): Promise<UpsertDailyIntentionResult> => {
+  const trimmed = text.trim().slice(0, INTENTION_TEXT_MAX);
+  if (!trimmed) {
+    return { ok: false, userMessage: 'Please write your intention.' };
+  }
+  if (dateKey !== getDateKey(new Date())) {
+    return {
+      ok: false,
+      userMessage: "You can only set or change today's intention.",
+    };
+  }
+  const ownerEmail = getEngagementOwnerEmail();
+  if (!ownerEmail) {
+    return {
+      ok: false,
+      userMessage: 'Could not verify your account email. Try signing out and back in.',
+    };
+  }
+  const docId = dailyIntentionDocId(studentId, dateKey);
+  const ref = doc(db, 'daily_intentions', docId);
+  const now = Date.now();
+  let createdAt = now;
+  try {
+    const existing = await getDoc(ref);
+    if (existing.exists() && typeof existing.data().createdAt === 'number') {
+      createdAt = existing.data().createdAt as number;
+    }
+  } catch (readError) {
+    console.warn('Could not read existing intention; using new createdAt:', readError);
+  }
+
+  const trimmedSub = subValue?.trim();
+  const payload: Record<string, unknown> = {
+    studentId,
+    ownerEmail,
+    dateKey,
+    text: trimmed,
+    createdAt,
+    updatedAt: now,
+  };
+  if (coreValue) payload.coreValue = coreValue;
+  if (trimmedSub) payload.subValue = trimmedSub;
+
+  try {
+    await setDoc(ref, payload, { merge: true });
+    return {
+      ok: true,
+      intention: {
+        id: docId,
+        studentId,
+        ownerEmail,
+        dateKey,
+        text: trimmed,
+        createdAt,
+        updatedAt: now,
+        ...(coreValue ? { coreValue } : {}),
+        ...(trimmedSub ? { subValue: trimmedSub } : {}),
+      },
+    };
+  } catch (error) {
+    console.error('Error upserting daily intention:', error);
+    if (error instanceof FirebaseError && error.code === 'permission-denied') {
+      return {
+        ok: false,
+        userMessage:
+          'Saving was blocked by Firestore security rules. Deploy the updated rules (firestore.rules) with: firebase deploy --only firestore:rules',
+      };
+    }
+    return { ok: false, userMessage: 'Could not save. Check your connection and try again.' };
+  }
+};
+
+export const subscribeToValueReflections = (
+  studentId: string,
+  callback: (items: ValueReflection[]) => void
+) => {
+  const ownerEmail = getEngagementOwnerEmail();
+  const q = ownerEmail
+    ? query(
+        collection(db, 'value_reflections'),
+        where('studentId', '==', studentId),
+        where('ownerEmail', '==', ownerEmail)
+      )
+    : query(collection(db, 'value_reflections'), where('studentId', '==', studentId));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() } as ValueReflection))
+        .sort((a, b) => b.createdAt - a.createdAt);
+      callback(items);
+    },
+    (error) => {
+      console.error('Error subscribing to value reflections:', error);
+      callback([]);
+    }
+  );
+};
+
+export type AddValueReflectionResult =
+  | { ok: true; reflection: ValueReflection }
+  | { ok: false; userMessage: string };
+
+export const addValueReflection = async (
+  studentId: string,
+  coreValue: CoreValue,
+  subValue: string,
+  text: string
+): Promise<AddValueReflectionResult> => {
+  const trimmed = text.trim().slice(0, REFLECTION_TEXT_MAX);
+  if (!trimmed || !subValue.trim()) {
+    return { ok: false, userMessage: 'Choose a sub-value and write your reflection.' };
+  }
+  const ownerEmail = getEngagementOwnerEmail();
+  if (!ownerEmail) {
+    return { ok: false, userMessage: 'Could not verify your account email. Try signing out and back in.' };
+  }
+  try {
+    const wordCount = countWords(trimmed);
+    const newReflection = {
+      studentId,
+      ownerEmail,
+      coreValue,
+      subValue: subValue.trim(),
+      text: trimmed,
+      wordCount,
+      createdAt: Date.now(),
+    };
+    const docRef = await addDoc(collection(db, 'value_reflections'), newReflection);
+    return { ok: true, reflection: { id: docRef.id, ...newReflection } };
+  } catch (error) {
+    console.error('Error adding value reflection:', error);
+    if (error instanceof FirebaseError && error.code === 'permission-denied') {
+      return {
+        ok: false,
+        userMessage:
+          'Saving was blocked by Firestore security rules. Deploy the updated rules from this project (firestore.rules) with: firebase deploy --only firestore:rules',
+      };
+    }
+    return { ok: false, userMessage: 'Could not save. Check your connection and try again.' };
+  }
+};
+
+export const subscribeToGoalCheckIns = (
+  studentId: string,
+  callback: (items: GoalCheckIn[]) => void
+) => {
+  const ownerEmail = getEngagementOwnerEmail();
+  const q = ownerEmail
+    ? query(
+        collection(db, 'goal_check_ins'),
+        where('studentId', '==', studentId),
+        where('ownerEmail', '==', ownerEmail)
+      )
+    : query(collection(db, 'goal_check_ins'), where('studentId', '==', studentId));
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() } as GoalCheckIn))
+        .sort((a, b) => b.createdAt - a.createdAt);
+      callback(items);
+    },
+    (error) => {
+      console.error('Error subscribing to goal check-ins:', error);
+      callback([]);
+    }
+  );
+};
+
+export const upsertGoalCheckIn = async (
+  goalId: string,
+  studentId: string,
+  periodKey: string,
+  progressText: string
+): Promise<GoalCheckIn | null> => {
+  const trimmed = progressText.trim().slice(0, GOAL_CHECKIN_TEXT_MAX);
+  if (!trimmed) return null;
+  const ownerEmail = getEngagementOwnerEmail();
+  if (!ownerEmail) return null;
+  try {
+    const docId = goalCheckInDocId(goalId, studentId, periodKey);
+    const ref = doc(db, 'goal_check_ins', docId);
+    const existing = await getDoc(ref);
+    const now = Date.now();
+    const payload: Omit<GoalCheckIn, 'id'> = {
+      goalId,
+      studentId,
+      ownerEmail,
+      periodKey,
+      progressText: trimmed,
+      createdAt: existing.exists() ? (existing.data().createdAt as number) : now,
+      updatedAt: now,
+    };
+    await setDoc(ref, payload, { merge: true });
+    return { id: docId, ...payload };
+  } catch (error) {
+    console.error('Error upserting goal check-in:', error);
+    return null;
+  }
+};
+
+export const getEngagementDataForStudent = async (studentId: string) => {
+  const ownerEmail = getEngagementOwnerEmail();
+  const empty = {
+    intentions: [] as DailyIntention[],
+    reflections: [] as ValueReflection[],
+    checkIns: [] as GoalCheckIn[],
+    stats: emptyEngagementStats(),
+  };
+  if (!ownerEmail) {
+    return empty;
+  }
+  try {
+    const [intentionsSnap, reflectionsSnap, checkInsSnap] = await Promise.all([
+      getDocs(
+        query(
+          collection(db, 'daily_intentions'),
+          where('studentId', '==', studentId),
+          where('ownerEmail', '==', ownerEmail)
+        )
+      ),
+      getDocs(
+        query(
+          collection(db, 'value_reflections'),
+          where('studentId', '==', studentId),
+          where('ownerEmail', '==', ownerEmail)
+        )
+      ),
+      getDocs(
+        query(
+          collection(db, 'goal_check_ins'),
+          where('studentId', '==', studentId),
+          where('ownerEmail', '==', ownerEmail)
+        )
+      ),
+    ]);
+    const intentions = intentionsSnap.docs.map(
+      (d) => ({ id: d.id, ...d.data() } as DailyIntention)
+    );
+    const reflections = reflectionsSnap.docs.map(
+      (d) => ({ id: d.id, ...d.data() } as ValueReflection)
+    );
+    const checkIns = checkInsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GoalCheckIn));
+    return {
+      intentions,
+      reflections,
+      checkIns,
+      stats: computeEngagementStats(intentions, reflections, checkIns),
+    };
+  } catch (error) {
+    console.error('Error loading engagement data:', error);
+    return empty;
   }
 };
 

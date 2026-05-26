@@ -12,12 +12,20 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    // Microsoft / OIDC must expose email on the token for email_preferences rules to match doc id.
+    // Microsoft / OIDC: email may be on token.email or preferred_username (UPN).
     function authEmailLower() {
       return request.auth != null
-        && request.auth.token.email is string
-        && request.auth.token.email.size() > 0
-        ? request.auth.token.email.lower()
+        ? (
+            request.auth.token.email is string && request.auth.token.email.size() > 0
+              ? request.auth.token.email.lower()
+              : (
+                  request.auth.token.preferred_username is string
+                  && request.auth.token.preferred_username.size() > 0
+                  && request.auth.token.preferred_username.matches('.*@.*')
+                    ? request.auth.token.preferred_username.lower()
+                    : ''
+                )
+          )
         : '';
     }
 
@@ -31,6 +39,83 @@ service cloud.firestore {
     function studentDocMatchesQueueStudentId(sid) {
       return authEmailLower() != ''
         && get(/databases/$(database)/documents/students/$(sid)).data.email.lower() == authEmailLower();
+    }
+
+    function isOwnStudentData(sid) {
+      return studentDocMatchesQueueStudentId(sid);
+    }
+
+    function isEngagementOwner() {
+      return authEmailLower() != ''
+        && resource.data.ownerEmail == authEmailLower();
+    }
+
+    function isEngagementOwnerWrite() {
+      return authEmailLower() != ''
+        && request.resource.data.ownerEmail == authEmailLower();
+    }
+
+    function validDateKey(key) {
+      return key is string && key.size() == 10 && key.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function validPeriodKey(key) {
+      return key is string && key.size() > 0 && key.size() <= 32
+        && key.matches('^[0-9]{4}-T[1-4]-F[0-9]+$');
+    }
+
+    function engagementWriteAllowed(sid) {
+      return isEngagementOwnerWrite() || isOwnStudentData(sid);
+    }
+
+    function validDailyIntentionData() {
+      return request.resource.data.keys().hasAll(['studentId', 'ownerEmail', 'dateKey', 'text', 'createdAt', 'updatedAt'])
+        && request.resource.data.studentId is string
+        && request.resource.data.ownerEmail is string
+        && engagementWriteAllowed(request.resource.data.studentId)
+        && validDateKey(request.resource.data.dateKey)
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 280
+        && request.resource.data.createdAt is int
+        && request.resource.data.updatedAt is int
+        && (!('coreValue' in request.resource.data)
+            || request.resource.data.coreValue is string)
+        && (!('subValue' in request.resource.data)
+            || (request.resource.data.subValue is string
+                && request.resource.data.subValue.size() > 0
+                && request.resource.data.subValue.size() <= 80));
+    }
+
+    function validValueReflectionData() {
+      return request.resource.data.keys().hasAll(['studentId', 'ownerEmail', 'coreValue', 'subValue', 'text', 'wordCount', 'createdAt'])
+        && request.resource.data.studentId is string
+        && request.resource.data.ownerEmail is string
+        && engagementWriteAllowed(request.resource.data.studentId)
+        && request.resource.data.coreValue is string
+        && request.resource.data.subValue is string
+        && request.resource.data.subValue.size() > 0
+        && request.resource.data.subValue.size() <= 80
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 2000
+        && request.resource.data.wordCount is int
+        && request.resource.data.wordCount >= 0
+        && request.resource.data.createdAt is int;
+    }
+
+    function validGoalCheckInData() {
+      return request.resource.data.keys().hasAll(['goalId', 'studentId', 'ownerEmail', 'periodKey', 'progressText', 'createdAt', 'updatedAt'])
+        && request.resource.data.goalId is string
+        && request.resource.data.studentId is string
+        && request.resource.data.ownerEmail is string
+        && engagementWriteAllowed(request.resource.data.studentId)
+        && validPeriodKey(request.resource.data.periodKey)
+        && request.resource.data.progressText is string
+        && request.resource.data.progressText.size() > 0
+        && request.resource.data.progressText.size() <= 500
+        && request.resource.data.createdAt is int
+        && request.resource.data.updatedAt is int;
     }
 
     // Students Collection
@@ -88,6 +173,42 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
       allow delete: if isAuthenticated();
+    }
+
+    // Private student engagement (student-only read/write)
+    match /daily_intentions/{docId} {
+      allow read: if isAuthenticated() && (isEngagementOwner() || isOwnStudentData(resource.data.studentId));
+      allow create: if isAuthenticated() && validDailyIntentionData();
+      allow update: if isAuthenticated()
+        && (isEngagementOwner() || isOwnStudentData(resource.data.studentId))
+        && validDailyIntentionData()
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.dateKey == resource.data.dateKey
+        && (!resource.data.keys().hasAny(['ownerEmail'])
+            || request.resource.data.ownerEmail == resource.data.ownerEmail
+            || isOwnStudentData(resource.data.studentId));
+      allow delete: if isAuthenticated() && (isEngagementOwner() || isOwnStudentData(resource.data.studentId));
+    }
+
+    match /value_reflections/{docId} {
+      allow read: if isAuthenticated() && (isEngagementOwner() || isOwnStudentData(resource.data.studentId));
+      allow create: if isAuthenticated() && validValueReflectionData();
+      allow update, delete: if false;
+    }
+
+    match /goal_check_ins/{docId} {
+      allow read: if isAuthenticated() && (isEngagementOwner() || isOwnStudentData(resource.data.studentId));
+      allow create: if isAuthenticated() && validGoalCheckInData();
+      allow update: if isAuthenticated()
+        && (isEngagementOwner() || isOwnStudentData(resource.data.studentId))
+        && validGoalCheckInData()
+        && request.resource.data.studentId == resource.data.studentId
+        && request.resource.data.goalId == resource.data.goalId
+        && request.resource.data.periodKey == resource.data.periodKey
+        && (!resource.data.keys().hasAny(['ownerEmail'])
+            || request.resource.data.ownerEmail == resource.data.ownerEmail
+            || isOwnStudentData(resource.data.studentId));
+      allow delete: if isAuthenticated() && (isEngagementOwner() || isOwnStudentData(resource.data.studentId));
     }
 
     // Teachers Collection (New)

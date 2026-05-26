@@ -213,3 +213,50 @@ export interface Goal {
   isCompleted: boolean;
   createdAt: number;
 }
+
+/** One private intention per calendar day (local dateKey). */
+export interface DailyIntention {
+  id: string;
+  studentId: string;
+  /** Lowercase auth email — used by Firestore rules for private access. */
+  ownerEmail: string;
+  dateKey: string;
+  text: string;
+  coreValue?: CoreValue;
+  subValue?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Private Values Lab reflection entry. */
+export interface ValueReflection {
+  id: string;
+  studentId: string;
+  ownerEmail: string;
+  coreValue: CoreValue;
+  subValue: string;
+  text: string;
+  wordCount: number;
+  createdAt: number;
+}
+
+/** Fortnightly goal progress note (school-term aligned periodKey). */
+export interface GoalCheckIn {
+  id: string;
+  goalId: string;
+  studentId: string;
+  ownerEmail: string;
+  periodKey: string;
+  progressText: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Aggregated counts for engagement achievements (computed client-side). */
+export interface StudentEngagementStats {
+  intentionCount: number;
+  reflectionCount: number;
+  totalReflectionWords: number;
+  coreValuesReflected: number;
+  goalCheckInCount: number;
+}

@@ -100,6 +100,9 @@
 ## In Progress
 
 
+## Recently completed
+- [x] **Student engagement rituals** — daily intentions, Values Lab reflections, fortnightly goal check-ins, private Firestore + achievements
+
 ## Planned / Future
 - [ ] PDF Export for Passports
 - [ ] Push Notifications (Native/PWA)

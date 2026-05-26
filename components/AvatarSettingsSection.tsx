@@ -5,6 +5,7 @@ import {
   getSignaturesForStudent,
   getStudentClaimedRewards,
   getPlannerItems,
+  getEngagementDataForStudent,
   calculateStats,
   calculateStudentAchievements,
   updateStudentAvatarConfig,
@@ -21,6 +22,13 @@ export const AvatarSettingsSection: React.FC<Props> = ({ studentId }) => {
   const [signatures, setSignatures] = useState<Signature[]>([]);
   const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([]);
   const [plannerItems, setPlannerItems] = useState<PlannerItem[]>([]);
+  const [engagementStats, setEngagementStats] = useState({
+    intentionCount: 0,
+    reflectionCount: 0,
+    totalReflectionWords: 0,
+    coreValuesReflected: 0,
+    goalCheckInCount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
 
@@ -28,15 +36,17 @@ export const AvatarSettingsSection: React.FC<Props> = ({ studentId }) => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const [sigs, claimed, planner] = await Promise.all([
+      const [sigs, claimed, planner, engagement] = await Promise.all([
         getSignaturesForStudent(studentId),
         getStudentClaimedRewards(studentId),
         getPlannerItems(studentId),
+        getEngagementDataForStudent(studentId),
       ]);
       if (!cancelled) {
         setSignatures(sigs);
         setClaimedRewards(claimed);
         setPlannerItems(planner);
+        setEngagementStats(engagement.stats);
         setLoading(false);
       }
     };
@@ -52,7 +62,9 @@ export const AvatarSettingsSection: React.FC<Props> = ({ studentId }) => {
   const achievements = calculateStudentAchievements(
     signatures,
     claimedRewards.map((c) => c.achievementId),
-    plannerItems
+    plannerItems,
+    [],
+    engagementStats
   );
 
   return (

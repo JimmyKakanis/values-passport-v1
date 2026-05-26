@@ -157,7 +157,7 @@ export const AdminConsole: React.FC = () => {
   };
 
   const handleResetStudent = async (student: Student) => {
-    if(!window.confirm(`Are you sure you want to RESET progress for ${student.name}? This will delete all their stamps, rewards, and quiz scores.`)) return;
+    if(!window.confirm(`Are you sure you want to RESET progress for ${student.name}? This will delete all their stamps, rewards, quiz scores, and private engagement entries (intentions, reflections, goal check-ins).`)) return;
     
     setLoading(true);
     const result = await resetStudentProgress(student.id);
@@ -1146,7 +1146,7 @@ export const AdminConsole: React.FC = () => {
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                     <h3 className="font-bold text-red-900 mb-2">Reset Student Progress</h3>
                     <p className="text-gray-700 mb-4 text-sm">
-                        <strong className="text-red-600">WARNING:</strong> This will delete all stamps, signatures, claimed rewards, quiz scores, and pending nominations. 
+                        <strong className="text-red-600">WARNING:</strong> This will delete all stamps, signatures, claimed rewards, quiz scores, pending nominations, and all students&apos; private engagement data (daily intentions, Values Lab reflections, goal check-ins). 
                         Student accounts and settings will remain. Use this before starting a new term or testing period.
                     </p>
                     <button

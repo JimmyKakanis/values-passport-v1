@@ -20,17 +20,20 @@ import {
   getStudents,
   getStudentClaimedRewards,
   getPlannerItems,
+  getEngagementDataForStudent,
   updateStudentAvatarConfig
 } from '../services/dataService';
 import { StudentPassport } from './StudentPassport';
 import { AvatarEditor } from './AvatarEditor';
 import { CORE_VALUES, SUBJECTS } from '../constants';
-import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, History, Tag, Lightbulb, Search, Gift, Sparkles, Calendar, CheckSquare, Edit3 } from 'lucide-react';
+import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, Lightbulb, Search, Gift, Sparkles, Calendar, CheckSquare, Edit3 } from 'lucide-react';
 import { Subject, CoreValue, Signature, ClaimedReward, PlannerItem } from '../types';
 import {
   getValuesIntegrationFocus,
   formatValuesIntegrationStudentLine,
 } from '../valuesIntegrationCalendar2026';
+import { DailyIntentionCard } from './DailyIntentionCard';
+import { StampHistorySection } from './StampActivityFeed';
 
 interface Props {
   studentId: string;
@@ -43,7 +46,7 @@ const DID_YOU_KNOW_TIPS = [
   "See a friend doing something great? Use the **'For a Friend'** option in the Request Stamp form to advocate for them.",
   "Check your **Achievements** page to see special badges you can unlock, like 'The Optimist' or 'Guardian of Nature'.",
   "Open **School** to see how everyone is doing together: highlights of values across the school, plus year group snapshots.",
-  "Teachers can tag your stamps with specific behaviours like **'Curiosity'** or **'Leadership'**. Check your Recent History to see them!",
+  "Teachers can tag your stamps with specific behaviours like **'Curiosity'** or **'Leadership'**. Check **Stamp history** below your passport to see them!",
   "The **'Head, Heart, Hand'** achievement requires you to earn stamps in Academic, Creative, and Active subjects.",
   "With **Microsoft 365** login, your school account keeps your Values Passport secure.",
   "Earning 5 stars in a subject means you have completed the full set of values **5 times**! That is true mastery.",
@@ -66,6 +69,13 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   const [signatures, setSignatures] = useState<Signature[]>([]);
   const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([]);
   const [plannerItems, setPlannerItems] = useState<PlannerItem[]>([]);
+  const [engagementStats, setEngagementStats] = useState({
+    intentionCount: 0,
+    reflectionCount: 0,
+    totalReflectionWords: 0,
+    coreValuesReflected: 0,
+    goalCheckInCount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [currentTip, setCurrentTip] = useState('');
   
@@ -89,28 +99,43 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      const [sigs, claimed, planner] = await Promise.all([
-        getSignaturesForStudent(studentId),
-        getStudentClaimedRewards(studentId),
-        getPlannerItems(studentId)
-      ]);
-      setSignatures(sigs);
-      setClaimedRewards(claimed);
-      setPlannerItems(planner);
-      setLoading(false);
-      
-      // Set random tip
-      const randomTip = DID_YOU_KNOW_TIPS[Math.floor(Math.random() * DID_YOU_KNOW_TIPS.length)];
-      setCurrentTip(randomTip);
+      try {
+        const [sigs, claimed, planner, engagement] = await Promise.all([
+          getSignaturesForStudent(studentId),
+          getStudentClaimedRewards(studentId),
+          getPlannerItems(studentId),
+          getEngagementDataForStudent(studentId),
+        ]);
+        setSignatures(sigs);
+        setClaimedRewards(claimed);
+        setPlannerItems(planner);
+        setEngagementStats(engagement.stats);
+        const randomTip = DID_YOU_KNOW_TIPS[Math.floor(Math.random() * DID_YOU_KNOW_TIPS.length)];
+        setCurrentTip(randomTip);
+      } catch (error) {
+        console.error('Failed to load dashboard data', error);
+      } finally {
+        setLoading(false);
+      }
     };
     loadData();
   }, [studentId]);
+
+  useEffect(() => {
+    setNomSubValue('');
+  }, [nomValue]);
 
   if (!student) return <div>Student not found</div>;
 
   // Calculate derived state
   const stats = calculateStats(signatures);
-  const achievements = calculateStudentAchievements(signatures, claimedRewards.map(c => c.achievementId), plannerItems);
+  const achievements = calculateStudentAchievements(
+    signatures,
+    claimedRewards.map((c) => c.achievementId),
+    plannerItems,
+    [],
+    engagementStats
+  );
 
   // 1. Close Call: Highest progress % that is NOT unlocked
   const closeCall = achievements
@@ -149,13 +174,6 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
     }
   ];
   
-  // Get recent 5 stamps for timeline
-  const recentSignatures = signatures.slice(0, 5);
-
-  useEffect(() => {
-    setNomSubValue('');
-  }, [nomValue]);
-
   const handleNominationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (nomSubject && nomValue && nomSubValue && nomReason && nomineeId) {
@@ -267,6 +285,12 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
              >
                 <Stamp size={18} /> Request Stamp
              </button>
+             <Link
+               to="/leaderboard"
+               className="bg-white/15 hover:bg-white/25 text-white border border-white/30 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors backdrop-blur-sm"
+             >
+               <BarChart2 size={16} /> School highlights
+             </Link>
           </div>
         </div>
         
@@ -291,12 +315,6 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
         </div>
       </div>
 
-      <div className="flex justify-end">
-        <Link to="/leaderboard" className="bg-white px-4 py-2 rounded-lg shadow-sm text-blue-900 font-bold text-sm hover:bg-blue-50 flex items-center gap-2 transition-colors border border-blue-100">
-           <BarChart2 size={16} /> School highlights and year groups
-        </Link>
-      </div>
-
       {valuesIntegrationFocus && (
         <div className="rounded-xl border border-indigo-200 bg-indigo-50/90 p-4 md:p-5 shadow-sm">
           <h2 className="text-sm font-bold text-indigo-900 flex items-center gap-2 mb-2">
@@ -313,6 +331,8 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
           )}
         </div>
       )}
+
+      <DailyIntentionCard studentId={studentId} />
 
       {/* Rewards Catalog Preview */}
       <div className="space-y-4">
@@ -440,43 +460,6 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
              </div>
            </div>
 
-           {/* Recent Activity Timeline */}
-           <div className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
-             <h3 className="font-bold text-blue-900 mb-4 flex items-center gap-2">
-                <History size={18} /> Recent History
-             </h3>
-             <div className="space-y-4">
-               {recentSignatures.length > 0 ? (
-                 recentSignatures.map(sig => {
-                   const valueDef = CORE_VALUES[sig.value];
-                   return (
-                     <div key={sig.id} className="relative pl-4 border-l-2 border-gray-200 pb-2 last:pb-0">
-                       <div className={`absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full ${valueDef.color.split(' ')[0]}`}></div>
-                       <div className="text-sm font-bold text-gray-800">{sig.subject}</div>
-                       <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                          <span className={`${valueDef.color} px-1.5 rounded`}>{sig.value}</span>
-                          <span className="text-gray-300">•</span>
-                          <span>{new Date(sig.timestamp).toLocaleDateString()}</span>
-                       </div>
-                       {sig.subValue && (
-                         <div className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full mb-1">
-                            <Tag size={10} /> {sig.subValue}
-                         </div>
-                       )}
-                       {sig.note && (
-                         <div className="text-xs text-gray-600 italic bg-gray-50 p-2 rounded border border-gray-100">
-                           "{sig.note}"
-                         </div>
-                       )}
-                     </div>
-                   );
-                 })
-               ) : (
-                 <p className="text-sm text-gray-500 text-center italic py-4">No stamps yet!</p>
-               )}
-             </div>
-           </div>
-
            <div className="bg-emerald-50 p-6 rounded-xl border border-emerald-100 relative overflow-hidden">
              <div className="absolute top-0 right-0 p-4 opacity-5 text-emerald-900">
                <Lightbulb size={64} />
@@ -490,6 +473,8 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
            </div>
         </div>
       </div>
+
+      <StampHistorySection signatures={signatures} />
 
       {/* Avatar Editor Modal */}
       <AvatarEditor 

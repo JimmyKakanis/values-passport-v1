@@ -487,6 +487,33 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     type: 'CUSTOM',
     difficulty: 'BEGINNER'
   },
+  {
+    id: 'intention-first',
+    title: 'Morning Mindset',
+    description: 'Set your first daily intention (private to you).',
+    reward: 'Achievement Unlocked',
+    icon: 'Sunrise',
+    type: 'CUSTOM',
+    difficulty: 'BEGINNER'
+  },
+  {
+    id: 'reflection-first',
+    title: 'First Reflection',
+    description: 'Write your first Values Lab reflection.',
+    reward: 'Achievement Unlocked',
+    icon: 'BookOpen',
+    type: 'CUSTOM',
+    difficulty: 'BEGINNER'
+  },
+  {
+    id: 'goal-checkin-first',
+    title: 'Goal Check-in',
+    description: 'Complete your first fortnightly goal progress note.',
+    reward: 'Achievement Unlocked',
+    icon: 'Target',
+    type: 'CUSTOM',
+    difficulty: 'BEGINNER'
+  },
 
   // --- EASY ---
   {
@@ -513,6 +540,51 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     description: 'Complete 5 tasks or assignments in your planner.',
     reward: 'Achievement Unlocked',
     icon: 'CheckCircle2',
+    type: 'CUSTOM',
+    difficulty: 'EASY'
+  },
+  {
+    id: 'intention-5',
+    title: 'Five Intentions',
+    description: 'Set daily intentions on 5 different days.',
+    reward: 'Achievement Unlocked',
+    icon: 'Sunrise',
+    type: 'CUSTOM',
+    difficulty: 'EASY'
+  },
+  {
+    id: 'intention-10',
+    title: 'Ten Intentions',
+    description: 'Set daily intentions on 10 different days.',
+    reward: 'Achievement Unlocked',
+    icon: 'Sunrise',
+    type: 'CUSTOM',
+    difficulty: 'EASY'
+  },
+  {
+    id: 'reflection-5',
+    title: 'Reflective Spirit',
+    description: 'Write 5 Values Lab reflections.',
+    reward: 'Achievement Unlocked',
+    icon: 'BookOpen',
+    type: 'CUSTOM',
+    difficulty: 'EASY'
+  },
+  {
+    id: 'reflection-words-250',
+    title: 'Thoughtful Writer',
+    description: 'Write 250 words across your Values Lab reflections.',
+    reward: 'Achievement Unlocked',
+    icon: 'PenLine',
+    type: 'CUSTOM',
+    difficulty: 'EASY'
+  },
+  {
+    id: 'goal-checkin-5',
+    title: 'Steady Progress',
+    description: 'Complete 5 fortnightly goal check-ins.',
+    reward: 'Achievement Unlocked',
+    icon: 'Target',
     type: 'CUSTOM',
     difficulty: 'EASY'
   },
@@ -643,6 +715,69 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     description: 'Earn 3 stamps in Art or Music.',
     reward: 'Achievement Unlocked',
     icon: 'Palette',
+    type: 'CUSTOM',
+    difficulty: 'MEDIUM'
+  },
+  {
+    id: 'intention-25',
+    title: 'Intentional Living',
+    description: 'Set daily intentions on 25 different days.',
+    reward: 'Achievement Unlocked',
+    icon: 'Sunrise',
+    type: 'CUSTOM',
+    difficulty: 'MEDIUM'
+  },
+  {
+    id: 'intention-50',
+    title: 'Daily Practice',
+    description: 'Set daily intentions on 50 different days.',
+    reward: 'Achievement Unlocked',
+    icon: 'Sunrise',
+    type: 'CUSTOM',
+    difficulty: 'MEDIUM'
+  },
+  {
+    id: 'reflection-10',
+    title: 'Deep Thinker',
+    description: 'Write 10 Values Lab reflections.',
+    reward: 'Achievement Unlocked',
+    icon: 'BookOpen',
+    type: 'CUSTOM',
+    difficulty: 'MEDIUM'
+  },
+  {
+    id: 'reflection-25',
+    title: 'Values Journal',
+    description: 'Write 25 Values Lab reflections.',
+    reward: 'Achievement Unlocked',
+    icon: 'BookOpen',
+    type: 'CUSTOM',
+    difficulty: 'MEDIUM'
+  },
+  {
+    id: 'reflection-words-1000',
+    title: 'Master Reflecter',
+    description: 'Write 1,000 words across your Values Lab reflections.',
+    reward: 'Achievement Unlocked',
+    icon: 'PenLine',
+    type: 'CUSTOM',
+    difficulty: 'MEDIUM'
+  },
+  {
+    id: 'reflection-five-values',
+    title: 'Whole Human',
+    description: 'Reflect on all five core values in the Values Lab.',
+    reward: 'Achievement Unlocked',
+    icon: 'Shapes',
+    type: 'CUSTOM',
+    difficulty: 'MEDIUM'
+  },
+  {
+    id: 'goal-checkin-10',
+    title: 'Goal Steward',
+    description: 'Complete 10 fortnightly goal check-ins.',
+    reward: 'Achievement Unlocked',
+    icon: 'Target',
     type: 'CUSTOM',
     difficulty: 'MEDIUM'
   },

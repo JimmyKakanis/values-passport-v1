@@ -14,7 +14,10 @@ import {
   Loader2,
   LayoutDashboard,
   CalendarRange,
-  List
+  List,
+  Sunrise,
+  Lock,
+  Save
 } from 'lucide-react';
 import { 
   format, 
@@ -31,8 +34,17 @@ import {
   isWithinInterval,
   addDays
 } from 'date-fns';
-import { PlannerItem, PlannerCategory } from '../types';
-import { subscribeToPlannerItems, addPlannerItem, updatePlannerItem, deletePlannerItem } from '../services/dataService';
+import { PlannerItem, PlannerCategory, DailyIntention } from '../types';
+import {
+  subscribeToPlannerItems,
+  addPlannerItem,
+  updatePlannerItem,
+  deletePlannerItem,
+  subscribeToDailyIntentions,
+  upsertDailyIntention,
+} from '../services/dataService';
+import { getDateKey, INTENTION_TEXT_MAX } from '../services/studentEngagement';
+import { CORE_VALUES } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StudentGoals } from './StudentGoals';
 import { SCHOOL_TERMS } from '../schoolCalendar';
@@ -51,9 +63,12 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
   const [currentDate, setCurrentDate] = useState(new Date()); 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [items, setItems] = useState<PlannerItem[]>([]);
+  const [intentions, setIntentions] = useState<DailyIntention[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+  const [intentionDraft, setIntentionDraft] = useState('');
+  const [savingIntention, setSavingIntention] = useState(false);
+  const [intentionSaveError, setIntentionSaveError] = useState<string | null>(null);
   // Form state
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<PlannerCategory>('TASK');
@@ -65,8 +80,34 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
       setItems(data);
       setLoading(false);
     });
-    return () => unsubscribe();
+    const unsubIntentions = subscribeToDailyIntentions(studentId, setIntentions);
+    return () => {
+      unsubscribe();
+      unsubIntentions();
+    };
   }, [studentId]);
+
+  const intentionsByDate = useMemo(() => {
+    const map: Record<string, DailyIntention> = {};
+    intentions.forEach((i) => {
+      map[i.dateKey] = i;
+    });
+    return map;
+  }, [intentions]);
+
+  const todayKey = getDateKey(new Date());
+  const selectedDateKey = getDateKey(selectedDate);
+  const selectedIntention = intentionsByDate[selectedDateKey];
+  const isSelectedToday = selectedDateKey === todayKey;
+  const isSelectedPast = selectedDateKey < todayKey;
+  const isSelectedFuture = selectedDateKey > todayKey;
+
+  useEffect(() => {
+    if (isSelectedToday) {
+      setIntentionDraft(selectedIntention?.text ?? '');
+      setIntentionSaveError(null);
+    }
+  }, [isSelectedToday, selectedIntention?.text]);
 
   // Derived State: Current Term
   // Note: We use useMemo to avoid recalculating on every render, though it's cheap.
@@ -143,8 +184,51 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
 
   // --- RENDERING HELPERS ---
 
+  const handleSaveIntention = async () => {
+    if (!isSelectedToday) return;
+    const trimmed = intentionDraft.trim();
+    if (!trimmed) return;
+    setSavingIntention(true);
+    setIntentionSaveError(null);
+    const result = await upsertDailyIntention(
+      studentId,
+      todayKey,
+      trimmed,
+      selectedIntention?.coreValue,
+      selectedIntention?.subValue
+    );
+    setSavingIntention(false);
+    if (!result.ok) setIntentionSaveError(result.userMessage);
+  };
+
+  const renderIntentionTags = (intention: DailyIntention) =>
+    intention.coreValue || intention.subValue ? (
+      <div className="mb-2 flex flex-wrap gap-1.5">
+        {intention.coreValue && (
+          <span
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ${CORE_VALUES[intention.coreValue].color}`}
+          >
+            {intention.coreValue}
+          </span>
+        )}
+        {intention.subValue && (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-amber-200/80 bg-amber-50 text-amber-950">
+            {intention.subValue}
+          </span>
+        )}
+      </div>
+    ) : null;
+
+  const renderIntentionQuote = (text: string) => (
+    <p className="border-l-2 border-amber-400/80 pl-3 text-sm font-medium leading-relaxed text-amber-950">
+      {text}
+    </p>
+  );
+
   const renderDayCell = (day: Date, isOutsideRange: boolean = false, heightClass: string = 'min-h-[80px]') => {
     const dayItems = getItemsForDate(day);
+    const dayKey = getDateKey(day);
+    const hasIntention = Boolean(intentionsByDate[dayKey]);
     const isSelected = isSameDay(day, selectedDate);
     const isToday = isSameDay(day, new Date());
 
@@ -165,6 +249,12 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
         </span>
         
         <div className="flex flex-wrap justify-center gap-0.5 md:gap-1 mt-0.5 w-full px-0.5">
+          {hasIntention && (
+            <div
+              className="w-1 h-1 md:w-2 md:h-2 rounded-full bg-amber-400"
+              title="Daily intention"
+            />
+          )}
           {dayItems.slice(0, 4).map(item => (
             <div 
               key={item.id} 
@@ -461,6 +551,79 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50 to-orange-50/50 p-4 shadow-sm">
+            <h3 className="mb-3 flex items-center gap-2 font-bold text-amber-950 text-sm">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/80 ring-1 ring-amber-200/60">
+                <Sunrise size={16} className="text-amber-600" />
+              </span>
+              Daily intention
+              <span className="ml-auto inline-flex items-center gap-0.5 rounded-full border border-amber-200/70 bg-white/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900/70">
+                <Lock size={10} /> Private
+              </span>
+            </h3>
+            {isSelectedToday ? (
+              <div className="space-y-2">
+                <p className="text-[10px] text-amber-800/80">
+                  Set or update today&apos;s intention here. Past and future days are view-only.
+                </p>
+                {selectedIntention && renderIntentionTags(selectedIntention)}
+                <textarea
+                  value={intentionDraft}
+                  onChange={(e) => setIntentionDraft(e.target.value.slice(0, INTENTION_TEXT_MAX))}
+                  rows={3}
+                  placeholder="What do you want to focus on today?"
+                  className="w-full rounded-lg border border-amber-200 bg-white p-2 text-sm text-gray-800 focus:ring-2 focus:ring-amber-400 outline-none"
+                />
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-[10px] text-amber-800/70">
+                    {intentionDraft.length}/{INTENTION_TEXT_MAX}
+                  </span>
+                  {intentionSaveError && (
+                    <span className="text-[10px] text-red-600 font-medium text-right flex-1">
+                      {intentionSaveError}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSaveIntention}
+                    disabled={savingIntention || !intentionDraft.trim()}
+                    className="flex items-center gap-1 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-amber-950 px-3 py-1.5 rounded-lg disabled:opacity-50"
+                  >
+                    {savingIntention ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Save size={14} />
+                    )}
+                    Save
+                  </button>
+                </div>
+              </div>
+            ) : selectedIntention ? (
+              <div className="space-y-2 rounded-lg border border-amber-100/80 bg-white/75 p-3">
+                {renderIntentionTags(selectedIntention)}
+                {renderIntentionQuote(selectedIntention.text)}
+                <p className="pt-1 text-[10px] text-amber-800/80 italic">
+                  {isSelectedPast
+                    ? "Past intentions can't be changed."
+                    : "You can't set intentions for future days."}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-amber-900/80 italic">
+                {isSelectedPast
+                  ? 'No intention was saved for this day.'
+                  : "You can't set intentions for future days — only today."}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-3 text-[10px] text-gray-500 px-1">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /> Intention</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Task</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Homework</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Assignment</span>
           </div>
 
           {/* Quick Tips */}
