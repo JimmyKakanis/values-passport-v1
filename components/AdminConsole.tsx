@@ -18,8 +18,10 @@ import {
   ArrowUp,
   ArrowDown,
   Archive,
-  ArchiveRestore
+  ArchiveRestore,
+  LogIn
 } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Student, Teacher, SystemSettings, FeedbackSubmission, UserRole } from '../types';
 import { 
   getAllStudents, 
@@ -45,7 +47,21 @@ import {
 
 import { SchoolAnalytics } from './SchoolAnalytics';
 
-type StudentDirectorySortKey = 'firstName' | 'grade';
+type StudentDirectorySortKey = 'firstName' | 'grade' | 'lastLogin';
+
+const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
+
+function formatStudentLastLogin(ts?: number): { label: string; title: string; recent: boolean } {
+  if (typeof ts !== 'number' || ts <= 0) {
+    return { label: 'Never', title: 'This student has not signed in yet', recent: false };
+  }
+  const date = new Date(ts);
+  return {
+    label: formatDistanceToNow(date, { addSuffix: true }),
+    title: format(date, 'MMM d, yyyy h:mm a'),
+    recent: Date.now() - ts <= TWO_WEEKS_MS,
+  };
+}
 
 function gradeSortValue(grade: string): number {
   const digits = grade.replace(/\D/g, '');
@@ -480,6 +496,12 @@ export const AdminConsole: React.FC = () => {
         if (g !== 0) return mult * g;
         return mult * firstNameFromFullName(a.name).localeCompare(firstNameFromFullName(b.name));
       }
+      if (studentSortKey === 'lastLogin') {
+        const aLogin = typeof a.lastLoginAt === 'number' && a.lastLoginAt > 0 ? a.lastLoginAt : 0;
+        const bLogin = typeof b.lastLoginAt === 'number' && b.lastLoginAt > 0 ? b.lastLoginAt : 0;
+        if (aLogin !== bLogin) return mult * (aLogin - bLogin);
+        return mult * firstNameFromFullName(a.name).localeCompare(firstNameFromFullName(b.name));
+      }
       const c = firstNameFromFullName(a.name).localeCompare(firstNameFromFullName(b.name));
       if (c !== 0) return mult * c;
       return mult * (gradeSortValue(a.grade) - gradeSortValue(b.grade));
@@ -811,6 +833,23 @@ export const AdminConsole: React.FC = () => {
                                     ) : null}
                                   </button>
                                 </th>
+                                <th className="p-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleStudentDirectorySort('lastLogin')}
+                                    className="inline-flex items-center gap-1 font-semibold text-gray-600 hover:text-emerald-800 uppercase tracking-wider"
+                                    title="Sort by last login"
+                                  >
+                                    Last login
+                                    {studentSortKey === 'lastLogin' ? (
+                                      studentSortDir === 'asc' ? (
+                                        <ArrowUp className="shrink-0" size={14} aria-hidden />
+                                      ) : (
+                                        <ArrowDown className="shrink-0" size={14} aria-hidden />
+                                      )
+                                    ) : null}
+                                  </button>
+                                </th>
                                 <th className="p-3">Parent</th>
                                 <th className="p-3">Parent weekly</th>
                                 <th className="p-3 text-right">Actions</th>
@@ -874,6 +913,36 @@ export const AdminConsole: React.FC = () => {
                                         ) : (
                                             <span className="px-2 py-1 bg-gray-100 rounded text-xs font-bold">{student.grade}</span>
                                         )}
+                                    </td>
+                                    <td className="p-3 text-sm whitespace-nowrap">
+                                      {(() => {
+                                        const login = formatStudentLastLogin(student.lastLoginAt);
+                                        return (
+                                          <span
+                                            className={`inline-flex items-center gap-1.5 ${
+                                              login.recent
+                                                ? 'text-emerald-700'
+                                                : login.label === 'Never'
+                                                  ? 'text-gray-400'
+                                                  : 'text-gray-600'
+                                            }`}
+                                            title={login.title}
+                                          >
+                                            <LogIn
+                                              size={14}
+                                              className={
+                                                login.recent
+                                                  ? 'text-emerald-500'
+                                                  : login.label === 'Never'
+                                                    ? 'text-gray-300'
+                                                    : 'text-gray-400'
+                                              }
+                                              aria-hidden
+                                            />
+                                            {login.label}
+                                          </span>
+                                        );
+                                      })()}
                                     </td>
                                     <td className="p-3 text-gray-600 text-sm max-w-[140px]">
                                         {editingStudent?.id === student.id ? (
@@ -971,7 +1040,7 @@ export const AdminConsole: React.FC = () => {
                             ))}
                             {sortedFilteredStudents.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} className="p-8 text-center text-gray-500">
+                                    <td colSpan={8} className="p-8 text-center text-gray-500">
                                         No students found matching your search.
                                     </td>
                                 </tr>
