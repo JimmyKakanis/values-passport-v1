@@ -4,7 +4,12 @@ import { BookOpen, RefreshCw, Lightbulb, CheckCircle2, XCircle, BrainCircuit, Gr
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { CoreValue, ValueReflection } from '../types';
 import { addValueReflection, subscribeToValueReflections, updateQuizScore } from '../services/dataService';
-import { countWords, pickStudentReflectionPrompt, REFLECTION_TEXT_MAX } from '../services/studentEngagement';
+import {
+  countWords,
+  pickDailySubValue,
+  pickStudentReflectionPrompt,
+  REFLECTION_TEXT_MAX,
+} from '../services/studentEngagement';
 
 interface Props {
   studentId?: string | null;
@@ -69,7 +74,13 @@ export const ValuesLearning: React.FC<Props> = ({ studentId, onQuizComplete }) =
 // --- SUB-COMPONENT: EXPLORER ---
 const ValuesExplorer: React.FC<{ studentId?: string | null }> = ({ studentId }) => {
   const [selectedValue, setSelectedValue] = useState<CoreValue>(CoreValue.TRUTH);
-  const [selectedSubValue, setSelectedSubValue] = useState('');
+  const [selectedSubValue, setSelectedSubValue] = useState(() =>
+    pickDailySubValue(
+      studentId ?? 'guest',
+      CoreValue.TRUTH,
+      CORE_VALUES[CoreValue.TRUTH].subValues
+    )
+  );
   const [reflectionText, setReflectionText] = useState('');
   const [reflections, setReflections] = useState<ValueReflection[]>([]);
   const [saving, setSaving] = useState(false);
@@ -86,12 +97,13 @@ const ValuesExplorer: React.FC<{ studentId?: string | null }> = ({ studentId }) 
   }, [studentId]);
 
   useEffect(() => {
-    const first = def.subValues[0] ?? '';
-    setSelectedSubValue(first);
+    setSelectedSubValue(
+      pickDailySubValue(studentId ?? 'guest', selectedValue, def.subValues)
+    );
     setReflectionText('');
     setSaveSuccess(false);
     setSaveError(null);
-  }, [selectedValue, def.subValues]);
+  }, [selectedValue, def.subValues, studentId]);
 
   const valueReflections = useMemo(
     () => reflections.filter((r) => r.coreValue === selectedValue).slice(0, 10),

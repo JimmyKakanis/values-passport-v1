@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft, Calendar, ListChecks, CheckCircle2, Sunrise, BookOpen, PenLine, Target } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards, getPlannerItems, getCustomRewardsForGrade, getEngagementDataForStudent } from '../services/dataService';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards, getPlannerItems, getCustomRewardsForGrade, getEngagementDataForStudent, isRedeemableStudentReward } from '../services/dataService';
 import { StudentAchievement, AchievementDifficulty, AchievementDefinition } from '../types';
 
 interface Props {
@@ -20,9 +20,12 @@ const IconMap: Record<string, React.FC<any>> = {
 
 export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false }) => {
   const [achievements, setAchievements] = useState<StudentAchievement[]>([]);
+  const [customRewardIds, setCustomRewardIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const student = getStudent(studentId);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeView = searchParams.get('tab') === 'rewards' ? 'rewards' : 'achievements';
 
   useEffect(() => {
     const load = async () => {
@@ -47,6 +50,7 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
           threshold: cr.criteria.threshold,
           target: cr.criteria.value || cr.criteria.subject // Normalize target based on type
         }));
+        setCustomRewardIds(new Set(customRewards.map((cr) => cr.id)));
 
         const calculated = calculateStudentAchievements(
           sigs,
@@ -64,6 +68,27 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
     }
     load();
   }, [studentId]);
+
+  const earnedRewards = useMemo(
+    () => achievements.filter((a) => isRedeemableStudentReward(a, customRewardIds)),
+    [achievements, customRewardIds]
+  );
+
+  const claimedRewards = useMemo(
+    () =>
+      achievements.filter(
+        (a) =>
+          a.isClaimed &&
+          (customRewardIds.has(a.id) ||
+            (a.reward?.startsWith('Reward:') &&
+              !a.reward.includes('Achievement Unlocked') &&
+              !a.reward.includes('Badge')))
+      ),
+    [achievements, customRewardIds]
+  );
+
+  const formatRewardLabel = (reward: string) =>
+    reward.startsWith('Reward:') ? reward.replace(/^Reward:\s*/, '') : reward;
 
   if (loading) {
      return <div className="p-10 flex justify-center"><Loader2 className="animate-spin text-emerald-600"/></div>;
@@ -249,6 +274,123 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
         <Trophy className="absolute -right-6 -bottom-6 w-48 h-48 text-white opacity-5 rotate-12" />
       </div>
 
+      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-1">
+        <button
+          type="button"
+          onClick={() => setSearchParams({}, { replace: true })}
+          className={`px-4 py-2.5 rounded-t-lg font-bold text-sm flex items-center gap-2 transition-colors ${
+            activeView === 'achievements'
+              ? 'bg-white text-blue-900 border border-b-0 border-gray-200 shadow-sm -mb-px'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Trophy size={18} /> All achievements
+        </button>
+        <button
+          type="button"
+          onClick={() => setSearchParams({ tab: 'rewards' }, { replace: true })}
+          className={`relative px-4 py-2.5 rounded-t-lg font-bold text-sm flex items-center gap-2 transition-colors ${
+            activeView === 'rewards'
+              ? 'bg-white text-purple-900 border border-b-0 border-gray-200 shadow-sm -mb-px'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Gift size={18} /> My rewards
+          {earnedRewards.length > 0 && (
+            <span className="min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-purple-600 text-white text-xs font-black">
+              {earnedRewards.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {activeView === 'rewards' ? (
+        <div className="space-y-8">
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-5 md:p-6">
+            <h2 className="text-lg font-bold text-purple-900 flex items-center gap-2">
+              <Gift className="text-purple-600" size={22} />
+              {isTeacherView ? 'Rewards ready to collect' : 'Your earned rewards'}
+            </h2>
+            <p className="text-sm text-purple-800 mt-2 max-w-2xl">
+              {isTeacherView
+                ? `${student?.name} has unlocked these rewards. Mark them as claimed in Teacher Console → Rewards when you hand them out.`
+                : 'These rewards are unlocked and waiting for you. Show this page to a teacher — they will mark it as claimed when you receive your reward.'}
+            </p>
+          </div>
+
+          {earnedRewards.length === 0 ? (
+            <div className="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-10 text-center">
+              <Gift className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="font-bold text-gray-600">No rewards waiting right now</p>
+              <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+                Keep earning stamps and unlocking achievements — tangible rewards will show up here when you earn them.
+              </p>
+              {!isTeacherView && (
+                <button
+                  type="button"
+                  onClick={() => setSearchParams({}, { replace: true })}
+                  className="mt-4 text-sm font-bold text-emerald-700 hover:underline"
+                >
+                  Browse all achievements →
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {earnedRewards.map((item) => {
+                const Icon = IconMap[item.icon] || Gift;
+                return (
+                  <div
+                    key={item.id}
+                    className="bg-white border-2 border-purple-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-lg bg-purple-100 text-purple-700 shrink-0">
+                        <Icon size={24} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-bold text-blue-900">{item.title}</h3>
+                          <span className="text-[10px] uppercase font-bold tracking-wide bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full animate-pulse">
+                            Ready to collect
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{item.description}</p>
+                        <p className="mt-3 text-sm font-bold text-purple-800 flex items-center gap-1.5">
+                          <Sparkles size={14} />
+                          {formatRewardLabel(item.reward)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {claimedRewards.length > 0 && (
+            <section>
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+                Already collected ({claimedRewards.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {claimedRewards.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex items-center gap-3 opacity-90"
+                  >
+                    <CheckCircle className="text-emerald-600 shrink-0" size={20} />
+                    <div className="min-w-0">
+                      <p className="font-bold text-gray-700 text-sm truncate">{item.title}</p>
+                      <p className="text-xs text-gray-500">{formatRewardLabel(item.reward)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      ) : (
       <div className="space-y-16">
         <DifficultySection 
           title="BEGINNER" 
@@ -298,6 +440,7 @@ export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false
           description="The ultimate honour. A true Values Champion."
         />
       </div>
+      )}
     </div>
   );
 };

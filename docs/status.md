@@ -99,9 +99,14 @@
 
 ## In Progress
 
-
 ## Recently completed
-- [x] **Student engagement rituals** — daily intentions, Values Lab reflections, fortnightly goal check-ins, private Firestore + achievements
+- [x] **Planner My Tasks tab** — grouped Tasks / Homework / Assignments, completed collapses per section, `PlannerAddItemModal` with due date picker, `PlannerTasksView`
+- [x] **Dashboard planner tick-off** — Next Up checkboxes, urgent-first ordering, student-friendly due pills; shared `PlannerItemRow` + `utils/plannerDisplay.ts`; real-time `subscribeToPlannerItems` on dashboard
+- [x] **Student “My Rewards” visibility** (2026-05) — Dashboard banner button with pending count; Achievements **My rewards** tab; `isRedeemableStudentReward` aligned with teacher pending-claims logic.
+- [x] **Student engagement rituals** (2026-05) — daily intentions, Values Lab reflections, fortnightly goal check-ins, private Firestore + achievements, `ownerEmail` rules, Microsoft `preferred_username` auth, rules/index deploy
+- [x] **Dashboard stamp history** — full-width `StampHistorySection` (all stamps + comments); removed five-item sidebar “Recent History”
+- [x] **Daily intention UX** — dashboard card polish (saved state, value tags); planner today-only edit, past/future view-only; server guard on `dateKey`
+- [x] **Build** — fixed unused `isSelectedFuture` in `StudentPlanner.tsx` for strict `tsc` on Vercel
 
 ## Planned / Future
 - [ ] PDF Export for Passports

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Calendar, CheckCircle2, Loader2, Lock, Pencil, Save, Sunrise, X } from 'lucide-react';
+import { CheckCircle2, Loader2, Lock, Save, Sunrise, X } from 'lucide-react';
 import { CoreValue } from '../types';
 import { CORE_VALUES } from '../constants';
 import { subscribeToDailyIntentions, upsertDailyIntention } from '../services/dataService';
@@ -247,47 +246,30 @@ export const DailyIntentionCard: React.FC<Props> = ({ studentId }) => {
           </div>
         </div>
       ) : todayIntention ? (
-        <div className="relative space-y-4">
-          <div className="rounded-xl border border-amber-100/90 bg-white/85 p-4 md:p-5 shadow-sm ring-1 ring-white/80">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                {todayIntention.coreValue && (
-                  <span
-                    className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full shadow-sm ${CORE_VALUES[todayIntention.coreValue].color}`}
-                  >
-                    {todayIntention.coreValue}
-                  </span>
-                )}
-                {todayIntention.subValue && (
-                  <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-950 border border-amber-200/80">
-                    {todayIntention.subValue}
-                  </span>
-                )}
-              </div>
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700/90">
-                <CheckCircle2 size={12} className="text-emerald-600" />
-                Set for today
-              </span>
+        <div className="rounded-xl border border-amber-100/90 bg-white/85 p-4 md:p-5 shadow-sm ring-1 ring-white/80">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {todayIntention.coreValue && (
+                <span
+                  className={`inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full shadow-sm ${CORE_VALUES[todayIntention.coreValue].color}`}
+                >
+                  {todayIntention.coreValue}
+                </span>
+              )}
+              {todayIntention.subValue && (
+                <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-950 border border-amber-200/80">
+                  {todayIntention.subValue}
+                </span>
+              )}
             </div>
-            <p className="text-base md:text-lg text-amber-950 font-medium leading-relaxed border-l-[3px] border-amber-400/80 pl-4">
-              {todayIntention.text}
-            </p>
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700/90">
+              <CheckCircle2 size={12} className="text-emerald-600" />
+              Set for today
+            </span>
           </div>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <button
-              type="button"
-              onClick={startEdit}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-amber-950 shadow-sm transition-colors hover:bg-amber-400"
-            >
-              <Pencil size={15} /> Edit
-            </button>
-            <Link
-              to="/planner"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200/90 bg-white/70 px-4 py-2 text-sm font-bold text-amber-900 transition-colors hover:bg-white hover:border-amber-300"
-            >
-              <Calendar size={15} /> View on calendar
-            </Link>
-          </div>
+          <p className="text-base md:text-lg text-amber-950 font-medium leading-relaxed border-l-[3px] border-amber-400/80 pl-4">
+            {todayIntention.text}
+          </p>
         </div>
       ) : (
         <div className="relative space-y-4 rounded-xl border border-dashed border-amber-300/70 bg-white/50 p-4 md:p-5">

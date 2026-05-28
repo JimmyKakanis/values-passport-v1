@@ -14,7 +14,8 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ### 📌 Student dashboard (2026)
 - When the device date is in **2026** and a school integration theme applies, students may see a **This week at school** card aligned with the college’s printed values-integration calendar.
-- **Daily intention** (private): set one short intention per day on the dashboard; view and edit on the **Planner** calendar (amber dot on days with an intention).
+- **Daily intention** (private): set one intention **per calendar day** with optional core value and sub-value. **Edit on the dashboard** (`DailyIntentionCard`) or **Planner** sidebar when **today** is selected. **Past days** are view-only; **future days** cannot be set ahead of time. Amber dots on the planner mark days that have an intention.
+- **Stamp history**: full-width **Stamp history** below the passport lists all stamps and teacher comments, newest first (replaces the old five-item sidebar widget).
 - **Values Lab reflections** (private): save reflections in Values Explorer; unlock practice-based achievements (counts and word totals).
 - **Fortnightly goal check-ins** (private): in **Planner → My Goals**, note progress each school fortnight (term weeks 1–2, 3–4, …).
 
@@ -25,7 +26,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **Welcome Back Summaries:** If a student is offline, the app summarizes what they earned while away upon their next login.
 
 ### 📚 Student Portal
-- **My Passport:** A visual grid showing mastery levels across Academic Subjects and Locations & Events (including Camp, Excursions, Sports Carnivals). Click any cell to see the full history of stamps and teacher comments.
+- **My Passport:** A visual grid showing mastery levels across Academic Subjects and Locations & Events (including Camp, Excursions, Sports Carnivals). Click any cell to see stamps for that cell, or use **Stamp history** on the dashboard for a single chronological feed of everything.
 - **My Goals:** A goal-setting area where students can create and track Yearly, Subject-specific, and Personal Life goals.
 - **Values Lab:** A learning hub with definitions, sub-values, and resources.
 - **Leaderboard / School:** **Students** — **`#/leaderboard`** (**School highlights**), **`#/leaderboard/year-groups`** (**Year group standings**; podium + your-year stamp), **`#/leaderboard/quiz`** (**Quiz leaderboard**; pop-quiz high scores, search/year filters, your row highlighted). **Teachers/admins** — **`#/leaderboard`** is the **Wall of Fame** (includes **Quiz** as a sort mode; no separate quiz tab). Roster is refreshed from Firestore when the leaderboard loads. Optional **hide from leaderboard only** for test accounts (`excludeFromLeaderboard` or `LEADERBOARD_HIDDEN_STUDENT_EMAILS` in `constants.ts`). See `docs/technical.md` for details.
@@ -84,6 +85,9 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ## Build & deploy (quick)
 - **Frontend (Vercel / static host):** `npm install` then `npm run build` → `dist/`.
+- **Firestore (engagement + rules):** After changing `firestore.rules` or `firestore.indexes.json`, deploy with  
+  `firebase deploy --only firestore:rules,firestore:indexes`  
+  (required for daily intentions, reflections, and goal check-ins to save in production).
 - **Functions:** `cd functions && npm install && npm run build`; deploy with Firebase CLI as needed.
 
 ## Technologies

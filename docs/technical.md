@@ -20,9 +20,9 @@
 - **`Achievement`**: Defines milestones. Types include `TOTAL`, `VALUE`, `SUBJECT_MASTERY`, `FULL_PASSPORT`, and `CUSTOM`.
 - **`Nomination`**: A request for a stamp (Self or Peer). Has a status of `PENDING`, `APPROVED`, or `REJECTED`.
 - **`PlannerItem`**: Represents a task or event in the student planner. Contains `studentId`, `title`, `dueDate` (timestamp), `category` (TASK, HOMEWORK, ASSIGNMENT), and `isCompleted`.
-- **`DailyIntention`**: Private one-per-day note (`dateKey` `YYYY-MM-DD`, `text` max 280 chars, optional `coreValue`). Doc id `{studentId}_{dateKey}`.
-- **`ValueReflection`**: Private Values Lab entry (`coreValue`, `subValue`, `text` max 2000, `wordCount`).
-- **`GoalCheckIn`**: Private fortnightly progress note (`goalId`, `periodKey` e.g. `2026-T1-F3`, `progressText` max 500). One per goal per period.
+- **`DailyIntention`**: Private one-per-day note (`dateKey` `YYYY-MM-DD`, `text` max 280 chars, optional `coreValue` / `subValue`, `ownerEmail`, `createdAt`, `updatedAt`). Doc id `{studentId}_{dateKey}` (sanitized). **Writes only for today’s `dateKey`** ([`upsertDailyIntention`](../services/dataService.ts)).
+- **`ValueReflection`**: Private Values Lab entry (`ownerEmail`, `coreValue`, `subValue`, `text` max 2000, `wordCount`, `createdAt`). Created via `addDoc`; no client update/delete.
+- **`GoalCheckIn`**: Private fortnightly progress note (`goalId`, `ownerEmail`, `periodKey` e.g. `2026-T1-F3`, `progressText` max 500, `createdAt`, `updatedAt`). One per goal per period.
 - **`StudentEngagementStats`**: Client-computed counts for achievement progress (not stored).
 
 ### 2. Constants for Core Data
@@ -151,6 +151,7 @@ The notification system is designed to be unobtrusive yet celebratory.
 
 ### Student engagement achievements
 - **CUSTOM** ids (private practice, not stamps): `intention-first`, `intention-5`, `intention-10`, `intention-25`, `intention-50`; `reflection-first`, `reflection-5`, `reflection-10`, `reflection-25`, `reflection-words-250`, `reflection-words-1000`, `reflection-five-values`; `goal-checkin-first`, `goal-checkin-5`, `goal-checkin-10`.
+- **Sub-value collectors** (stamps, IMPOSSIBLE): `subvalues-truth`, `subvalues-love`, `subvalues-peace`, `subvalues-right-conduct`, `subvalues-non-violence` — unlock when the student has at least one stamp in that core value for **each** catalog sub-value in `CORE_VALUES` (case-insensitive tag match on `signature.subValue`). Progress shows `covered / total` (e.g. 12/21 Truth sub-values). Logic: [`countStampedSubValuesForCoreValue`](../services/studentEngagement.ts).
 - **Fortnight key**: `{year}-T{termId}-F{ceil(weekInTerm/2)}` via [`getFortnightPeriodKey`](../services/studentEngagement.ts).
 - **Reset progress**: `resetStudentProgress` / `resetAllProgress` delete all three engagement collections for affected students.
 
@@ -160,12 +161,33 @@ The notification system is designed to be unobtrusive yet celebratory.
 
 ### Student Planner & Goals
 - **View Logic**: Supported views include `Term`, `Month`, and `Week`.
-- **Goals Integration**: Students can switch between `Calendar` and `My Goals` modes.
+- **Modes**: `Calendar`, **My Tasks**, and **My Goals** (top-level tabs in [`StudentPlanner.tsx`](../components/StudentPlanner.tsx)).
+- **My Tasks**: [`PlannerTasksView.tsx`](../components/PlannerTasksView.tsx) — all planner items in three sections (Tasks, Homework, Assignments) via [`groupPlannerItemsByCategory`](../utils/plannerDisplay.ts); incomplete sorted by due date; per-section **Completed (N)** collapse; section **+** opens add modal with category preset.
+- **Add item**: [`PlannerAddItemModal.tsx`](../components/PlannerAddItemModal.tsx) — title, due date (`type="date"`), category; calendar defaults to selected day, tasks tab defaults to today.
+- **Goals Integration**: Students switch to **My Goals** for yearly/subject/life goals.
     - **Goal Types**: `YEARLY`, `SUBJECT`, and `LIFE` goals.
     - **Persistence**: Goals are stored in the `goals` collection in Firestore, linked by `studentId`.
+- **Daily intentions on planner**: [`subscribeToDailyIntentions`](../services/dataService.ts) (composite query `studentId` + `ownerEmail`). Sidebar behaviour by selected date:
+    - **Today**: Edit text and Save; optional value/sub-value tags shown if set from dashboard; server rejects non-today `dateKey`.
+    - **Past**: Read-only display (tags + bordered quote text); message that past intentions cannot be changed.
+    - **Future**: No editor; message that future intentions are not allowed.
+- **Dashboard intentions**: [`DailyIntentionCard.tsx`](../components/DailyIntentionCard.tsx) — full value/sub-value pickers, saved-state card UI, link to planner. Same Firestore doc as planner for today.
 - **Term Navigation**: The planner defaults to the current term based on `SCHOOL_TERMS` from [`schoolCalendar.ts`](../schoolCalendar.ts).
-- **Data Fetching**: Real-time subscription to `planner` and `goals` collections in Firestore.
+- **Data Fetching**: Real-time subscription to `planner`, `goals`, and `daily_intentions` in Firestore.
+- **Dashboard Next Up**: [`Dashboard.tsx`](../components/Dashboard.tsx) subscribes via `subscribeToPlannerItems`. Up to three incomplete items from [`getNextUpItems`](../utils/plannerDisplay.ts) — overdue first, then due today or this calendar week (Mon–Sun via [`getLocalWeekRange`](../schoolCalendar.ts)), then soonest due. Rows use [`PlannerItemRow`](../components/PlannerItemRow.tsx) with circle checkboxes (`updatePlannerItem` toggles `isCompleted`); due pills from [`formatPlannerDueLabel`](../utils/plannerDisplay.ts) (`Overdue`, `Today`, `Tomorrow`, or `EEE d MMM`).
+- **Planner day list**: Same `PlannerItemRow`; incomplete items above completed on the selected day; due pill + category label.
 - **UI Architecture**: Uses a Flexbox layout with a fixed sidebar for navigation and a main content area that expands to fit the screen height.
+
+### Stamp history (dashboard)
+- [`StampHistorySection`](../components/StampActivityFeed.tsx) on [`Dashboard.tsx`](../components/Dashboard.tsx): all signatures for the student, sorted newest first, with subject, value, sub-value, teacher name, date/time, and teacher comment (or “No comment on this stamp”). Scrollable (`max-h` ~32rem). Empty state when no stamps.
+- Per-cell history remains in [`StudentPassport`](../components/StudentPassport.tsx) via `StampHistoryModal`.
+
+### Student engagement (Firestore client)
+- **`getEngagementOwnerEmail()`**: `auth.currentUser.email` or first `providerData` email (lowercase); must align with rules `authEmailLower()`.
+- **Subscriptions**: `subscribeToDailyIntentions`, `subscribeToValueReflections`, `subscribeToGoalCheckIns` — permission-denied falls back to empty list in callbacks.
+- **`getEngagementDataForStudent`**: Used on dashboard load for achievements; catches errors and returns empty stats so loading never hangs.
+- **Mutations**: `upsertDailyIntention`, `addValueReflection`, `upsertGoalCheckIn` return `{ ok, userMessage }` or `{ ok, intention }` with permission-denied hints referencing rules deploy.
+- **Admin reset**: `resetStudentProgress` / `resetAllProgress` delete engagement docs for affected students.
 
 ### School Analytics (Admin)
 - **Aggregated Stats**: Calculates school-wide metrics (total stamps, participation rate, value distribution) by fetching all signatures.
@@ -173,12 +195,10 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Performance**: Fetches all data on load. For larger datasets (>5000 signatures), this should be migrated to server-side aggregation or Firebase Extensions (e.g., "Aggregate Counters").
 
 ## Security Rules (Firestore)
-*Current Implementation assumes a trusted environment or prototype phase. For production:*
-- **Read**: Students can read their own data; Teachers can read all data.
-- **Write**: 
-    - Teachers can write to `signatures`, `nominations`, and `claimed_rewards`.
-    - Students can write to their own `planner` items and `goals`.
-- **Validation**: Cloud Functions or Security Rules should validate that `subject` and `value` match the allowed enums.
+- **Engagement collections** (`daily_intentions`, `value_reflections`, `goal_check_ins`): Student-only read/write via `ownerEmail` and/or `isOwnStudentData(studentId)`. Field validators (`validDailyIntentionData`, etc.) enforce sizes and required keys. **`authEmailLower()`** supports Microsoft tokens where email is on `preferred_username`.
+- **General (stamps, planner, goals, etc.)**: Authenticated read/write as documented in [`firestore.rules`](../firestore.rules); teachers award stamps; students write planner/goals.
+- **Email / digest collections**: Client create rules for queues/preferences; server-only sent/digest collections denied to clients.
+- **Deploy**: After rule or index changes, run `firebase deploy --only firestore:rules,firestore:indexes` before testing saves in production.
 
 ## Deployment
 - The app is configured for deployment on **Vercel** or **Firebase Hosting**.

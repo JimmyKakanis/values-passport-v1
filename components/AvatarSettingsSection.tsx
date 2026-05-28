@@ -3,15 +3,11 @@ import { Loader2, Sparkles } from 'lucide-react';
 import {
   getStudent,
   getSignaturesForStudent,
-  getStudentClaimedRewards,
-  getPlannerItems,
-  getEngagementDataForStudent,
   calculateStats,
-  calculateStudentAchievements,
   updateStudentAvatarConfig,
 } from '../services/dataService';
 import { AvatarEditor } from './AvatarEditor';
-import type { ClaimedReward, PlannerItem, Signature } from '../types';
+import type { Signature } from '../types';
 
 interface Props {
   studentId: string;
@@ -20,15 +16,6 @@ interface Props {
 export const AvatarSettingsSection: React.FC<Props> = ({ studentId }) => {
   const student = getStudent(studentId);
   const [signatures, setSignatures] = useState<Signature[]>([]);
-  const [claimedRewards, setClaimedRewards] = useState<ClaimedReward[]>([]);
-  const [plannerItems, setPlannerItems] = useState<PlannerItem[]>([]);
-  const [engagementStats, setEngagementStats] = useState({
-    intentionCount: 0,
-    reflectionCount: 0,
-    totalReflectionWords: 0,
-    coreValuesReflected: 0,
-    goalCheckInCount: 0,
-  });
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
 
@@ -36,17 +23,9 @@ export const AvatarSettingsSection: React.FC<Props> = ({ studentId }) => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const [sigs, claimed, planner, engagement] = await Promise.all([
-        getSignaturesForStudent(studentId),
-        getStudentClaimedRewards(studentId),
-        getPlannerItems(studentId),
-        getEngagementDataForStudent(studentId),
-      ]);
+      const sigs = await getSignaturesForStudent(studentId);
       if (!cancelled) {
         setSignatures(sigs);
-        setClaimedRewards(claimed);
-        setPlannerItems(planner);
-        setEngagementStats(engagement.stats);
         setLoading(false);
       }
     };
@@ -59,13 +38,6 @@ export const AvatarSettingsSection: React.FC<Props> = ({ studentId }) => {
   if (!student) return null;
 
   const stats = calculateStats(signatures);
-  const achievements = calculateStudentAchievements(
-    signatures,
-    claimedRewards.map((c) => c.achievementId),
-    plannerItems,
-    [],
-    engagementStats
-  );
 
   return (
     <div className="max-w-xl mx-auto p-6 bg-white rounded-xl shadow border border-gray-200">
@@ -81,8 +53,8 @@ export const AvatarSettingsSection: React.FC<Props> = ({ studentId }) => {
 
       <p className="text-sm text-gray-600 mb-4">
         Open Avatar Studio to randomize your look or fine-tune details.{' '}
-        <strong>Randomize</strong> unlocks after your first stamp. Full customization unlocks when you complete{' '}
-        <strong>all Beginner</strong> achievements.
+        <strong>Randomize</strong> unlocks after your first stamp. Full customization unlocks after{' '}
+        <strong>5 stamps</strong>.
       </p>
 
       {loading ? (
@@ -113,7 +85,6 @@ export const AvatarSettingsSection: React.FC<Props> = ({ studentId }) => {
         isOpen={editorOpen}
         onClose={() => setEditorOpen(false)}
         student={student}
-        achievements={achievements}
         totalStamps={stats.total}
         onSave={async (config) => {
           const success = await updateStudentAvatarConfig(studentId, config);

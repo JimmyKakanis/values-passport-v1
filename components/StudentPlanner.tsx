@@ -4,17 +4,14 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Plus, 
-  CheckCircle2, 
-  Circle, 
   Trash2, 
-  Clock, 
-  BookOpen, 
   CheckSquare,
   AlertCircle,
   Loader2,
   LayoutDashboard,
   CalendarRange,
   List,
+  ListChecks,
   Sunrise,
   Lock,
   Save
@@ -47,7 +44,11 @@ import { getDateKey, INTENTION_TEXT_MAX } from '../services/studentEngagement';
 import { CORE_VALUES } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StudentGoals } from './StudentGoals';
+import { PlannerItemRow } from './PlannerItemRow';
+import { PlannerTasksView } from './PlannerTasksView';
+import { PlannerAddItemModal } from './PlannerAddItemModal';
 import { SCHOOL_TERMS } from '../schoolCalendar';
+import { PLANNER_CATEGORY_BG } from '../utils/plannerDisplay';
 
 type CalendarView = 'TERM' | 'MONTH' | 'WEEK';
 
@@ -57,7 +58,7 @@ interface Props {
 
 
 export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
-  const [mode, setMode] = useState<'CALENDAR' | 'GOALS'>('CALENDAR');
+  const [mode, setMode] = useState<'CALENDAR' | 'TASKS' | 'GOALS'>('CALENDAR');
   const [view, setView] = useState<CalendarView>('TERM');
 
   const [currentDate, setCurrentDate] = useState(new Date()); 
@@ -69,10 +70,11 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
   const [intentionDraft, setIntentionDraft] = useState('');
   const [savingIntention, setSavingIntention] = useState(false);
   const [intentionSaveError, setIntentionSaveError] = useState<string | null>(null);
-  // Form state
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<PlannerCategory>('TASK');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalDefaults, setModalDefaults] = useState<{
+    category: PlannerCategory;
+    dueDate: Date;
+  }>({ category: 'TASK', dueDate: new Date() });
 
   useEffect(() => {
     setLoading(true);
@@ -131,18 +133,21 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  const openAddModal = (
+    category: PlannerCategory = 'TASK',
+    dueDate: Date = mode === 'CALENDAR' ? selectedDate : new Date()
+  ) => {
+    setModalDefaults({ category, dueDate });
+    setIsModalOpen(true);
+  };
 
+  const handlePlannerAdd = async (
+    title: string,
+    category: PlannerCategory,
+    dueDate: Date
+  ) => {
     setIsSubmitting(true);
-    const dueDate = new Date(selectedDate);
-    dueDate.setHours(9, 0, 0, 0);
-
     await addPlannerItem(studentId, title, dueDate.getTime(), category);
-    
-    setTitle('');
-    setCategory('TASK');
     setIsModalOpen(false);
     setIsSubmitting(false);
   };
@@ -162,7 +167,12 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
     return items.filter(item => isSameDay(new Date(item.dueDate), date));
   };
 
-  const selectedDateItems = items.filter(item => isSameDay(new Date(item.dueDate), selectedDate));
+  const selectedDateItems = items
+    .filter((item) => isSameDay(new Date(item.dueDate), selectedDate))
+    .sort((a, b) => {
+      if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+      return a.dueDate - b.dueDate;
+    });
 
   const categoryColors = {
     ASSIGNMENT: 'bg-red-500',
@@ -170,17 +180,6 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
     TASK: 'bg-emerald-500'
   };
 
-  const categoryBg = {
-    ASSIGNMENT: 'bg-red-50',
-    HOMEWORK: 'bg-blue-50',
-    TASK: 'bg-emerald-50'
-  };
-
-  const categoryText = {
-    ASSIGNMENT: 'text-red-700',
-    HOMEWORK: 'text-blue-700',
-    TASK: 'text-emerald-700'
-  };
 
   // --- RENDERING HELPERS ---
 
@@ -405,6 +404,14 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
           >
             <CalendarIcon size={18} /> Calendar
           </button>
+          <button
+            onClick={() => setMode('TASKS')}
+            className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all
+              ${mode === 'TASKS' ? 'bg-sky-100 text-sky-800' : 'text-gray-400 hover:bg-gray-50'}
+            `}
+          >
+            <ListChecks size={18} /> My Tasks
+          </button>
           <button 
             onClick={() => setMode('GOALS')}
             className={`px-6 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-all
@@ -418,6 +425,14 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
 
       {mode === 'GOALS' ? (
         <StudentGoals studentId={studentId} />
+      ) : mode === 'TASKS' ? (
+        <PlannerTasksView
+          items={items}
+          loading={loading}
+          onToggle={toggleComplete}
+          onDelete={handleDelete}
+          onAdd={(category) => openAddModal(category, new Date())}
+        />
       ) : (
         <div className="flex flex-col lg:flex-row gap-6">
         
@@ -494,7 +509,7 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
                 <p className="text-sm text-gray-500">{format(selectedDate, 'do MMMM')}</p>
               </div>
               <button 
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => openAddModal('TASK', selectedDate)}
                 className="bg-emerald-600 text-white p-2 rounded-full hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
               >
                 <Plus size={20} />
@@ -514,24 +529,10 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       className={`group p-3 rounded-xl border transition-all flex items-start gap-3
-                        ${item.isCompleted ? 'bg-gray-50 border-gray-100 opacity-60' : `${categoryBg[item.category]} border-transparent`}
+                        ${item.isCompleted ? 'bg-gray-50 border-gray-100 opacity-60' : `${PLANNER_CATEGORY_BG[item.category]} border-transparent`}
                       `}
                     >
-                      <button 
-                        onClick={() => toggleComplete(item)}
-                        className={`mt-0.5 transition-colors ${item.isCompleted ? 'text-emerald-500' : 'text-gray-300 hover:text-emerald-400'}`}
-                      >
-                        {item.isCompleted ? <CheckCircle2 size={20} /> : <Circle size={20} />}
-                      </button>
-                      
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-bold leading-tight ${item.isCompleted ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                          {item.title}
-                        </p>
-                        <div className={`text-[10px] font-bold uppercase tracking-wider mt-1 ${item.isCompleted ? 'text-gray-300' : categoryText[item.category]}`}>
-                          {item.category}
-                        </div>
-                      </div>
+                      <PlannerItemRow item={item} onToggle={toggleComplete} showCategory />
 
                       <button 
                         onClick={() => handleDelete(item.id)}
@@ -642,89 +643,23 @@ export const StudentPlanner: React.FC<Props> = ({ studentId }) => {
       )}
 
       {/* Floating Action Button (Mobile Only) */}
-      {mode === 'CALENDAR' && (
+      {(mode === 'CALENDAR' || mode === 'TASKS') && (
       <button 
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => openAddModal('TASK', mode === 'CALENDAR' ? selectedDate : new Date())}
         className="md:hidden fixed bottom-6 right-6 z-40 bg-emerald-600 text-white p-4 rounded-full shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
       >
         <Plus size={24} />
       </button>
       )}
 
-      {/* Add Item Modal */}
-      {mode === 'CALENDAR' && isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-blue-900/60 backdrop-blur-sm">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
-          >
-            <div className="bg-emerald-800 p-6 text-white flex justify-between items-center">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <Plus /> Add Planner Item
-              </h3>
-              <p className="text-emerald-200 text-sm">{format(selectedDate, 'MMM d, yyyy')}</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">What needs to be done?</label>
-                <input 
-                  autoFocus
-                  type="text"
-                  required
-                  placeholder="e.g. Maths Homework Page 42"
-                  className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Category</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'TASK', icon: <CheckSquare size={16} />, label: 'Task' },
-                    { id: 'HOMEWORK', icon: <BookOpen size={16} />, label: 'Homework' },
-                    { id: 'ASSIGNMENT', icon: <Clock size={16} />, label: 'Assignment' }
-                  ].map(cat => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setCategory(cat.id as PlannerCategory)}
-                      className={`p-3 rounded-xl border-2 flex flex-col items-center gap-1 transition-all
-                        ${category === cat.id 
-                          ? `${categoryBg[cat.id as PlannerCategory]} border-emerald-500 ${categoryText[cat.id as PlannerCategory]}` 
-                          : 'border-gray-50 text-gray-400 hover:border-gray-200'}
-                      `}
-                    >
-                      {cat.icon}
-                      <span className="text-[10px] font-bold uppercase tracking-wider">{cat.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isSubmitting || !title.trim()}
-                  className="flex-2 bg-emerald-600 text-white py-3 px-8 rounded-xl font-bold hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-100"
-                >
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : <Plus size={20} />} Add to Planner
-                </button>
-              </div>
-            </form>
-          </motion.div>
-        </div>
-      )}
+      <PlannerAddItemModal
+        open={isModalOpen && (mode === 'CALENDAR' || mode === 'TASKS')}
+        onClose={() => setIsModalOpen(false)}
+        defaultCategory={modalDefaults.category}
+        defaultDueDate={modalDefaults.dueDate}
+        isSubmitting={isSubmitting}
+        onSubmit={handlePlannerAdd}
+      />
     </div>
   );
 };

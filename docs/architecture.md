@@ -13,12 +13,13 @@ The application's UI is built from a set of modular React components located in 
 - **`Login.tsx`**: The sign-in page, which handles user authentication against Firebase Auth.
 
 ### Student Views
-- **`Dashboard.tsx`**: The main view for students, showing their progress and passport. Includes **`DailyIntentionCard`** (private daily intention, saved to Firestore).
-- **`StudentPassport.tsx`**: The core grid view of the values and subjects. It now subscribes to real-time updates, allowing students to see stamps appear instantly. It also supports interactive stamp history viewing via `StampHistoryModal`.
-- **`Achievements.tsx`**: Shows a student's earned achievements and progress bars.
+- **`Dashboard.tsx`**: The main view for students, showing their progress and passport. Profile banner includes **My Rewards** (links to Achievements rewards tab; badge when unclaimed tangible rewards exist). Includes **`DailyIntentionCard`** (private daily intention with value/sub-value pickers and polished saved state), **Next Up** planner widget (tick-off checkboxes, urgent-first tasks, due-date pills via [`PlannerItemRow`](../components/PlannerItemRow.tsx)), and **`StampHistorySection`** from [`StampActivityFeed.tsx`](../components/StampActivityFeed.tsx) — scrollable list of all stamps and teacher comments below the grid.
+- **`StudentPassport.tsx`**: The core grid view of the values and subjects. It now subscribes to real-time updates, allowing students to see stamps appear instantly. It also supports interactive stamp history viewing via `StampHistoryModal` (per cell).
+- **`StampActivityFeed.tsx`**: Reusable feed UI (`StampActivityFeed`, `StampHistorySection`) for chronological stamp + comment display.
+- **`Achievements.tsx`**: Shows a student's earned achievements and progress bars. **My rewards** tab (`?tab=rewards`) lists tangible earned rewards (ready to collect and already claimed). Students reach it from the dashboard **My Rewards** button (badge shows unclaimed count).
 - **`Leaderboard.tsx`**: Nested routes under `/leaderboard/*`; passes **`studentId`** to student-only views (`SchoolHighlights`, `YearGroupStandings`, `StudentQuizLeaderboard`). **Students**: `#/leaderboard` → **`SchoolHighlights`**; `#/leaderboard/year-groups` → **`YearGroupStandings`**; `#/leaderboard/quiz` → **`StudentQuizLeaderboard`** (staff hitting `/quiz` are redirected to `#/leaderboard`). **Teachers/admins**: index → **`StudentLeaderboard`** (Wall of Fame); year-groups → **`YearGroupStandings`**; **Quiz** is a **sort mode** inside `StudentLeaderboard`, not a separate tab. **`LeaderboardLayout.tsx`**: nav tabs and route-based **title/subtitle** for students. Supporting: **`GoodNewsFeedList`**, **`YearLevelSnapshotCard`**, **`LeaderboardShared`**.
 - **`ValuesLearning.tsx`**: The "Values Lab" section containing educational resources for students. **Values Explorer** supports saving private reflections per core value/sub-value.
-- **`StudentPlanner.tsx`**: A comprehensive calendar and task management tool. It features Term, Month, and Week views, allowing students to track homework and assignments aligned with the school term. Calendar cells show an **amber dot** when a **daily intention** exists; the day sidebar can edit intentions inline.
+- **`StudentPlanner.tsx`**: Calendar (Term/Month/Week), **My Tasks** ([`PlannerTasksView.tsx`](../components/PlannerTasksView.tsx) — grouped Tasks / Homework / Assignments with tick-off and add), and **My Goals**. Calendar cells show an **amber dot** when a **daily intention** exists. The sidebar **Daily intention** panel: **today** — textarea + Save (text only; value tags from dashboard are preserved); **past** — read-only with tags and quote styling; **future** — no editor. Add/edit planner items via [`PlannerAddItemModal.tsx`](../components/PlannerAddItemModal.tsx) (includes due date). Editing past or future intentions is blocked in [`upsertDailyIntention`](../services/dataService.ts) as well as in the UI.
 - **`StudentGoals.tsx`**: Yearly, subject, and life goals plus **fortnightly check-ins** (school-term weeks 1–2, 3–4, …) with private progress notes.
 
 ### Teacher Views
@@ -62,9 +63,13 @@ The application's UI is built from a set of modular React components located in 
 ## Data Flow & State Management
 
 ### Student engagement (private Firestore)
-- Collections: **`daily_intentions`**, **`value_reflections`**, **`goal_check_ins`**. Rules restrict read/write to the authenticated student’s own `studentId` (matched via `students` email). Staff have no in-app read path.
-- Logic: [`services/studentEngagement.ts`](../services/studentEngagement.ts) (`getDateKey`, `getFortnightPeriodKey`, `computeEngagementStats`).
-- Achievements: CUSTOM ids (`intention-*`, `reflection-*`, `goal-checkin-*`) in [`calculateStudentAchievements`](../services/dataService.ts).
+- Collections: **`daily_intentions`**, **`value_reflections`**, **`goal_check_ins`**. Each write includes **`ownerEmail`** (lowercase auth email). Rules use **`authEmailLower()`** (`token.email` or Microsoft **`preferred_username`**) plus **`engagementWriteAllowed`** (`ownerEmail` match or `students/{id}.email` match). Queries filter by `studentId` + `ownerEmail`. Staff have no in-app read path.
+- **`daily_intentions`**: Doc id `{studentId}_{dateKey}`; one row per calendar day; optional `coreValue` / `subValue`; **upsert only allowed for today’s `dateKey`**.
+- **`value_reflections`**: Append-only creates (no client update/delete).
+- **`goal_check_ins`**: One doc per goal per fortnight `periodKey`.
+- Logic: [`services/studentEngagement.ts`](../services/studentEngagement.ts) (`getDateKey`, `getFortnightPeriodKey`, `computeEngagementStats`, `dailyIntentionDocId`).
+- Achievements: CUSTOM ids (`intention-*`, `reflection-*`, `goal-checkin-*`) in [`calculateStudentAchievements`](../services/dataService.ts). [`NotificationController`](../components/NotificationSystem.tsx) subscribes to engagement collections for unlock toasts.
+- **Deploy**: Rule/index changes require `firebase deploy --only firestore:rules,firestore:indexes` (see `firestore.indexes.json` composite indexes on `studentId` + `ownerEmail`).
 
 ### 1. Service Layer (`services/dataService.ts`, `services/teacherEngagement.ts`, `services/studentAttention.ts`, `services/avatarUrl.ts`, `services/studentEngagement.ts`)
 Firestore access is encapsulated in `dataService.ts`. This service provides:

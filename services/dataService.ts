@@ -1,6 +1,7 @@
 import { Signature, SignatureSource, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType, FeedbackSubmission, FeedbackKind, UserRole, DailyIntention, ValueReflection, GoalCheckIn, StudentEngagementStats } from '../types';
 import {
   computeEngagementStats,
+  countStampedSubValuesForCoreValue,
   countWords,
   dailyIntentionDocId,
   getDateKey,
@@ -1797,6 +1798,28 @@ export const calculateStudentAchievements = (
                 isUnlocked = currentProgress >= maxProgress;
                 break;
 
+            case 'subvalues-truth':
+            case 'subvalues-love':
+            case 'subvalues-peace':
+            case 'subvalues-right-conduct':
+            case 'subvalues-non-violence': {
+                const subValueCoreByAchievementId: Record<string, CoreValue> = {
+                  'subvalues-truth': CoreValue.TRUTH,
+                  'subvalues-love': CoreValue.LOVE,
+                  'subvalues-peace': CoreValue.PEACE,
+                  'subvalues-right-conduct': CoreValue.RIGHT_CONDUCT,
+                  'subvalues-non-violence': CoreValue.NON_VIOLENCE,
+                };
+                const core = subValueCoreByAchievementId[ach.id];
+                if (core) {
+                  const { stamped, total } = countStampedSubValuesForCoreValue(sigs, core);
+                  maxProgress = total;
+                  currentProgress = stamped;
+                  isUnlocked = stamped >= total && total > 0;
+                }
+                break;
+            }
+
             default:
                 // Handle dynamic custom rewards
                 // This is a bit of a hack: if we don't recognize the ID, check if it's in our custom rewards list passed in.
@@ -1855,6 +1878,18 @@ export const calculateStudentAchievements = (
   });
 };
 
+/** Tangible rewards students can redeem with a teacher (excludes generic badges). */
+export function isRedeemableStudentReward(
+  ach: Pick<StudentAchievement, 'id' | 'reward' | 'isUnlocked' | 'isClaimed'>,
+  customRewardIds?: ReadonlySet<string>
+): boolean {
+  if (!ach.isUnlocked || ach.isClaimed) return false;
+  if (customRewardIds?.has(ach.id)) return Boolean(ach.reward);
+  if (!ach.reward?.startsWith('Reward:')) return false;
+  if (ach.reward.includes('Achievement Unlocked')) return false;
+  return !ach.reward.includes('Badge');
+}
+
 export interface RewardEntry {
   student: Student;
   achievement: StudentAchievement;
@@ -1899,18 +1934,7 @@ export const getPendingRewardsForTeacher = async (): Promise<RewardEntry[]> => {
     const achievements = calculateStudentAchievements(studentSigs, studentClaimedIds, [], relevantCustomRewards);
     
     achievements.forEach(ach => {
-      // Filter Logic:
-      // 1. Must be Unlocked and Not Claimed
-      // 2. MUST be either:
-      //    a. A Teacher-Created Custom Reward (ID is in teacherCreatedRewardIds)
-      //    b. A Global Achievement with a "Tangible" reward (excludes generic badges/unlocks)
-      
-      const isTeacherCreated = teacherCreatedRewardIds.has(ach.id);
-      const isTangibleGlobal = !isTeacherCreated && ach.reward && 
-                               !ach.reward.includes('Achievement Unlocked') && 
-                               !ach.reward.includes('Badge');
-      
-      if (ach.isUnlocked && !ach.isClaimed && (isTeacherCreated || isTangibleGlobal)) {
+      if (isRedeemableStudentReward(ach, teacherCreatedRewardIds)) {
         pendingRewards.push({
           student,
           achievement: ach

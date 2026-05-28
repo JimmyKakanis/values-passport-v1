@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   BarChart, 
@@ -19,21 +19,26 @@ import {
   addNomination, 
   getStudents,
   getStudentClaimedRewards,
-  getPlannerItems,
+  subscribeToPlannerItems,
+  updatePlannerItem,
   getEngagementDataForStudent,
-  updateStudentAvatarConfig
+  updateStudentAvatarConfig,
+  getCustomRewardsForGrade,
+  isRedeemableStudentReward,
 } from '../services/dataService';
 import { StudentPassport } from './StudentPassport';
 import { AvatarEditor } from './AvatarEditor';
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, Lightbulb, Search, Gift, Sparkles, Calendar, CheckSquare, Edit3 } from 'lucide-react';
-import { Subject, CoreValue, Signature, ClaimedReward, PlannerItem } from '../types';
+import { Subject, CoreValue, Signature, ClaimedReward, PlannerItem, AchievementDefinition } from '../types';
 import {
   getValuesIntegrationFocus,
   formatValuesIntegrationStudentLine,
 } from '../valuesIntegrationCalendar2026';
 import { DailyIntentionCard } from './DailyIntentionCard';
 import { StampHistorySection } from './StampActivityFeed';
+import { PlannerItemRow } from './PlannerItemRow';
+import { getNextUpItems } from '../utils/plannerDisplay';
 
 interface Props {
   studentId: string;
@@ -45,6 +50,7 @@ const DID_YOU_KNOW_TIPS = [
   "You can **Self-Nominate**! If you did something good and no one saw, use the Request Stamp button to tell your teacher.",
   "See a friend doing something great? Use the **'For a Friend'** option in the Request Stamp form to advocate for them.",
   "Check your **Achievements** page to see special badges you can unlock, like 'The Optimist' or 'Guardian of Nature'.",
+  "Earned a reward? Open **My Rewards** on your dashboard (or the Achievements page) to see what you can collect from your teacher.",
   "Open **School** to see how everyone is doing together: highlights of values across the school, plus year group snapshots.",
   "Teachers can tag your stamps with specific behaviours like **'Curiosity'** or **'Leadership'**. Check **Stamp history** below your passport to see them!",
   "The **'Head, Heart, Hand'** achievement requires you to earn stamps in Academic, Creative, and Active subjects.",
@@ -76,6 +82,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
     coreValuesReflected: 0,
     goalCheckInCount: 0,
   });
+  const [customRewardDefs, setCustomRewardDefs] = useState<AchievementDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentTip, setCurrentTip] = useState('');
   
@@ -100,16 +107,30 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [sigs, claimed, planner, engagement] = await Promise.all([
+        const [sigs, claimed, engagement, customRewards] = await Promise.all([
           getSignaturesForStudent(studentId),
           getStudentClaimedRewards(studentId),
-          getPlannerItems(studentId),
           getEngagementDataForStudent(studentId),
+          getStudent(studentId)
+            ? getCustomRewardsForGrade(getStudent(studentId)!.grade)
+            : Promise.resolve([]),
         ]);
         setSignatures(sigs);
         setClaimedRewards(claimed);
-        setPlannerItems(planner);
         setEngagementStats(engagement.stats);
+        setCustomRewardDefs(
+          customRewards.map((cr) => ({
+            id: cr.id,
+            title: cr.title,
+            description: cr.description,
+            reward: cr.reward,
+            icon: 'Star',
+            type: cr.criteria.type,
+            difficulty: 'MEDIUM',
+            threshold: cr.criteria.threshold,
+            target: cr.criteria.value || cr.criteria.subject,
+          }))
+        );
         const randomTip = DID_YOU_KNOW_TIPS[Math.floor(Math.random() * DID_YOU_KNOW_TIPS.length)];
         setCurrentTip(randomTip);
       } catch (error) {
@@ -122,6 +143,15 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   }, [studentId]);
 
   useEffect(() => {
+    const unsubscribe = subscribeToPlannerItems(studentId, setPlannerItems);
+    return () => unsubscribe();
+  }, [studentId]);
+
+  const togglePlannerItem = async (item: PlannerItem) => {
+    await updatePlannerItem(item.id, { isCompleted: !item.isCompleted });
+  };
+
+  useEffect(() => {
     setNomSubValue('');
   }, [nomValue]);
 
@@ -129,13 +159,19 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
 
   // Calculate derived state
   const stats = calculateStats(signatures);
+  const customRewardIds = new Set(customRewardDefs.map((r) => r.id));
   const achievements = calculateStudentAchievements(
     signatures,
     claimedRewards.map((c) => c.achievementId),
     plannerItems,
-    [],
+    customRewardDefs,
     engagementStats
   );
+  const earnedRewardsCount = achievements.filter((a) =>
+    isRedeemableStudentReward(a, customRewardIds)
+  ).length;
+
+  const nextUpItems = useMemo(() => getNextUpItems(plannerItems), [plannerItems]);
 
   // 1. Close Call: Highest progress % that is NOT unlocked
   const closeCall = achievements
@@ -286,6 +322,17 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                 <Stamp size={18} /> Request Stamp
              </button>
              <Link
+               to="/achievements?tab=rewards"
+               className="relative bg-purple-500/90 hover:bg-purple-400 text-white border border-purple-300/50 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors shadow-md"
+             >
+               <Gift size={16} /> My Rewards
+               {earnedRewardsCount > 0 && (
+                 <span className="absolute -top-2 -right-2 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-yellow-400 text-purple-900 text-xs font-black shadow animate-pulse">
+                   {earnedRewardsCount}
+                 </span>
+               )}
+             </Link>
+             <Link
                to="/leaderboard"
                className="bg-white/15 hover:bg-white/25 text-white border border-white/30 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 transition-colors backdrop-blur-sm"
              >
@@ -417,17 +464,18 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
              </div>
              
              <div className="space-y-3">
-               {plannerItems.filter(item => !item.isCompleted).slice(0, 3).length > 0 ? (
-                 plannerItems.filter(item => !item.isCompleted).slice(0, 3).map(item => (
-                   <div key={item.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                     <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${
-                       item.category === 'ASSIGNMENT' ? 'bg-red-500' : 
-                       item.category === 'HOMEWORK' ? 'bg-blue-500' : 'bg-emerald-500'
-                     }`} />
-                     <div className="flex-1 min-w-0">
-                       <p className="text-xs font-bold text-gray-800 truncate">{item.title}</p>
-                       <p className="text-[10px] text-gray-400">Due {new Date(item.dueDate).toLocaleDateString()}</p>
-                     </div>
+               {nextUpItems.length > 0 ? (
+                 nextUpItems.map((item) => (
+                   <div
+                     key={item.id}
+                     className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                   >
+                     <PlannerItemRow
+                       item={item}
+                       onToggle={togglePlannerItem}
+                       compact
+                       showCategory={false}
+                     />
                    </div>
                  ))
                ) : (
@@ -481,7 +529,6 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
         isOpen={isAvatarEditorOpen}
         onClose={() => setIsAvatarEditorOpen(false)}
         student={student}
-        achievements={achievements}
         totalStamps={stats.total}
         onSave={async (config) => {
             const success = await updateStudentAvatarConfig(studentId, config);

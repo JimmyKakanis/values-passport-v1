@@ -98,7 +98,7 @@ const Layout: React.FC<{
                   </>
                 ) : (
                   <>
-                    <BarChart2 size={18} /> Leaderboard
+                    <BarChart2 size={18} /> Students
                   </>
                 )}
               </Link>
@@ -217,7 +217,7 @@ const Layout: React.FC<{
                 </>
               ) : (
                 <>
-                  <BarChart2 size={20} /> Leaderboard
+                  <BarChart2 size={20} /> Students
                 </>
               )}
             </Link>

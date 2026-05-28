@@ -385,7 +385,7 @@ const generateSubjectAchievements = (): AchievementDefinition[] => {
       id: `mastery-${subject.toLowerCase().replace(/ /g, '-')}-1`,
       title: `${subject} Starter`,
       description: `Earn 1 Star in ${subject} (1 stamp in all 5 values).`,
-      reward: 'Reward: 10 minutes free time',
+      reward: 'Reward: 10 minutes free time in EHV class',
       icon: 'Star',
       type: 'SUBJECT_MASTERY',
       target: subject,
@@ -417,7 +417,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     id: 'milestone-10',
     title: 'Bronze Starter',
     description: 'Collect 10 total stamps.',
-    reward: 'Reward: 10 minutes free time',
+    reward: 'Reward: 10 minutes free time in EHV class',
     icon: 'Trophy',
     type: 'TOTAL',
     threshold: 10,
@@ -900,6 +900,53 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     icon: 'Hand',
     type: 'CUSTOM',
     difficulty: 'CHALLENGING'
+  },
+
+  // --- SUB-VALUE COLLECTORS (IMPOSSIBLE) ---
+  {
+    id: 'subvalues-truth',
+    title: 'Truth Sub-Values Champion',
+    description: 'Earn a Truth stamp tagged with every Truth sub-value (e.g. Curiosity, Honesty, Integrity).',
+    reward: 'Reward: Truth Spectrum Badge',
+    icon: 'ShieldCheck',
+    type: 'CUSTOM',
+    difficulty: 'IMPOSSIBLE'
+  },
+  {
+    id: 'subvalues-love',
+    title: 'Love Sub-Values Champion',
+    description: 'Earn a Love stamp tagged with every Love sub-value (e.g. Compassion, Kindness, Friendship).',
+    reward: 'Reward: Love Spectrum Badge',
+    icon: 'Heart',
+    type: 'CUSTOM',
+    difficulty: 'IMPOSSIBLE'
+  },
+  {
+    id: 'subvalues-peace',
+    title: 'Peace Sub-Values Champion',
+    description: 'Earn a Peace stamp tagged with every Peace sub-value (e.g. Calm, Focus, Humility).',
+    reward: 'Reward: Peace Spectrum Badge',
+    icon: 'Sun',
+    type: 'CUSTOM',
+    difficulty: 'IMPOSSIBLE'
+  },
+  {
+    id: 'subvalues-right-conduct',
+    title: 'Right Conduct Sub-Values Champion',
+    description: 'Earn a Right Conduct stamp tagged with every Right Conduct sub-value (e.g. Courage, Respect, Responsibility).',
+    reward: 'Reward: Right Conduct Spectrum Badge',
+    icon: 'Scale',
+    type: 'CUSTOM',
+    difficulty: 'IMPOSSIBLE'
+  },
+  {
+    id: 'subvalues-non-violence',
+    title: 'Non-Violence Sub-Values Champion',
+    description: 'Earn a Non-Violence stamp tagged with every Non-Violence sub-value.',
+    reward: 'Reward: Non-Violence Spectrum Badge',
+    icon: 'Hand',
+    type: 'CUSTOM',
+    difficulty: 'IMPOSSIBLE'
   },
 
   // --- IMPOSSIBLE ---

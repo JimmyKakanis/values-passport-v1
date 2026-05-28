@@ -197,7 +197,7 @@ export const TeacherRewards: React.FC<Props> = ({ teacher }) => {
                             />
                             <input 
                                 type="text" 
-                                placeholder="Reward (e.g. 10 mins free time)" 
+                                placeholder="Reward (e.g. 10 mins free time in EHV class)" 
                                 className="p-2 border rounded"
                                 value={rewardText}
                                 onChange={e => setRewardText(e.target.value)}

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { X, RefreshCw, Lock, Save, Wand2 } from 'lucide-react';
-import { Student, StudentAchievement } from '../types';
+import { Student } from '../types';
+
+const FULL_CUSTOMIZATION_STAMP_THRESHOLD = 5;
 
 interface AvatarEditorProps {
   isOpen: boolean;
   onClose: () => void;
   student: Student;
-  achievements: StudentAchievement[];
-  /** Total stamps earned; Randomize unlocks at >= 1 */
+  /** Total stamps earned; Randomize unlocks at >= 1, full customization at >= 5 */
   totalStamps: number;
   onSave: (config: any) => Promise<boolean>;
 }
@@ -71,7 +72,6 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   isOpen, 
   onClose, 
   student, 
-  achievements,
   totalStamps,
   onSave 
 }) => {
@@ -82,8 +82,11 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const beginnerAchievements = achievements.filter((a) => a.difficulty === 'BEGINNER');
-  const hasFullCustomization = beginnerAchievements.every((a) => a.isUnlocked);
+  const hasFullCustomization = totalStamps >= FULL_CUSTOMIZATION_STAMP_THRESHOLD;
+  const stampsUntilFullCustomization = Math.max(
+    0,
+    FULL_CUSTOMIZATION_STAMP_THRESHOLD - totalStamps
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -187,7 +190,11 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                             <h4 className="font-semibold text-amber-800">Full Customization Locked</h4>
                             <div className="text-sm text-amber-700 mt-1 space-y-2">
                                 <p>
-                                    Detailed options (colors, hair, clothes, and more) unlock when you complete <strong>all Beginner</strong> achievements.
+                                    Detailed options (colors, hair, clothes, and more) unlock when you have earned <strong>at least {FULL_CUSTOMIZATION_STAMP_THRESHOLD} stamps</strong>
+                                    {stampsUntilFullCustomization > 0 && (
+                                      <> — <strong>{stampsUntilFullCustomization} more</strong> to go!</>
+                                    )}
+                                    .
                                 </p>
                                 <p>
                                     <strong>Randomize</strong> is available as soon as you have earned <strong>at least 1 stamp</strong>.
@@ -198,7 +205,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                 )}
 
                 <div className="space-y-6">
-                    {/* Background Color - Unlocked with all Beginner achievements */}
+                    {/* Background Color — unlocked at 5+ stamps */}
                     <div className={`p-4 rounded-lg border ${hasFullCustomization ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-60'}`}>
                         <label className="block text-sm font-medium text-gray-700 mb-3">Background Color</label>
                         <div className="flex flex-wrap gap-2">
@@ -216,7 +223,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
                         </div>
                     </div>
 
-                    {/* Feature Controls - Unlocked with all Beginner achievements */}
+                    {/* Feature Controls — unlocked at 5+ stamps */}
                     <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${!hasFullCustomization ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                         {Object.entries(AVATAR_OPTIONS).map(([key, options]) => (
                             <div key={key} className="space-y-1">

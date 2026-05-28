@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
-import { CoreValue } from '../types';
+import { CORE_VALUES } from '../constants';
+import { CoreValue, Signature } from '../types';
 import type {
   DailyIntention,
   GoalCheckIn,
@@ -20,6 +21,26 @@ export function countWords(text: string): number {
   const trimmed = text.trim();
   if (!trimmed) return 0;
   return trimmed.split(/\s+/).filter(Boolean).length;
+}
+
+/** Case-insensitive match of stamp sub-value labels to the catalog in `CORE_VALUES`. */
+export function countStampedSubValuesForCoreValue(
+  signatures: Signature[],
+  coreValue: CoreValue
+): { stamped: number; total: number } {
+  const catalog = CORE_VALUES[coreValue].subValues;
+  const normToCanonical = new Map(
+    catalog.map((label) => [label.trim().toLowerCase(), label])
+  );
+  const stamped = new Set<string>();
+  for (const sig of signatures) {
+    if (sig.value !== coreValue) continue;
+    const raw = sig.subValue?.trim();
+    if (!raw) continue;
+    const canonical = normToCanonical.get(raw.toLowerCase());
+    if (canonical) stamped.add(canonical);
+  }
+  return { stamped: stamped.size, total: catalog.length };
 }
 
 export interface FortnightPeriod {
@@ -161,6 +182,21 @@ const STUDENT_REFLECTION_PROMPTS: Array<(subValue: string) => StudentReflectionP
     placeholder: 'Write the rest in your own words...',
   }),
 ];
+
+/**
+ * Default sub-value for Values Explorer: rotates daily per student and core value.
+ */
+export function pickDailySubValue(
+  studentKey: string,
+  coreValue: CoreValue,
+  subValues: readonly string[],
+  now: Date = new Date()
+): string {
+  if (subValues.length === 0) return '';
+  const dateKey = getDateKey(now);
+  const seed = `${studentKey}|${dateKey}|${coreValue}|sub`;
+  return subValues[hashToIndex(seed, subValues.length)];
+}
 
 /**
  * Picks one reflection question for today. Changes daily and when the sub-value changes.
