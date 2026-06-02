@@ -24,7 +24,7 @@
 - [x] **Super Admin Console**
     - [x] Dynamic Data Migration (Firestore-backed Students/Teachers)
     - [x] Admin Dashboard (tabs: Analytics, Students, Teachers, Subjects & Settings, Data Migration, Feedback)
-    - [x] Manage Students (add/edit, parent fields, reset progress, **archive** / **restore**, permanent delete, **sort** by grade or first name, **multi-select** bulk archive/restore, **Show archived**)
+    - [x] Manage Students (add/edit, parent fields, reset progress, **archive** / **restore**, permanent delete, **sort** by grade, first name, or **last login**, **multi-select** bulk archive/restore, **Show archived**, **Last login** column with relative time and 14-day highlight)
     - [x] Manage Teachers (Add/Remove Access)
     - [x] Manage Subjects (Dynamic Settings)
     - [x] Role-Based Access Control (Admin Role)
@@ -107,6 +107,8 @@
 - [x] **Dashboard stamp history** — full-width `StampHistorySection` (all stamps + comments); removed five-item sidebar “Recent History”
 - [x] **Daily intention UX** — dashboard card polish (saved state, value tags); planner today-only edit, past/future view-only; server guard on `dateKey`
 - [x] **Build** — fixed unused `isSelectedFuture` in `StudentPlanner.tsx` for strict `tsc` on Vercel
+- [x] **Teacher nav label** (2026-05) — header link **Students** (was Leaderboard) for teachers/admins; route unchanged (`#/leaderboard` → Wall of Fame)
+- [x] **Admin student directory — last login** (2026-05) — **Last login** column (relative time, hover for exact datetime, green when within 14 days); sortable; uses `Student.lastLoginAt` from [`updateLastLogin`](../services/dataService.ts) on student app load
 
 ## Planned / Future
 - [ ] PDF Export for Passports

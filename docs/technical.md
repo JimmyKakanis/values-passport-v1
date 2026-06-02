@@ -83,7 +83,7 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Stamp History**: Clicking a cell opens a modal that filters the local signatures state by `subject` and `value`. This avoids an additional network request.
 
 ### Leaderboard, School highlights, and Wall of Fame
-- **Nav**: In [`App.tsx`](../App.tsx), the link label is **School** (Building icon) for **students** and **Leaderboard** (Bar chart) for **teachers and admins**; both target **`/leaderboard`**. The nested route [`Leaderboard.tsx`](../components/Leaderboard.tsx) passes **`studentId`** to **`SchoolHighlights`**, **`YearGroupStandings`**, and **`StudentQuizLeaderboard`** when the user is a **STUDENT**.
+- **Nav**: In [`App.tsx`](../App.tsx), the link label is **School** (Building icon) for **students** and **Students** (Bar chart icon) for **teachers and admins**; both target **`/leaderboard`**. The nested route [`Leaderboard.tsx`](../components/Leaderboard.tsx) passes **`studentId`** to **`SchoolHighlights`**, **`YearGroupStandings`**, and **`StudentQuizLeaderboard`** when the user is a **STUDENT**.
 - **File map (leaderboard folder)**: `Leaderboard.tsx` (routes) · `LeaderboardLayout.tsx` (tabs + chrome) · `SchoolHighlights.tsx` · `GoodNewsFeedList.tsx` · `YearLevelSnapshotCard.tsx` · `YearGroupStandings.tsx` · `StudentQuizLeaderboard.tsx` · `StudentLeaderboard.tsx` (staff WOF) · `LeaderboardShared.tsx` (filter cards, `getLeaderboardMetricUnit` — `POP_QUIZ` → **pts**, others as documented).
 
 - **Layout** ([`LeaderboardLayout.tsx`](../components/leaderboard/LeaderboardLayout.tsx)): **Students** get tab-specific titles/subtitles (highlights, year groups, or **Quiz**). **Staff** see **Wall of Fame** and **TEACHER VIEW** badge. Tabs: **Highlights** / **Year groups** / **Quiz** (students) or **Students** / **Year groups** (staff; quiz is inside **Students** filters, not a separate tab).
@@ -211,6 +211,7 @@ The notification system is designed to be unobtrusive yet celebratory.
 - The output `dist` folder is static and can be deployed to any static host.
 
 ### Admin Console (student directory) — behaviour summary
-- **Sort**: Click **Name** (first-name order) or **Grade** (numeric from grade string); click again to reverse. Inactive column participates as secondary sort.
+- **Sort**: Click **Name** (first-name order), **Grade** (numeric from grade string), or **Last login** (`lastLoginAt`; students who have never signed in sort as `0`); click again to reverse. Inactive columns participate as secondary sort.
+- **Last login**: Read-only column from `Student.lastLoginAt` (Unix ms on the Firestore student doc). Updated when a student opens the app via [`updateLastLogin`](../services/dataService.ts) from [`NotificationSystem.tsx`](../components/NotificationSystem.tsx) after the Welcome Back check. Shows **Never** when unset; otherwise relative text (e.g. “3 days ago”) with full datetime on hover. **Emerald** styling when login was within the last **14 days** (same window as Analytics **logged in recently**).
 - **Selection**: Per-row checkbox; header selects/deselects all **currently visible** rows (respects search + **Show archived**). Bulk **Archive** / **Restore** counts only rows that are active vs archived.
 - **Permanent delete**: Removes the Firestore `students` document; distinct from archive. Confirmation copy directs admins to prefer archive when removing access only.

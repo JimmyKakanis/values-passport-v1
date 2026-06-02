@@ -10,6 +10,7 @@ import {
   REFLECTION_TEXT_MAX,
   GOAL_CHECKIN_TEXT_MAX,
 } from './studentEngagement';
+import { buildAvatarUrlFromConfig } from './avatarUrl';
 import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS, LEADERBOARD_HIDDEN_STUDENT_EMAILS } from '../constants';
 import { auth, db } from '../firebaseConfig';
 import { FirebaseError } from 'firebase/app';
@@ -104,20 +105,7 @@ export const initializeData = async () => {
 
 export const updateStudentAvatarConfig = async (studentId: string, config: any): Promise<boolean> => {
   try {
-    // Generate URL
-    let avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${config.seed}`;
-    
-    // Add background color if present
-    if (config.backgroundColor) {
-        avatarUrl += `&backgroundColor=${config.backgroundColor.replace('#', '')}`;
-    }
-    
-    // Add other properties
-    Object.entries(config).forEach(([key, value]) => {
-        if (key !== 'seed' && key !== 'backgroundColor' && value) {
-            avatarUrl += `&${key}=${value}`;
-        }
-    });
+    const avatarUrl = buildAvatarUrlFromConfig(config);
 
     const docRef = doc(db, "students", studentId);
     await updateDoc(docRef, {

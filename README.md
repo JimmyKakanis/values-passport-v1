@@ -7,7 +7,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **For Students:** A digital "Passport" that tracks signatures (stamps) for demonstrating core values (Truth, Love, Peace, Right Conduct, Non-Violence). It features real-time updates, achievement unlocking, leaderboards, and a learning lab.
 - **For Teachers:** A powerful console to award stamps, manage nominations, view student progress, and access professional development resources regarding values education.
 - **Security:** Integrated with Microsoft 365 Authentication and Firebase for secure, domain-locked access.
-- **Admin:** Student directory with search, sort by grade or first name, multi-select, **archive** (soft-remove from lists and sign-in) vs **permanent delete**, and optional **Show archived** to restore.
+- **Admin:** Student directory with search, sort by grade, first name, or last login, **Last login** column (relative time; 14-day highlight), multi-select, **archive** (soft-remove from lists and sign-in) vs **permanent delete**, and optional **Show archived** to restore.
 - **Settings:** In-app **Settings** (`#/settings`) for email notification preferences, student avatar customization, and feedback—see `docs/architecture.md` and `docs/technical.md`.
 
 ## Features
@@ -29,7 +29,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **My Passport:** A visual grid showing mastery levels across Academic Subjects and Locations & Events (including Camp, Excursions, Sports Carnivals). Click any cell to see stamps for that cell, or use **Stamp history** on the dashboard for a single chronological feed of everything.
 - **My Goals:** A goal-setting area where students can create and track Yearly, Subject-specific, and Personal Life goals.
 - **Values Lab:** A learning hub with definitions, sub-values, and resources.
-- **Leaderboard / School:** **Students** — **`#/leaderboard`** (**School highlights**), **`#/leaderboard/year-groups`** (**Year group standings**; podium + your-year stamp), **`#/leaderboard/quiz`** (**Quiz leaderboard**; pop-quiz high scores, search/year filters, your row highlighted). **Teachers/admins** — **`#/leaderboard`** is the **Wall of Fame** (includes **Quiz** as a sort mode; no separate quiz tab). Roster is refreshed from Firestore when the leaderboard loads. Optional **hide from leaderboard only** for test accounts (`excludeFromLeaderboard` or `LEADERBOARD_HIDDEN_STUDENT_EMAILS` in `constants.ts`). See `docs/technical.md` for details.
+- **Leaderboard / School:** **Students** — **`#/leaderboard`** (**School highlights**), **`#/leaderboard/year-groups`** (**Year group standings**; podium + your-year stamp), **`#/leaderboard/quiz`** (**Quiz leaderboard**; pop-quiz high scores, search/year filters, your row highlighted). **Teachers/admins** — header nav **Students** → **`#/leaderboard`** (**Wall of Fame**; includes **Quiz** as a sort mode; no separate quiz tab). Roster is refreshed from Firestore when the leaderboard loads. Optional **hide from leaderboard only** for test accounts (`excludeFromLeaderboard` or `LEADERBOARD_HIDDEN_STUDENT_EMAILS` in `constants.ts`). See `docs/technical.md` for details.
 
 ### 👨‍🏫 Teacher Console
 - **Quick Awarding:** Award stamps to individual students or bulk groups in seconds.
@@ -43,7 +43,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **Student Details:** View any student's full profile, passport, and achievement history. Use `#/student/:id?tab=passport` to open straight to the passport. Archived students show an explanatory banner when opened by staff.
 
 ### Admin Console
-- **Student directory:** Search, sort, bulk or single **Archive** / **Restore**, parent fields for weekly digests, reset progress, and permanent delete when required.
+- **Student directory:** Search, sort (grade, name, or last login), **Last login** column with relative timestamps, bulk or single **Archive** / **Restore**, parent fields for weekly digests, reset progress, and permanent delete when required.
 - **Teachers & subjects:** Authorize staff and maintain the subject list used on stamps.
 
 ## Getting Started

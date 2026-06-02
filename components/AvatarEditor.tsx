@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, RefreshCw, Lock, Save, Wand2 } from 'lucide-react';
 import { Student } from '../types';
+import { buildAvatarUrlFromConfig } from '../services/avatarUrl';
 
 const FULL_CUSTOMIZATION_STAMP_THRESHOLD = 5;
 
@@ -13,18 +14,20 @@ interface AvatarEditorProps {
   onSave: (config: any) => Promise<boolean>;
 }
 
-// DiceBear Avataaars Options
+// DiceBear 7.x avataaars schema values (see api.dicebear.com/7.x/avataaars/schema.json)
 const AVATAR_OPTIONS = {
   top: [
-    'longHair', 'shortHair', 'eyepatch', 'hat', 'hijab', 'turban', 
-    'bigHair', 'bob', 'bun', 'curly', 'curvy', 'dreads', 'frida', 
-    'fro', 'froBand', 'miaWallace', 'longButNotTooLong', 'shavedSides', 
-    'straight01', 'straight02', 'straightStrand', 'winterHat01', 
-    'winterHat02', 'winterHat03', 'winterHat04'
+    'bald',
+    'bigHair', 'bob', 'bun', 'curly', 'curvy', 'dreads', 'dreads01', 'dreads02',
+    'frida', 'fro', 'froBand', 'frizzle', 'hat', 'hijab', 'longButNotTooLong',
+    'miaWallace', 'shaggy', 'shaggyMullet', 'shavedSides', 'shortCurly', 'shortFlat',
+    'shortRound', 'shortWaved', 'sides', 'straight01', 'straight02', 'straightAndStrand',
+    'theCaesar', 'theCaesarAndSidePart', 'turban', 'winterHat1', 'winterHat02',
+    'winterHat03', 'winterHat04',
   ],
   accessories: [
-    'kurt', 'prescription01', 'prescription02', 'round', 
-    'sunglasses', 'wayfarers'
+    'eyepatch', 'kurt', 'prescription01', 'prescription02', 'round',
+    'sunglasses', 'wayfarers',
   ],
   hairColor: [
     'aurora', 'black', 'blonde', 'brown', 'brownDark', 
@@ -33,6 +36,10 @@ const AVATAR_OPTIONS = {
   facialHair: [
     'beardLight', 'beardMajestic', 'beardMedium', 
     'moustacheFancy', 'moustacheMagnum'
+  ],
+  facialHairColor: [
+    'aurora', 'black', 'blonde', 'brown', 'brownDark',
+    'pastelPink', 'platinum', 'red', 'silverGray',
   ],
   clothing: [
     'blazerAndShirt', 'blazerAndSweater', 'collarAndSweater', 
@@ -45,8 +52,8 @@ const AVATAR_OPTIONS = {
     'pastelRed', 'pastelYellow', 'pink', 'red', 'white'
   ],
   eyes: [
-    'close', 'cry', 'default', 'dizzy', 'eyeRoll', 'happy', 
-    'hearts', 'side', 'squint', 'surprised', 'wink', 'winkWacky'
+    'closed', 'cry', 'default', 'xDizzy', 'eyeRoll', 'happy',
+    'hearts', 'side', 'squint', 'surprised', 'wink', 'winkWacky',
   ],
   eyebrows: [
     'angry', 'angryNatural', 'default', 'defaultNatural', 
@@ -98,13 +105,14 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
     }
   }, [isOpen, student]);
 
+  const previewUrl = useMemo(
+    () => buildAvatarUrlFromConfig(config),
+    [config]
+  );
+
   if (!isOpen) return null;
 
   const canRandomize = totalStamps >= 1;
-
-  // For testing/demo purposes, you might want to uncomment these to force unlock
-  // const hasFullCustomization = true;
-  // const canRandomize = true;
 
   const handleRandomize = () => {
     const randomSeed = Math.random().toString(36).substring(7);
@@ -121,15 +129,6 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
     setIsSaving(false);
     onClose();
   };
-
-  // Construct Preview URL
-  let previewUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${config.seed}`;
-  if (config.backgroundColor) previewUrl += `&backgroundColor=${config.backgroundColor.replace('#', '')}`;
-  Object.entries(config).forEach(([key, value]) => {
-      if (key !== 'seed' && key !== 'backgroundColor' && value) {
-          previewUrl += `&${key}=${value}`;
-      }
-  });
 
   return (
     <>
