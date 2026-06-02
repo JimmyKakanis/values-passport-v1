@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent, getStudents, getAllTeachers } from '../services/dataService';
-import { Student, Subject, CoreValue, Nomination, Teacher } from '../types';
+import { Student, Subject, CoreValue, Nomination, Teacher, UserRole } from '../types';
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck, Gift, Activity, UserSearch } from 'lucide-react';
 import { TeacherRewards } from './TeacherRewards';
@@ -11,9 +11,14 @@ import { auth } from '../firebaseConfig';
 
 interface TeacherConsoleProps {
   initialTab?: 'AWARD' | 'ATTENTION' | 'INBOX' | 'REWARDS' | 'FEED';
+  /** App-resolved role — admins always see all stamp requests regardless of routing. */
+  viewerRole?: UserRole;
 }
 
-export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AWARD' }) => {
+export const TeacherConsole: React.FC<TeacherConsoleProps> = ({
+  initialTab = 'AWARD',
+  viewerRole,
+}) => {
   const [students, setStudents] = useState<Student[]>([]);
   const [activeTab, setActiveTab] = useState<
     'AWARD' | 'ATTENTION' | 'INBOX' | 'REWARDS' | 'FEED'
@@ -37,6 +42,8 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
   const [pendingNominations, setPendingNominations] = useState<Nomination[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const isAdminViewer = viewerRole === 'ADMIN' || currentTeacher?.role === 'ADMIN';
+
   useEffect(() => {
     const studentData = getStudents();
     setStudents(studentData);
@@ -53,11 +60,19 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
 
   useEffect(() => {
     const fetchNominations = async () => {
-       const noms = await getPendingNominations();
-       setPendingNominations(noms);
+      const email = auth.currentUser?.email ?? currentTeacher?.email;
+      if (!email && !isAdminViewer) {
+        setPendingNominations([]);
+        return;
+      }
+      const noms = await getPendingNominations({
+        email: email ?? '',
+        isAdmin: isAdminViewer,
+      });
+      setPendingNominations(noms);
     };
     fetchNominations();
-  }, [refreshTrigger, activeTab]);
+  }, [refreshTrigger, activeTab, currentTeacher, isAdminViewer]);
 
   // Reset sub-value when main value changes
   useEffect(() => {
@@ -526,8 +541,15 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({ initialTab = 'AW
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <h2 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
               <Inbox className="text-emerald-600" />
-              Pending Requests ({pendingNominations.length})
+              Pending Requests
+              {isAdminViewer ? ' (all)' : ' for you'}
+              {' '}({pendingNominations.length})
             </h2>
+            {isAdminViewer && (
+              <p className="text-sm text-gray-600 mb-4">
+                Admins see every pending stamp request, including those routed to subject or homeroom teachers.
+              </p>
+            )}
             
             {pendingNominations.length === 0 ? (
               <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">

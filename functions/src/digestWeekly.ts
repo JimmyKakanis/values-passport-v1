@@ -145,9 +145,19 @@ export async function runWeeklyDigests(ctx: WeeklyDigestContext): Promise<void> 
       .where("status", "==", "PENDING")
       .get();
 
-    if (myStamps === 0 && nomsSnap.size === 0) continue;
+    const emailLower = email.toLowerCase();
+    const teacherRole = String(teacherDoc.role || "TEACHER");
+    const myPendingNoms = nomsSnap.docs.filter((d) => {
+      const data = d.data();
+      const reviewers = data.reviewerEmails as string[] | undefined;
+      if (teacherRole === "ADMIN") return true;
+      if (!reviewers?.length) return true;
+      return reviewers.includes(emailLower);
+    }).length;
 
-    const html = `<p>Hi ${escapeHtml(teacherName)},</p><p><strong>Weekly Values Passport digest</strong></p><ul><li>Stamps you awarded (last 7 days): ${myStamps}</li><li>Nominations awaiting review (whole school): ${nomsSnap.size}</li></ul><p><a href="${digestLink(ctx.appUrl)}#/teacher">Open Teacher Console</a></p>`;
+    if (myStamps === 0 && myPendingNoms === 0) continue;
+
+    const html = `<p>Hi ${escapeHtml(teacherName)},</p><p><strong>Weekly Values Passport digest</strong></p><ul><li>Stamps you awarded (last 7 days): ${myStamps}</li><li>Stamp requests awaiting your review: ${myPendingNoms}</li></ul><p><a href="${digestLink(ctx.appUrl)}#/teacher">Open Teacher Console</a></p>`;
 
     const result = await sendMailWithGraph(
       accessToken,

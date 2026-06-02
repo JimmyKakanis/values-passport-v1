@@ -11,6 +11,8 @@ import {
   GOAL_CHECKIN_TEXT_MAX,
 } from './studentEngagement';
 import { buildAvatarUrlFromConfig } from './avatarUrl';
+import { resolveNominationReviewers, nominationVisibleToTeacher } from './nominationRouting';
+import { startOfWeek, startOfDay, addWeeks, addDays } from 'date-fns';
 import { MOCK_STUDENTS, SUBJECTS, ACHIEVEMENTS, CORE_VALUES, TEACHERS, LEADERBOARD_HIDDEN_STUDENT_EMAILS } from '../constants';
 import { auth, db } from '../firebaseConfig';
 import { FirebaseError } from 'firebase/app';
@@ -706,24 +708,94 @@ export const updateSignatureAsStaff = async (
 
 // --- NOMINATIONS (Database) ---
 
-export const getPendingNominations = async (): Promise<Nomination[]> => {
-  try {
-    // FIX: Removed orderBy("timestamp", "desc") to avoid needing a composite index.
-    // We sort the results client-side instead.
-    const q = query(
-      collection(db, "nominations"),
-      where("status", "==", "PENDING")
-    );
-    const querySnapshot = await getDocs(q);
-    const nominations = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Nomination));
+const SELF_NOMINATIONS_PER_WEEK = 1;
+const PEER_NOMINATIONS_PER_DAY = 1;
 
-    // Sort in memory (Newest first)
-    return nominations.sort((a, b) => b.timestamp - a.timestamp);
+export interface NominationLimits {
+  self: { canSubmit: boolean; nextAvailableAt: number | null };
+  peer: { canSubmit: boolean; nextAvailableAt: number | null };
+}
+
+async function getNominationsByNominator(nominatorId: string): Promise<Nomination[]> {
+  const q = query(collection(db, 'nominations'), where('nominatorId', '==', nominatorId));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Nomination));
+}
+
+export const getNominationLimits = async (
+  nominatorId: string,
+  now = Date.now()
+): Promise<NominationLimits> => {
+  const nominations = await getNominationsByNominator(nominatorId);
+  const weekStart = startOfWeek(new Date(now), { weekStartsOn: 1 }).getTime();
+  const dayStart = startOfDay(new Date(now)).getTime();
+
+  const selfThisWeek = nominations.filter((n) => n.type === 'SELF' && n.timestamp >= weekStart);
+  const peerToday = nominations.filter((n) => n.type === 'PEER' && n.timestamp >= dayStart);
+
+  const canSubmitSelf = selfThisWeek.length < SELF_NOMINATIONS_PER_WEEK;
+  const canSubmitPeer = peerToday.length < PEER_NOMINATIONS_PER_DAY;
+
+  return {
+    self: {
+      canSubmit: canSubmitSelf,
+      nextAvailableAt: canSubmitSelf
+        ? null
+        : addWeeks(startOfWeek(new Date(now), { weekStartsOn: 1 }), 1).getTime(),
+    },
+    peer: {
+      canSubmit: canSubmitPeer,
+      nextAvailableAt: canSubmitPeer ? null : addDays(startOfDay(new Date(now)), 1).getTime(),
+    },
+  };
+};
+
+export const getPendingNominations = async (
+  viewer?: { email: string; isAdmin?: boolean }
+): Promise<Nomination[]> => {
+  try {
+    const emailLower = viewer?.email?.toLowerCase();
+
+    if (viewer && !viewer.isAdmin && emailLower) {
+      try {
+        const routedQuery = query(
+          collection(db, 'nominations'),
+          where('status', '==', 'PENDING'),
+          where('reviewerEmails', 'array-contains', emailLower)
+        );
+        const routedSnap = await getDocs(routedQuery);
+        const routed = routedSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Nomination));
+
+        const legacyQuery = query(collection(db, 'nominations'), where('status', '==', 'PENDING'));
+        const legacySnap = await getDocs(legacyQuery);
+        const legacy = legacySnap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as Nomination))
+          .filter((n) => !n.reviewerEmails?.length);
+
+        const byId = new Map<string, Nomination>();
+        for (const n of [...routed, ...legacy]) {
+          if (nominationVisibleToTeacher(n, emailLower, false)) {
+            byId.set(n.id, n);
+          }
+        }
+        return [...byId.values()].sort((a, b) => b.timestamp - a.timestamp);
+      } catch (indexedError) {
+        console.warn('Indexed nomination query failed; falling back to client filter', indexedError);
+      }
+    }
+
+    const q = query(collection(db, 'nominations'), where('status', '==', 'PENDING'));
+    const querySnapshot = await getDocs(q);
+    const nominations = querySnapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Nomination));
+
+    const filtered =
+      viewer && !viewer.isAdmin && emailLower
+        ? nominations.filter((n) => nominationVisibleToTeacher(n, emailLower, false))
+        : nominations;
+
+    return filtered.sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
-    console.error("Error fetching nominations:", error);
+    console.error('Error fetching nominations:', error);
     return [];
   }
 };
@@ -737,8 +809,33 @@ export const addNomination = async (
   value: CoreValue,
   reason: string,
   subValue?: string
-): Promise<Nomination | null> => {
+): Promise<{ ok: true; nomination: Nomination } | { ok: false; message: string }> => {
   try {
+    const limits = await getNominationLimits(nominatorId);
+    if (type === 'SELF' && !limits.self.canSubmit) {
+      return {
+        ok: false,
+        message: 'You can only request one stamp for yourself each week. Try again next week.',
+      };
+    }
+    if (type === 'PEER' && !limits.peer.canSubmit) {
+      return {
+        ok: false,
+        message: 'You can only nominate one friend per day. Try again tomorrow.',
+      };
+    }
+
+    const nominee = getStudent(studentId);
+    if (!nominee) {
+      return { ok: false, message: 'Could not find the student for this request.' };
+    }
+
+    const teachers = await getAllTeachers();
+    const reviewerEmails = resolveNominationReviewers(
+      { subject, studentGrade: nominee.grade },
+      teachers
+    );
+
     const newNomination = {
       studentId,
       nominatorId,
@@ -749,13 +846,15 @@ export const addNomination = async (
       subValue: subValue || undefined,
       reason,
       status: 'PENDING',
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      studentGrade: nominee.grade,
+      reviewerEmails,
     };
     const docRef = await addDoc(collection(db, "nominations"), newNomination);
-    return { id: docRef.id, ...newNomination } as Nomination;
+    return { ok: true, nomination: { id: docRef.id, ...newNomination } as Nomination };
   } catch (error) {
     console.error("Error adding nomination:", error);
-    return null;
+    return { ok: false, message: 'Could not send your request. Try again.' };
   }
 };
 

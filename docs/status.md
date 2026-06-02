@@ -109,6 +109,7 @@
 - [x] **Build** — fixed unused `isSelectedFuture` in `StudentPlanner.tsx` for strict `tsc` on Vercel
 - [x] **Teacher nav label** (2026-05) — header link **Students** (was Leaderboard) for teachers/admins; route unchanged (`#/leaderboard` → Wall of Fame)
 - [x] **Admin student directory — last login** (2026-05) — **Last login** column (relative time, hover for exact datetime, green when within 14 days); sortable; uses `Student.lastLoginAt` from [`updateLastLogin`](../services/dataService.ts) on student app load
+- [x] **Stamp request routing** (2026-06) — academic subjects → subject teachers; locations/events → homeroom teachers by student year; Admin Console assignment UI; filtered Teacher Console inbox; weekly digest counts teacher-specific queue
 
 ## Planned / Future
 - [ ] PDF Export for Passports

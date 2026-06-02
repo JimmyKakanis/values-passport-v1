@@ -459,7 +459,7 @@ const App: React.FC = () => {
           ) : userRole === 'ADMIN' ? (
              <>
                <Route path="/admin" element={<AdminConsole />} />
-               <Route path="/teacher" element={<TeacherConsole />} />
+               <Route path="/teacher" element={<TeacherConsole viewerRole={userRole} />} />
                <Route path="/values-development" element={<TeacherCorner />} />
                <Route path="/student/:id" element={<StudentDetailView />} />
                <Route path="/" element={<Navigate to="/admin" />} />
@@ -467,7 +467,7 @@ const App: React.FC = () => {
           ) : userRole === 'TEACHER' ? (
             // TEACHER ROUTES
             <>
-               <Route path="/teacher" element={<TeacherConsole />} />
+               <Route path="/teacher" element={<TeacherConsole viewerRole={userRole} />} />
                {/* Separate route for Values Development now */}
                <Route path="/values-development" element={<TeacherCorner />} /> 
                {/* Redirect root to teacher console for teachers */}

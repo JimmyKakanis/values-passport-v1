@@ -198,7 +198,7 @@ export const EmailNotificationsSettings: React.FC<Props> = ({ preferenceRole }) 
             <span>
               <span className="font-semibold text-gray-900">Weekly teacher digest</span>
               <span className="block text-sm text-gray-600">
-                Stamps you awarded in the last 7 days and how many nominations are awaiting review (school-wide).
+                Stamps you awarded in the last 7 days and how many stamp requests are awaiting your review.
               </span>
             </span>
           </label>

@@ -25,11 +25,12 @@ export type Subject =
   | 'Japanese' 
   | 'History' 
   | 'Geography' 
-  | 'Library'
   | 'Technology' 
   | 'PDHPE'
   | 'EHV'
+  | 'Study Period'
   | 'Electives'
+  | 'Library'
   | 'Playground' 
   | 'Homeroom'
   | 'Sport'
@@ -98,7 +99,11 @@ export interface Teacher {
   name: string;
   email: string;
   role: UserRole;
-  assignedGrades?: string[]; // Grades this teacher is responsible for
+  assignedGrades?: string[]; // Grades this teacher is responsible for (Student Attention scope)
+  /** Academic subjects this teacher receives stamp requests for (school-wide). */
+  assignedSubjects?: Subject[];
+  /** Year levels this teacher receives location/event stamp requests for. */
+  homeroomGrades?: string[];
 }
 
 export interface CustomReward {
@@ -157,6 +162,10 @@ export interface Nomination {
   reason: string;
   status: NominationStatus;
   timestamp: number;
+  /** Nominee's grade at submit time — used for homeroom routing. */
+  studentGrade?: string;
+  /** Lowercase teacher emails who should review this request. */
+  reviewerEmails?: string[];
 }
 
 export type AchievementType = 'TOTAL' | 'VALUE' | 'SUBJECT_MASTERY' | 'FULL_PASSPORT' | 'CUSTOM';

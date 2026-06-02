@@ -16,9 +16,10 @@
 ### 1. Core Types (`types.ts`)
 - **`Student`**: Basic profile info + `lastLoginAt` (timestamp). Optional **parent / guardian** fields: `parentEmail`, `parentName`, `parentDigestEnabled`, `parentConsentRecordedAt` (used by weekly parent digests when consent is recorded in Admin Console). Optional **`archived`** (boolean) and **`archivedAt`** (Unix ms): when `archived` is true, the account is **soft-retired**—hidden from `getStudents()` / teacher pickers / leaderboard inputs, excluded from student login resolution, and blocked from auto-provisioning a second record for the same email (see **Archived students** below). New students created via `addStudent` persist `archived: false`.
 - **`EmailNotificationPreferences`**: Shape stored at `email_preferences/{authEmailLower}` (`role`, digest toggles, `achievementEmailEnabled`, `unseenStampsEmailEnabled`, `frequency`).
+- **`Teacher`**: Profile + optional `assignedGrades` (Student Attention scope), `assignedSubjects` (academic stamp request routing), `homeroomGrades` (location/event requests by student year). Editable in Admin Console → Teachers.
 - **`Signature`**: Represents a "Stamp". Contains `studentId`, `teacherName`, `subject`, `value`, `subValue` (optional), `note` (optional), `timestamp`, and optional `source` (`DIRECT` | `NOMINATION`) for stamps created from nomination approval.
 - **`Achievement`**: Defines milestones. Types include `TOTAL`, `VALUE`, `SUBJECT_MASTERY`, `FULL_PASSPORT`, and `CUSTOM`.
-- **`Nomination`**: A request for a stamp (Self or Peer). Has a status of `PENDING`, `APPROVED`, or `REJECTED`.
+- **`Nomination`**: A request for a stamp (Self or Peer). Has a status of `PENDING`, `APPROVED`, or `REJECTED`. **Rate limits** (enforced in [`addNomination`](../services/dataService.ts)): one **SELF** request per nominator per calendar week (Monday start); one **PEER** request per nominator per calendar day. All statuses count toward the limit. **Routing** ([`nominationRouting.ts`](../services/nominationRouting.ts)): academic subjects → teachers with that subject in `assignedSubjects`; locations/events ([`LOCATION_SUBJECTS`](../constants.ts)) → teachers with the nominee's grade in `homeroomGrades`. Stored as `studentGrade` and `reviewerEmails` on each doc. Unmatched requests fall back to all staff. Admins see all pending in Teacher Console; teachers see only their queue.
 - **`PlannerItem`**: Represents a task or event in the student planner. Contains `studentId`, `title`, `dueDate` (timestamp), `category` (TASK, HOMEWORK, ASSIGNMENT), and `isCompleted`.
 - **`DailyIntention`**: Private one-per-day note (`dateKey` `YYYY-MM-DD`, `text` max 280 chars, optional `coreValue` / `subValue`, `ownerEmail`, `createdAt`, `updatedAt`). Doc id `{studentId}_{dateKey}` (sanitized). **Writes only for today’s `dateKey`** ([`upsertDailyIntention`](../services/dataService.ts)).
 - **`ValueReflection`**: Private Values Lab entry (`ownerEmail`, `coreValue`, `subValue`, `text` max 2000, `wordCount`, `createdAt`). Created via `addDoc`; no client update/delete.
@@ -146,7 +147,7 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Stamps**: Sub-value labels on the calendar are **not** auto-applied to the award form; align dropdown sub-values in `constants.ts` separately if you want exact matches.
 
 ### Passport Subjects & Locations
-- **Locations and Events**: Homeroom, Playground, Sport, Excursions, Assembly, Sports Carnivals, **Camp**.
+- **Locations and Events**: Homeroom, Study Period, Library, Playground, Sport, Excursions, Assembly, Sports Carnivals, **Camp** (stamp requests route to homeroom teachers by student year). **EHV** is an academic subject.
 - **Academic Subjects**: Maths, English, Science, etc. Defined in `constants.ts` (`SUBJECTS`). `StudentPassport` splits these via `LOCATION_SUBJECTS` vs `ACADEMIC_SUBJECTS`.
 
 ### Student engagement achievements

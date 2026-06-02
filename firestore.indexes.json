@@ -31,6 +31,14 @@
         { "fieldPath": "studentId", "order": "ASCENDING" },
         { "fieldPath": "ownerEmail", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "nominations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "reviewerEmails", "arrayConfig": "CONTAINS" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Star, Loader2, BookOpen, MapPin, X, Calendar, User, MessageSquare } from 'lucide-react';
-import { SUBJECTS, CORE_VALUES } from '../constants';
+import { CORE_VALUES, LOCATION_SUBJECTS, ACADEMIC_SUBJECTS } from '../constants';
 import { subscribeToSignatures } from '../services/dataService';
 import { CoreValue, Subject, Signature } from '../types';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -9,9 +9,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 interface Props {
   studentId: string;
 }
-
-const LOCATION_SUBJECTS: Subject[] = ['Homeroom', 'Playground', 'Sport', 'Excursions', 'Assembly', 'Sports Carnivals', 'Camp'];
-const ACADEMIC_SUBJECTS: Subject[] = SUBJECTS.filter(s => !LOCATION_SUBJECTS.includes(s));
 
 // --- Modal for Stamp History ---
 const StampHistoryModal: React.FC<{

@@ -16,7 +16,9 @@ import {
   getSignaturesForStudent, 
   calculateStats, 
   calculateStudentAchievements, 
-  addNomination, 
+  addNomination,
+  getNominationLimits,
+  type NominationLimits, 
   getStudents,
   getStudentClaimedRewards,
   subscribeToPlannerItems,
@@ -28,7 +30,7 @@ import {
 } from '../services/dataService';
 import { StudentPassport } from './StudentPassport';
 import { AvatarEditor } from './AvatarEditor';
-import { CORE_VALUES, SUBJECTS } from '../constants';
+import { CORE_VALUES, ACADEMIC_SUBJECTS, LOCATION_SUBJECTS } from '../constants';
 import { Award, Target, Trophy, ArrowRight, Lock, CheckCircle, Stamp, Users, X, Send, BarChart2, Mail, Loader2, Lightbulb, Search, Gift, Sparkles, Calendar, CheckSquare, Edit3 } from 'lucide-react';
 import { Subject, CoreValue, Signature, ClaimedReward, PlannerItem, AchievementDefinition } from '../types';
 import {
@@ -37,6 +39,7 @@ import {
 } from '../valuesIntegrationCalendar2026';
 import { DailyIntentionCard } from './DailyIntentionCard';
 import { StampHistorySection } from './StampActivityFeed';
+import { isLocationSubject } from '../services/nominationRouting';
 import { PlannerItemRow } from './PlannerItemRow';
 import { getNextUpItems } from '../utils/plannerDisplay';
 
@@ -96,6 +99,9 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [nomReason, setNomReason] = useState('');
   const [nomSuccess, setNomSuccess] = useState(false);
+  const [nomSuccessSubject, setNomSuccessSubject] = useState<Subject | ''>('');
+  const [nomError, setNomError] = useState('');
+  const [nominationLimits, setNominationLimits] = useState<NominationLimits | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Avatar Editor State
@@ -154,6 +160,25 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   useEffect(() => {
     setNomSubValue('');
   }, [nomValue]);
+
+  useEffect(() => {
+    if (!isNominationModalOpen) {
+      setNomError('');
+      setNominationLimits(null);
+      return;
+    }
+    let cancelled = false;
+    getNominationLimits(studentId).then((limits) => {
+      if (!cancelled) setNominationLimits(limits);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isNominationModalOpen, studentId]);
+
+  const currentNominationBlocked =
+    nominationLimits &&
+    (nominationType === 'SELF' ? !nominationLimits.self.canSubmit : !nominationLimits.peer.canSubmit);
 
   if (!student) return <div>Student not found</div>;
 
@@ -214,7 +239,8 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
     e.preventDefault();
     if (nomSubject && nomValue && nomSubValue && nomReason && nomineeId) {
       setIsSubmitting(true);
-      await addNomination(
+      setNomError('');
+      const result = await addNomination(
         nomineeId,
         studentId,
         student.name,
@@ -225,9 +251,15 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
         nomSubValue
       );
       setIsSubmitting(false);
+      if (!result.ok) {
+        setNomError(result.message);
+        return;
+      }
+      setNomSuccessSubject(nomSubject);
       setNomSuccess(true);
       setTimeout(() => {
         setNomSuccess(false);
+        setNomSuccessSubject('');
         setIsNominationModalOpen(false);
         setNomReason('');
         setNomSubject('');
@@ -564,30 +596,52 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                   <CheckCircle size={48} />
                 </div>
                 <h4 className="text-xl font-bold text-gray-800 mb-2">Request Sent!</h4>
-                <p className="text-gray-500">Your homeroom teacher will review your request shortly.</p>
+                <p className="text-gray-500">
+                  {nomSuccessSubject && isLocationSubject(nomSuccessSubject)
+                    ? 'Your homeroom teacher will review your request shortly.'
+                    : nomSuccessSubject
+                      ? `Your ${nomSuccessSubject} teacher will review your request shortly.`
+                      : 'Your teacher will review your request shortly.'}
+                </p>
               </div>
             ) : (
               <form onSubmit={handleNominationSubmit} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
                   <button
                     type="button"
-                    onClick={() => { setNominationType('SELF'); setNomineeId(studentId); }}
+                    onClick={() => { setNominationType('SELF'); setNomineeId(studentId); setNomError(''); }}
+                    disabled={nominationLimits !== null && !nominationLimits.self.canSubmit}
                     className={`py-2 px-4 rounded-md text-sm font-bold transition-all ${
                       nominationType === 'SELF' ? 'bg-white shadow text-blue-900' : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     For Myself
                   </button>
                   <button
                     type="button"
-                    onClick={() => setNominationType('PEER')}
+                    onClick={() => { setNominationType('PEER'); setNomError(''); }}
+                    disabled={nominationLimits !== null && !nominationLimits.peer.canSubmit}
                     className={`py-2 px-4 rounded-md text-sm font-bold transition-all ${
                       nominationType === 'PEER' ? 'bg-white shadow text-blue-900' : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     For a Friend
                   </button>
                 </div>
+
+                {currentNominationBlocked && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-900 text-sm p-3 rounded-lg">
+                    {nominationType === 'SELF'
+                      ? 'You have already requested a stamp for yourself this week (limit: one per week).'
+                      : 'You have already nominated a friend today (limit: one per day).'}
+                  </div>
+                )}
+
+                {nomError && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-3 rounded-lg">
+                    {nomError}
+                  </div>
+                )}
 
                 {nominationType === 'PEER' && (
                   <div>
@@ -657,9 +711,16 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                       className="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
                     >
                       <option value="">Select Area...</option>
-                      {SUBJECTS.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
+                      <optgroup label="Academic subjects">
+                        {ACADEMIC_SUBJECTS.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Locations & events">
+                        {LOCATION_SUBJECTS.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
 
@@ -710,15 +771,15 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
                 <div className="bg-blue-50 p-3 rounded-lg flex items-start gap-2 text-xs text-blue-800">
                   <Users size={16} className="mt-0.5 flex-shrink-0" />
                   <p>
-                    {nominationType === 'SELF' 
-                      ? "Self-advocacy is encouraged! Be honest about your actions."
-                      : "Nominating others is a great way to show you value them!"}
+                    {nominationType === 'SELF'
+                      ? 'Self-advocacy is encouraged! You can request one stamp for yourself each week.'
+                      : 'Nominating others is a great way to show you value them! You can nominate one friend per day.'}
                   </p>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !!currentNominationBlocked}
                   className="w-full bg-emerald-600 text-white py-3 rounded-lg font-bold hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:bg-gray-300"
                 >
                   {isSubmitting ? <Loader2 className="animate-spin"/> : <Send size={18} />} Submit Request

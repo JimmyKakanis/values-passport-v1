@@ -13,8 +13,8 @@ export const STUDENT_TEMP_PASSWORD = import.meta.env.VITE_STUDENT_TEMP_PASSWORD 
 
 // Approved Teachers List
 export const TEACHERS: Teacher[] = [
-  { name: 'Admin User', email: 'teacher1@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] }, // Kept for testing
-  { name: 'Ms Meredith Barrie', email: 'M.Barrie@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 9', 'Year 10'] },
+  { name: 'Admin User', email: 'teacher1@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'], assignedSubjects: ['Science'], homeroomGrades: ['Year 7'] },
+  { name: 'Ms Meredith Barrie', email: 'M.Barrie@sathyasai.nsw.edu.au', role: 'TEACHER', assignedGrades: ['Year 9', 'Year 10'], homeroomGrades: ['Year 9', 'Year 10'] },
   { name: 'Mrs Sarah Biersteker', email: 'S.Biersteker@sathyasai.nsw.edu.au', role: 'ADMIN', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] },
   { name: 'Mrs Annette Caldicott', email: 'a.caldicott@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mr Flynn Colby', email: 'f.colby@sathyasai.nsw.edu.au', role: 'TEACHER' },
@@ -30,8 +30,8 @@ export const TEACHERS: Teacher[] = [
   { name: 'Ms Jaime John', email: 'j.john@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mrs Jenna Jones', email: 'j.jones@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mr James Kakanis', email: 'j.kakanis@sathyasai.nsw.edu.au', role: 'ADMIN', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] },
-  { name: 'Mr Glenn Kaminski', email: 'g.kaminski@sathyasai.nsw.edu.au', role: 'TEACHER' },
-  { name: 'Mr Gavin Kester', email: 'g.kester@sathyasai.nsw.edu.au', role: 'TEACHER' },
+  { name: 'Mr Glenn Kaminski', email: 'g.kaminski@sathyasai.nsw.edu.au', role: 'TEACHER', assignedSubjects: ['Math'] },
+  { name: 'Mr Gavin Kester', email: 'g.kester@sathyasai.nsw.edu.au', role: 'TEACHER', assignedSubjects: ['English'] },
   { name: 'Ms Rachael Lebeter', email: 'r.lebeter@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mrs Michelle McLeod', email: 'M.McLeod@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mr Samuel Menzies', email: 's.menzies@sathyasai.nsw.edu.au', role: 'TEACHER' },
@@ -141,7 +141,8 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
   }
 };
 
-export const SUBJECTS: Subject[] = [
+/** Academic passport subjects — stamp requests route to teachers with this in assignedSubjects. */
+export const ACADEMIC_SUBJECTS: Subject[] = [
   'English',
   'Math',
   'Science',
@@ -150,19 +151,57 @@ export const SUBJECTS: Subject[] = [
   'Japanese',
   'History',
   'Geography',
-  'Library',
   'Technology',
   'PDHPE',
   'EHV',
   'Electives',
+];
+
+/** Locations/events on the passport — routed to homeroom teachers by student grade. */
+export const LOCATION_SUBJECTS: Subject[] = [
   'Homeroom',
+  'Study Period',
+  'Library',
   'Playground',
   'Sport',
   'Excursions',
   'Assembly',
   'Sports Carnivals',
-  'Camp'
+  'Camp',
 ];
+
+/** Full passport catalog (academic first, then locations). */
+export const SUBJECTS: Subject[] = [...ACADEMIC_SUBJECTS, ...LOCATION_SUBJECTS];
+
+/** Ensures every built-in catalog subject is routed as academic or location. */
+export function assertBuiltInSubjectCatalog(): void {
+  const academicSet = new Set<string>(ACADEMIC_SUBJECTS);
+  const locationSet = new Set<string>(LOCATION_SUBJECTS);
+  for (const s of SUBJECTS) {
+    const isAcademic = academicSet.has(s);
+    const isLocation = locationSet.has(s);
+    if (!isAcademic && !isLocation) {
+      throw new Error(`Subject "${s}" is missing from ACADEMIC_SUBJECTS and LOCATION_SUBJECTS`);
+    }
+    if (isAcademic && isLocation) {
+      throw new Error(`Subject "${s}" is listed as both academic and location`);
+    }
+  }
+  if (SUBJECTS.length !== ACADEMIC_SUBJECTS.length + LOCATION_SUBJECTS.length) {
+    throw new Error('SUBJECTS must equal ACADEMIC_SUBJECTS + LOCATION_SUBJECTS');
+  }
+}
+
+assertBuiltInSubjectCatalog();
+
+export const SCHOOL_GRADES = [
+  'Year 7',
+  'Year 8',
+  'Year 9',
+  'Year 10',
+  'Year 11',
+  'Year 12',
+] as const;
 
 // Helper to generate email and avatar
 const createStudent = (id: string, name: string, grade: string, manualEmail?: string): Student => {

@@ -22,7 +22,7 @@ import {
   LogIn
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Student, Teacher, SystemSettings, FeedbackSubmission, UserRole } from '../types';
+import { Student, Teacher, SystemSettings, FeedbackSubmission, UserRole, Subject } from '../types';
 import { 
   getAllStudents, 
   getAllStudentsFromCache,
@@ -44,6 +44,13 @@ import {
   migrateTeacherName,
   getAllFeedbackSubmissions
 } from '../services/dataService';
+import { SCHOOL_GRADES } from '../constants';
+import {
+  getEffectiveSubjectCatalog,
+  getAcademicSubjectsForCatalog,
+  getLocationSubjectsForCatalog,
+  getNominationRoutingGaps,
+} from '../utils/subjectCatalog';
 
 import { SchoolAnalytics } from './SchoolAnalytics';
 
@@ -99,6 +106,11 @@ export const AdminConsole: React.FC = () => {
   // Teacher Management State
   const [newTeacher, setNewTeacher] = useState<Partial<Teacher>>({ name: '', email: '' });
   const [isAddTeacherOpen, setIsAddTeacherOpen] = useState(false);
+  const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
+  const [assignmentDraft, setAssignmentDraft] = useState<{
+    assignedSubjects: Subject[];
+    homeroomGrades: string[];
+  }>({ assignedSubjects: [], homeroomGrades: [] });
 
   // Settings Management State
   const [newSubject, setNewSubject] = useState('');
@@ -118,8 +130,12 @@ export const AdminConsole: React.FC = () => {
         const ok = await reloadStudentsCacheFromFirestore();
         setStudents(ok ? getAllStudentsFromCache() : await getAllStudents());
       } else if (activeTab === 'TEACHERS') {
-        const data = await getAllTeachers();
+        const [data, settingsData] = await Promise.all([
+          getAllTeachers(),
+          getSystemSettings(),
+        ]);
         setTeachers(data);
+        if (settingsData) setSettings(settingsData);
       } else if (activeTab === 'SETTINGS') {
         const data = await getSystemSettings();
         setSettings(data);
@@ -431,6 +447,51 @@ export const AdminConsole: React.FC = () => {
     }
   };
 
+  const openTeacherAssignments = (teacher: Teacher) => {
+    if (!teacher.id) return;
+    setEditingTeacherId(teacher.id);
+    setAssignmentDraft({
+      assignedSubjects: teacher.assignedSubjects ?? [],
+      homeroomGrades: teacher.homeroomGrades ?? [],
+    });
+  };
+
+  const toggleDraftSubject = (subject: Subject) => {
+    setAssignmentDraft((prev) => ({
+      ...prev,
+      assignedSubjects: prev.assignedSubjects.includes(subject)
+        ? prev.assignedSubjects.filter((s) => s !== subject)
+        : [...prev.assignedSubjects, subject],
+    }));
+  };
+
+  const toggleDraftGrade = (grade: string) => {
+    setAssignmentDraft((prev) => ({
+      ...prev,
+      homeroomGrades: prev.homeroomGrades.includes(grade)
+        ? prev.homeroomGrades.filter((g) => g !== grade)
+        : [...prev.homeroomGrades, grade],
+    }));
+  };
+
+  const handleSaveTeacherAssignments = async (teacher: Teacher) => {
+    if (!teacher.id) return;
+    setLoading(true);
+    setError('');
+    const ok = await updateTeacher(teacher.id, {
+      assignedSubjects: assignmentDraft.assignedSubjects,
+      homeroomGrades: assignmentDraft.homeroomGrades,
+    });
+    setLoading(false);
+    if (ok) {
+      setSuccess(`Updated stamp request routing for ${teacher.name}.`);
+      setEditingTeacherId(null);
+      loadData();
+    } else {
+      setError('Failed to update teacher assignments.');
+    }
+  };
+
   // Settings Handlers
   const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -508,6 +569,26 @@ export const AdminConsole: React.FC = () => {
     });
     return list;
   }, [students, searchTerm, showArchivedStudents, studentSortKey, studentSortDir]);
+
+  const subjectCatalog = useMemo(
+    () => getEffectiveSubjectCatalog(settings?.subjects),
+    [settings?.subjects]
+  );
+
+  const academicSubjectsForRouting = useMemo(
+    () => getAcademicSubjectsForCatalog(subjectCatalog),
+    [subjectCatalog]
+  );
+
+  const locationSubjectsForRouting = useMemo(
+    () => getLocationSubjectsForCatalog(subjectCatalog),
+    [subjectCatalog]
+  );
+
+  const nominationRoutingGaps = useMemo(
+    () => getNominationRoutingGaps(teachers, subjectCatalog),
+    [teachers, subjectCatalog]
+  );
 
   const toggleStudentRowSelected = (id: string) => {
     setSelectedStudentIds((prev) =>
@@ -1062,6 +1143,45 @@ export const AdminConsole: React.FC = () => {
                         <Plus size={20} /> Add Teacher
                     </button>
                 </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Configure who receives stamp requests: academic subjects go to teachers listed under{' '}
+                  <strong>Subjects taught</strong>; playground, assembly, and other locations go to{' '}
+                  <strong>Homeroom years</strong>.
+                </p>
+
+                {(nominationRoutingGaps.academicWithoutTeachers.length > 0 ||
+                  nominationRoutingGaps.homeroomGradesWithoutTeachers.length > 0) && (
+                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                    <p className="font-bold mb-2 flex items-center gap-2">
+                      <AlertTriangle size={16} />
+                      Routing gaps — assign teachers below so requests reach the right inbox
+                    </p>
+                    {nominationRoutingGaps.academicWithoutTeachers.length > 0 && (
+                      <p className="mb-1">
+                        <strong>No subject teacher assigned:</strong>{' '}
+                        {nominationRoutingGaps.academicWithoutTeachers.join(', ')}
+                      </p>
+                    )}
+                    {nominationRoutingGaps.homeroomGradesWithoutTeachers.length > 0 && (
+                      <p>
+                        <strong>No homeroom teacher for year:</strong>{' '}
+                        {nominationRoutingGaps.homeroomGradesWithoutTeachers.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                  <p className="font-bold text-gray-900 mb-2">Routing coverage</p>
+                  <p className="mb-1">
+                    <strong>Academic ({academicSubjectsForRouting.length}):</strong>{' '}
+                    {academicSubjectsForRouting.join(', ')}
+                  </p>
+                  <p>
+                    <strong>Locations &amp; events ({locationSubjectsForRouting.length}):</strong>{' '}
+                    {locationSubjectsForRouting.join(', ')}
+                  </p>
+                </div>
 
                 {/* Add Teacher Form */}
                 {isAddTeacherOpen && (
@@ -1100,12 +1220,15 @@ export const AdminConsole: React.FC = () => {
                                 <th className="p-3">Name</th>
                                 <th className="p-3">Email</th>
                                 <th className="p-3">Role</th>
+                                <th className="p-3">Subjects taught</th>
+                                <th className="p-3">Homeroom years</th>
                                 <th className="p-3 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {teachers.map(teacher => (
-                                <tr key={teacher.id || teacher.email} className="border-b hover:bg-gray-50">
+                                <React.Fragment key={teacher.id || teacher.email}>
+                                <tr className="border-b hover:bg-gray-50">
                                     <td className="p-3 font-medium text-emerald-900">{teacher.name}</td>
                                     <td className="p-3 text-gray-600">{teacher.email}</td>
                                     <td className="p-3">
@@ -1121,20 +1244,102 @@ export const AdminConsole: React.FC = () => {
                                             <option value="ADMIN">ADMIN</option>
                                         </select>
                                     </td>
+                                    <td className="p-3 text-sm text-gray-700 max-w-[12rem]">
+                                      {teacher.assignedSubjects?.length
+                                        ? teacher.assignedSubjects.join(', ')
+                                        : <span className="text-gray-400">None</span>}
+                                    </td>
+                                    <td className="p-3 text-sm text-gray-700">
+                                      {teacher.homeroomGrades?.length
+                                        ? teacher.homeroomGrades.join(', ')
+                                        : <span className="text-gray-400">None</span>}
+                                    </td>
                                     <td className="p-3 text-right">
-                                        <button 
-                                            onClick={() => teacher.id && handleRemoveTeacher(teacher.id)} 
-                                            className="text-red-600 hover:bg-red-50 p-1 rounded" 
-                                            title="Remove Access"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
+                                        <div className="flex justify-end gap-1">
+                                          <button
+                                            onClick={() => openTeacherAssignments(teacher)}
+                                            className="text-emerald-700 hover:bg-emerald-50 p-1 rounded"
+                                            title="Edit stamp request routing"
+                                          >
+                                            <Edit2 size={18} />
+                                          </button>
+                                          <button 
+                                              onClick={() => teacher.id && handleRemoveTeacher(teacher.id)} 
+                                              className="text-red-600 hover:bg-red-50 p-1 rounded" 
+                                              title="Remove Access"
+                                          >
+                                              <Trash2 size={18} />
+                                          </button>
+                                        </div>
                                     </td>
                                 </tr>
+                                {editingTeacherId === teacher.id && (
+                                  <tr className="bg-emerald-50/50 border-b">
+                                    <td colSpan={6} className="p-4">
+                                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <div>
+                                          <h4 className="font-bold text-emerald-900 mb-2">Subjects taught</h4>
+                                          <p className="text-xs text-gray-600 mb-2">Academic stamp requests for these subjects.</p>
+                                          <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                                            {academicSubjectsForRouting.map((subject) => (
+                                              <label
+                                                key={subject}
+                                                className="inline-flex items-center gap-1.5 text-sm bg-white border border-gray-200 rounded-lg px-2 py-1 cursor-pointer"
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  checked={assignmentDraft.assignedSubjects.includes(subject)}
+                                                  onChange={() => toggleDraftSubject(subject)}
+                                                />
+                                                {subject}
+                                              </label>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <h4 className="font-bold text-emerald-900 mb-2">Homeroom years</h4>
+                                          <p className="text-xs text-gray-600 mb-2">Location/event requests for students in these years.</p>
+                                          <div className="flex flex-wrap gap-2">
+                                            {SCHOOL_GRADES.map((grade) => (
+                                              <label
+                                                key={grade}
+                                                className="inline-flex items-center gap-1.5 text-sm bg-white border border-gray-200 rounded-lg px-2 py-1 cursor-pointer"
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  checked={assignmentDraft.homeroomGrades.includes(grade)}
+                                                  onChange={() => toggleDraftGrade(grade)}
+                                                />
+                                                {grade}
+                                              </label>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex gap-2 mt-4">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSaveTeacherAssignments(teacher)}
+                                          className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-emerald-700"
+                                        >
+                                          <Save size={16} /> Save routing
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingTeacherId(null)}
+                                          className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                                </React.Fragment>
                             ))}
                             {teachers.length === 0 && (
                                 <tr>
-                                    <td colSpan={4} className="p-8 text-center text-gray-500">
+                                    <td colSpan={6} className="p-8 text-center text-gray-500">
                                         No teachers found.
                                     </td>
                                 </tr>
