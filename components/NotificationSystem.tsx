@@ -15,7 +15,8 @@ import {
   subscribeToValueReflections,
   subscribeToGoalCheckIns,
 } from '../services/dataService';
-import { computeEngagementStats } from '../services/studentEngagement';
+import { computeEngagementStats, mergeTypingEngagement } from '../services/studentEngagement';
+import { subscribeToTypingEngagement } from '../services/typingGame';
 import type { DailyIntention, ValueReflection, GoalCheckIn, StudentEngagementStats } from '../types';
 import { enqueueAchievementEmailNotification } from '../services/emailNotificationService';
 import { Signature, PlannerItem, AchievementDefinition } from '../types';
@@ -269,10 +270,20 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
     totalReflectionWords: 0,
     coreValuesReflected: 0,
     goalCheckInCount: 0,
+    typingHasScore: false,
+    typingBestAdjustedWpm: 0,
+    typingBestAccuracy: 0,
+    typingStoriesCompleted: 0,
   });
   const intentionsRef = useRef<DailyIntention[]>([]);
   const reflectionsRef = useRef<ValueReflection[]>([]);
   const checkInsRef = useRef<GoalCheckIn[]>([]);
+  const typingStatsRef = useRef({
+    typingHasScore: false,
+    typingBestAdjustedWpm: 0,
+    typingBestAccuracy: 0,
+    typingStoriesCompleted: 0,
+  });
   const lastLoginRef = useRef<number | undefined>(undefined);
   const isInitialLoad = useRef(true);
   const hasCheckedWelcomeBack = useRef(false);
@@ -315,10 +326,13 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
   }, [studentId]);
 
   const refreshEngagementStats = () => {
-    engagementStatsRef.current = computeEngagementStats(
-      intentionsRef.current,
-      reflectionsRef.current,
-      checkInsRef.current
+    engagementStatsRef.current = mergeTypingEngagement(
+      computeEngagementStats(
+        intentionsRef.current,
+        reflectionsRef.current,
+        checkInsRef.current
+      ),
+      typingStatsRef.current
     );
   };
 
@@ -384,6 +398,16 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
         totalReflectionWords: 0,
         coreValuesReflected: 0,
         goalCheckInCount: 0,
+        typingHasScore: false,
+        typingBestAdjustedWpm: 0,
+        typingBestAccuracy: 0,
+        typingStoriesCompleted: 0,
+      };
+      typingStatsRef.current = {
+        typingHasScore: false,
+        typingBestAdjustedWpm: 0,
+        typingBestAccuracy: 0,
+        typingStoriesCompleted: 0,
       };
       isInitialLoad.current = true;
       hasCheckedWelcomeBack.current = false;
@@ -513,6 +537,14 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
       }
     });
 
+    const unsubTyping = subscribeToTypingEngagement(studentId, (snapshot) => {
+      typingStatsRef.current = snapshot;
+      refreshEngagementStats();
+      if (!isInitialLoad.current) {
+        runEngagementAchievementCheck();
+      }
+    });
+
     return () => {
       unsubSig();
       unsubPlanner();
@@ -520,6 +552,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
       unsubIntentions();
       unsubReflections();
       unsubCheckIns();
+      unsubTyping();
     };
   }, [studentId, loadingProfile, addNotification]);
 

@@ -23,6 +23,7 @@
 - **`PlannerItem`**: Represents a task or event in the student planner. Contains `studentId`, `title`, `dueDate` (timestamp), `category` (TASK, HOMEWORK, ASSIGNMENT), and `isCompleted`.
 - **`DailyIntention`**: Private one-per-day note (`dateKey` `YYYY-MM-DD`, `text` max 280 chars, optional `coreValue` / `subValue`, `ownerEmail`, `createdAt`, `updatedAt`). Doc id `{studentId}_{dateKey}` (sanitized). **Writes only for today’s `dateKey`** ([`upsertDailyIntention`](../services/dataService.ts)).
 - **`ValueReflection`**: Private Values Lab entry (`ownerEmail`, `coreValue`, `subValue`, `text` max 2000, `wordCount`, `createdAt`). Created via `addDoc`; no client update/delete.
+- **`TypingPassage`**, **`TypingScore`**, **`TypingRunResult`**, **`TypingRace`**, **`TypingRaceParticipant`**, **`TypingLeaderboardEntry`**: Speed Type game types in [`types.ts`](../types.ts). Passage content in [`data/typingPassages.ts`](../data/typingPassages.ts); logic in [`services/typingGame.ts`](../services/typingGame.ts).
 - **`GoalCheckIn`**: Private fortnightly progress note (`goalId`, `ownerEmail`, `periodKey` e.g. `2026-T1-F3`, `progressText` max 500, `createdAt`, `updatedAt`). One per goal per period.
 - **`StudentEngagementStats`**: Client-computed counts for achievement progress (not stored).
 
@@ -66,7 +67,8 @@ The notification system is designed to be unobtrusive yet celebratory.
     - Hardcoded secrets have been removed from the codebase.
     - Fallback mechanism handles browser "Popup Blocked" scenarios gracefully.
 - **Domain Locking**: Only emails ending in `@sathyasai.nsw.edu.au` are permitted.
-- **Role resolution** ([`App.tsx`](../App.tsx)): After `initializeData()` loads the student/teacher caches, order is: **super-admin bootstrap email** → **match in `teachers`** → otherwise treat as **student path**. **Teachers and admins** are added via **Admin Console → Teachers** (`addTeacher`); **`updateTeacher`** updates fields such as **`role`** (`TEACHER` | `ADMIN`) from the Teachers tab dropdown. First login does **not** auto-create a teacher document. Seeding uses each row’s **`role`** from [`constants.ts`](../constants.ts) `TEACHERS` (no longer overridden to TEACHER except where the constant says so).
+- **Role resolution** ([`App.tsx`](../App.tsx)): After `initializeData()` loads the student/teacher caches, order is: **super-admin bootstrap email** → **match in `teachers`** → otherwise treat as **student path**. **Teachers and admins** keep `userRole` `TEACHER` / `ADMIN` but also receive a linked **`students/{id}`** participation profile via [`ensureStaffParticipationStudent`](../services/dataService.ts) (`grade: "Staff"`, same email) so they can use **Values Lab**, **My Planner**, game scores, and achievements. **`studentId`** is set for staff when that profile exists. **Students** are identified by email in `students` as before.
+- **Staff avatars**: Settings → **Avatar** ([`AvatarSettingsSection`](../components/AvatarSettingsSection.tsx)) uses the linked staff `studentId`. Staff profiles skip stamp unlock gates in [`AvatarEditor`](../components/AvatarEditor.tsx) so teachers/admins can customize their leaderboard avatar immediately; saved `avatar` / `avatarConfig` appear on quiz and typing leaderboards via [`LeaderboardFace`](../components/leaderboard/LeaderboardFace.tsx).
 - **Student login**: `getStudentByEmail` returns a record only if it exists and **`archived` is not true**. If no match, the app **auto-provisions** a new `students` document (default grade, avatar) so unknown school emails can still use the student app unless blocked below.
 - **Archived students**: `isArchivedStudentEmail` detects a matching student document with `archived: true`. Those users see an **Account archived** full-screen message and cannot open student routes; this avoids treating them as “new” and creating a duplicate student row.
 - **No In-App Password Change**: With Microsoft 365 login, credential management is handled by the identity provider. The Change Password UI has been removed.
@@ -83,12 +85,23 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Optimistic UI**: While not strictly "optimistic" (since we wait for the server push), the latency is low enough (~100ms) that it feels instant.
 - **Stamp History**: Clicking a cell opens a modal that filters the local signatures state by `subject` and `value`. This avoids an additional network request.
 
-### Leaderboard, School highlights, and Wall of Fame
-- **Nav**: In [`App.tsx`](../App.tsx), the link label is **School** (Building icon) for **students** and **Students** (Bar chart icon) for **teachers and admins**; both target **`/leaderboard`**. The nested route [`Leaderboard.tsx`](../components/Leaderboard.tsx) passes **`studentId`** to **`SchoolHighlights`**, **`YearGroupStandings`**, and **`StudentQuizLeaderboard`** when the user is a **STUDENT**.
-- **File map (leaderboard folder)**: `Leaderboard.tsx` (routes) · `LeaderboardLayout.tsx` (tabs + chrome) · `SchoolHighlights.tsx` · `GoodNewsFeedList.tsx` · `YearLevelSnapshotCard.tsx` · `YearGroupStandings.tsx` · `StudentQuizLeaderboard.tsx` · `StudentLeaderboard.tsx` (staff WOF) · `LeaderboardShared.tsx` (filter cards, `getLeaderboardMetricUnit` — `POP_QUIZ` → **pts**, others as documented).
+### Speed Type (Values Lab)
+- **Location**: **Values Lab** → **Speed Type** tab ([`ValuesLearning.tsx`](../components/ValuesLearning.tsx) → [`ValuesTypingGame.tsx`](../components/typing/ValuesTypingGame.tsx)).
+- **Modes**: **Solo practice** (passage picked per student + fortnight via hash) and **live races** (minute-aligned rooms — join lobby, countdown, same passage for all racers).
+- **Scoring**: WPM = `(correctChars / 5) / minutes`; **adjusted WPM** = `WPM × (accuracy / 100)` — used for fortnight leaderboard ranking.
+- **Passages**: Three variants per school fortnight (`periodKey` e.g. `2026-T1-F2`), themed to values integration; evergreen fallback outside term. Races rotate variant by `raceId % 3`.
+- **Anti-cheat (client)**: Paste/drop blocked; sequential character entry; keystroke timeline; wrong keys count as errors without advancing. **Server**: Cloud Function [`validateTypingScore`](../functions/src/typingScoreValidation.ts) removes `typing_scores` docs that fail bounds checks (WPM ≤ 180, consistent adjusted WPM, etc.).
+- **Firestore**: `typing_scores/{studentId}` (best adjusted WPM per fortnight); `typing_races/{raceId}` + `participants/{studentId}` (live race state). Rules in [`firestore.rules`](../firestore.rules); composite index on `typing_scores` (`periodKey` + `adjustedWpm`) in [`firestore.indexes.json`](../firestore.indexes.json).
+- **Leaderboard**: Students → **School** → **Typing** tab (`#/leaderboard/typing`) via [`StudentTypingLeaderboard.tsx`](../components/leaderboard/StudentTypingLeaderboard.tsx); [`fetchTypingLeaderboard()`](../services/typingGame.ts).
 
-- **Layout** ([`LeaderboardLayout.tsx`](../components/leaderboard/LeaderboardLayout.tsx)): **Students** get tab-specific titles/subtitles (highlights, year groups, or **Quiz**). **Staff** see **Wall of Fame** and **TEACHER VIEW** badge. Tabs: **Highlights** / **Year groups** / **Quiz** (students) or **Students** / **Year groups** (staff; quiz is inside **Students** filters, not a separate tab).
-- **Student quiz leaderboard** (`#/leaderboard/quiz`, students only; staff are redirected to `#/leaderboard`): [`StudentQuizLeaderboard.tsx`](../components/leaderboard/StudentQuizLeaderboard.tsx) — [`fetchLeaderboardData('POP_QUIZ')`](../services/dataService.ts) (high score from `quiz_scores` / `LeaderboardEntry.quizScore`), podium + **Honorable-mentions**-style list with search and year filter; same **pts** label as in [`getLeaderboardMetricUnit`](../components/leaderboard/LeaderboardShared.tsx) for `POP_QUIZ`. The logged-in student’s row is **highlighted** when `studentId` matches.
+### Leaderboard, School highlights, and Wall of Fame
+- **Nav**: In [`App.tsx`](../App.tsx), the link label is **School** (Building icon) for **students** and **Students** (Bar chart icon) for **teachers and admins**; both target **`/leaderboard`**. The nested route [`Leaderboard.tsx`](../components/Leaderboard.tsx) passes **`studentId`** to leaderboard views when the user has a participation profile (students and staff).
+- **Staff participation**: Teachers/admins with a **Staff** profile see **Values Lab** and **My Planner** in the header ([`App.tsx`](../App.tsx)). Quiz and typing leaderboards include a **Staff** year filter ([`StudentQuizLeaderboard.tsx`](../components/leaderboard/StudentQuizLeaderboard.tsx), [`StudentTypingLeaderboard.tsx`](../components/leaderboard/StudentTypingLeaderboard.tsx)). **`STAFF_PARTICIPANT_GRADE`** (`"Staff"`) in [`dataService.ts`](../services/dataService.ts). Staff are **excluded** from year-group cohort maths ([`buildYearGroupLeaderboard`](../services/dataService.ts), [`getSchoolHighlightsPageData`](../services/dataService.ts)).
+- **File map (leaderboard folder)**: `Leaderboard.tsx` (routes) · `LeaderboardLayout.tsx` (tabs + chrome) · `SchoolHighlights.tsx` · `GoodNewsFeedList.tsx` · `YearLevelSnapshotCard.tsx` · `YearGroupStandings.tsx` · `StudentQuizLeaderboard.tsx` · `StudentTypingLeaderboard.tsx` · `StudentLeaderboard.tsx` (staff WOF) · `LeaderboardShared.tsx` (filter cards, `getLeaderboardMetricUnit` — `POP_QUIZ` → **pts**, others as documented).
+
+- **Layout** ([`LeaderboardLayout.tsx`](../components/leaderboard/LeaderboardLayout.tsx)): **Students** get tab-specific titles/subtitles (highlights, year groups, **Quiz**, or **Typing**). **Staff** see **Wall of Fame** on the index tab; **Quiz** / **Typing** tabs show the same student-facing titles when selected. Tabs: **Highlights** / **Students** (staff index) · **Year groups** · **Quiz** · **Typing** (all roles).
+- **Student quiz leaderboard** (`#/leaderboard/quiz`): [`StudentQuizLeaderboard.tsx`](../components/leaderboard/StudentQuizLeaderboard.tsx) — [`fetchLeaderboardData('POP_QUIZ')`](../services/dataService.ts); podium + list with search and year filter (**All years**, **Year 7–12**, **Staff**). Logged-in user row highlighted when `studentId` matches.
+- **Student typing leaderboard** (`#/leaderboard/typing`): [`StudentTypingLeaderboard.tsx`](../components/leaderboard/StudentTypingLeaderboard.tsx) — [`fetchTypingLeaderboard()`](../services/typingGame.ts); ranked by **adjusted WPM**; same filters including **Staff**.
 
 - **Student index route** (`#/leaderboard`): **Not** the individual Wall of Fame. [`SchoolHighlights.tsx`](../components/leaderboard/SchoolHighlights.tsx) calls **`getSchoolHighlightsPageData(studentId)`** ([`dataService`](../services/dataService.ts)) — one read of `getAllSignatures` + `getAllClaimedRewards` and roster reload.
   - **Snapshot boards**: Two cards via [`YearLevelSnapshotCard`](../components/leaderboard/YearLevelSnapshotCard.tsx) — **my year** (violet border) when the student’s grade normalises to `Year 7`–`Year 12`, and **Whole school** (blue border). Each card shows the **grade label**, optional **all-time shared stamps total** for that scope (not “on roll” headcount), and **milestone** bullet lines from `milestoneLines` (7-day and cohort story copy). Styling is **larger, higher-contrast type** for titles, stamp line, bullets, and bold numerals. There is no separate “Your year and whole school” page title, no **Each year level** grid on this page, and no 7-day stamp/claim **stat boxes** on these cards.
@@ -101,7 +114,7 @@ The notification system is designed to be unobtrusive yet celebratory.
 
 - **Rank display** (staff Wall of Fame only): Table rank reflects the **current filter** (e.g. a value or year), not a single global position.
 
-- **Podium + list**: **Staff** Wall of Fame ([`StudentLeaderboard.tsx`](../components/leaderboard/StudentLeaderboard.tsx)): top 3, then list from rank 4. **Students** on **Quiz** ([`StudentQuizLeaderboard.tsx`](../components/leaderboard/StudentQuizLeaderboard.tsx)): same pattern for quiz scores only.
+- **Podium + list**: **Staff** Wall of Fame ([`StudentLeaderboard.tsx`](../components/leaderboard/StudentLeaderboard.tsx)): top 3, then list from rank 4. **Students** on **Quiz** ([`StudentQuizLeaderboard.tsx`](../components/leaderboard/StudentQuizLeaderboard.tsx)) or **Typing** ([`StudentTypingLeaderboard.tsx`](../components/leaderboard/StudentTypingLeaderboard.tsx)): same pattern for quiz scores or adjusted WPM respectively.
 
 - **Visibility**: Student **School** view has no per-student Wall of Fame. **Archived** / **excluded** students: see [`fetchLeaderboardData`](../services/dataService.ts) and **`isStudentShownOnLeaderboard`**; **`reloadStudentsCacheFromFirestore`** before fetch; `initializeData` loads students from Firestore.
 
@@ -147,11 +160,30 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Stamps**: Sub-value labels on the calendar are **not** auto-applied to the award form; align dropdown sub-values in `constants.ts` separately if you want exact matches.
 
 ### Passport Subjects & Locations
-- **Locations and Events**: Homeroom, Study Period, Library, Playground, Sport, Excursions, Assembly, Sports Carnivals, **Camp** (stamp requests route to homeroom teachers by student year). **EHV** is an academic subject.
-- **Academic Subjects**: Maths, English, Science, etc. Defined in `constants.ts` (`SUBJECTS`). `StudentPassport` splits these via `LOCATION_SUBJECTS` vs `ACADEMIC_SUBJECTS`.
+Catalog is defined in [`constants.ts`](../constants.ts) as **`ACADEMIC_SUBJECTS`** + **`LOCATION_SUBJECTS`** (combined into **`SUBJECTS`**). A startup check ensures every subject is in exactly one bucket.
+
+- **Academic subjects** (stamp requests → **`assignedSubjects`** teachers, school-wide): English, Math, Science, Art, Music, Japanese, History, Geography, Technology, PDHPE, EHV, Electives.
+- **Locations and events** (stamp requests → **`homeroomGrades`** teachers for the nominee’s year): Homeroom, Study Period, Library, Playground, Sport, Excursions, Assembly, Sports Carnivals, Camp.
+- **UI:** [`StudentPassport.tsx`](../components/StudentPassport.tsx) and the student **Request Stamp** modal use these lists (grouped optgroups on the dashboard). [`utils/subjectCatalog.ts`](../utils/subjectCatalog.ts) merges Admin **Settings** subjects for gap detection.
+
+### Stamp requests (nominations)
+Students submit via **Request Stamp** on [`Dashboard.tsx`](../components/Dashboard.tsx) (SELF or PEER, subject, value, sub-value, reason).
+
+| Rule | Detail |
+|------|--------|
+| **Rate limits** | One **SELF** request per nominator per calendar week (Mon start); one **PEER** request per nominator per calendar day. All statuses count. Enforced in [`addNomination`](../services/dataService.ts). |
+| **Academic routing** | Teachers with that subject in `assignedSubjects`. |
+| **Location routing** | Teachers with the **nominee’s** grade in `homeroomGrades`. |
+| **Fallback** | If no match, all staff emails are stored on `reviewerEmails`. |
+| **Teacher inbox** | [`getPendingNominations`](../services/dataService.ts) filters by `reviewerEmails` (indexed query + legacy fallback). |
+| **Admin inbox** | [`TeacherConsole`](../components/TeacherConsole.tsx) receives `viewerRole` from [`App.tsx`](../App.tsx); admins see **all** pending requests. |
+| **Admin setup** | **Teachers** tab: edit **Subjects taught** / **Homeroom years**; **Routing coverage** and amber **Routing gaps** panels. Logic: [`nominationRouting.ts`](../services/nominationRouting.ts), [`subjectCatalog.ts`](../utils/subjectCatalog.ts). |
+| **Weekly digest** | [`digestWeekly.ts`](../functions/src/digestWeekly.ts) counts pending requests for each teacher’s queue (admins: all pending). |
+
+**Firestore index** (production): `nominations` — `status` ASC + `reviewerEmails` ARRAY CONTAINS — in [`firestore.indexes.json`](../firestore.indexes.json). Deploy with `firebase deploy --only firestore:indexes`.
 
 ### Student engagement achievements
-- **CUSTOM** ids (private practice, not stamps): `intention-first`, `intention-5`, `intention-10`, `intention-25`, `intention-50`; `reflection-first`, `reflection-5`, `reflection-10`, `reflection-25`, `reflection-words-250`, `reflection-words-1000`, `reflection-five-values`; `goal-checkin-first`, `goal-checkin-5`, `goal-checkin-10`.
+- **CUSTOM** ids (private practice, not stamps): `intention-first`, `intention-5`, `intention-10`, `intention-25`, `intention-50`; `reflection-first`, `reflection-5`, `reflection-10`, `reflection-25`, `reflection-words-250`, `reflection-words-1000`, `reflection-five-values`; `goal-checkin-first`, `goal-checkin-5`, `goal-checkin-10`; **Speed Type**: `typing-first`, `typing-wpm-20`, `typing-wpm-35`, `typing-wpm-50`, `typing-accuracy-95`, `typing-perfect`, `typing-stories-3` (from `typing_scores` + `typing_progress.storiesCompleted` this fortnight).
 - **Sub-value collectors** (stamps, IMPOSSIBLE): `subvalues-truth`, `subvalues-love`, `subvalues-peace`, `subvalues-right-conduct`, `subvalues-non-violence` — unlock when the student has at least one stamp in that core value for **each** catalog sub-value in `CORE_VALUES` (case-insensitive tag match on `signature.subValue`). Progress shows `covered / total` (e.g. 12/21 Truth sub-values). Logic: [`countStampedSubValuesForCoreValue`](../services/studentEngagement.ts).
 - **Fortnight key**: `{year}-T{termId}-F{ceil(weekInTerm/2)}` via [`getFortnightPeriodKey`](../services/studentEngagement.ts).
 - **Reset progress**: `resetStudentProgress` / `resetAllProgress` delete all three engagement collections for affected students.
@@ -199,7 +231,7 @@ The notification system is designed to be unobtrusive yet celebratory.
 - **Engagement collections** (`daily_intentions`, `value_reflections`, `goal_check_ins`): Student-only read/write via `ownerEmail` and/or `isOwnStudentData(studentId)`. Field validators (`validDailyIntentionData`, etc.) enforce sizes and required keys. **`authEmailLower()`** supports Microsoft tokens where email is on `preferred_username`.
 - **General (stamps, planner, goals, etc.)**: Authenticated read/write as documented in [`firestore.rules`](../firestore.rules); teachers award stamps; students write planner/goals.
 - **Email / digest collections**: Client create rules for queues/preferences; server-only sent/digest collections denied to clients.
-- **Deploy**: After rule or index changes, run `firebase deploy --only firestore:rules,firestore:indexes` before testing saves in production.
+- **Deploy**: After rule or index changes, run `firebase deploy --only firestore:rules,firestore:indexes` before testing in production. Current composite indexes include `signatures` (studentId + timestamp), engagement collections (studentId + ownerEmail), and **`nominations` (status + reviewerEmails)** for the teacher Review Requests inbox.
 
 ## Deployment
 - The app is configured for deployment on **Vercel** or **Firebase Hosting**.

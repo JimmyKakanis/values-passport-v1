@@ -16,7 +16,9 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - When the device date is in **2026** and a school integration theme applies, students may see a **This week at school** card aligned with the college’s printed values-integration calendar.
 - **Daily intention** (private): set one intention **per calendar day** with optional core value and sub-value. **Edit on the dashboard** (`DailyIntentionCard`) or **Planner** sidebar when **today** is selected. **Past days** are view-only; **future days** cannot be set ahead of time. Amber dots on the planner mark days that have an intention.
 - **Stamp history**: full-width **Stamp history** below the passport lists all stamps and teacher comments, newest first (replaces the old five-item sidebar widget).
+- **Request Stamp:** Self-nomination (one per week) or friend nomination (one per day). Requests route to the right teacher inbox — academic subjects to subject teachers, locations/events to homeroom teachers for the student’s year (see **Teacher Console** below).
 - **Values Lab reflections** (private): save reflections in Values Explorer; unlock practice-based achievements (counts and word totals).
+- **Values Lab Speed Type**: solo typing practice and live minute-aligned races; fortnight high scores on **`#/leaderboard/typing`** (adjusted WPM).
 - **Fortnightly goal check-ins** (private): in **Planner → My Goals**, note progress each school fortnight (term weeks 1–2, 3–4, …).
 
 ### 🌟 Real-Time Gamification
@@ -26,16 +28,16 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **Welcome Back Summaries:** If a student is offline, the app summarizes what they earned while away upon their next login.
 
 ### 📚 Student Portal
-- **My Passport:** A visual grid showing mastery levels across Academic Subjects and Locations & Events (including Camp, Excursions, Sports Carnivals). Click any cell to see stamps for that cell, or use **Stamp history** on the dashboard for a single chronological feed of everything.
+- **My Passport:** A visual grid showing mastery levels across **Academic Subjects** and **Locations & Events**. Locations include Homeroom, Study Period, Library, Playground, Sport, Excursions, Assembly, Sports Carnivals, and Camp. Click any cell to see stamps for that cell, or use **Stamp history** on the dashboard for a single chronological feed of everything.
 - **My Goals:** A goal-setting area where students can create and track Yearly, Subject-specific, and Personal Life goals.
-- **Values Lab:** A learning hub with definitions, sub-values, and resources.
-- **Leaderboard / School:** **Students** — **`#/leaderboard`** (**School highlights**), **`#/leaderboard/year-groups`** (**Year group standings**; podium + your-year stamp), **`#/leaderboard/quiz`** (**Quiz leaderboard**; pop-quiz high scores, search/year filters, your row highlighted). **Teachers/admins** — header nav **Students** → **`#/leaderboard`** (**Wall of Fame**; includes **Quiz** as a sort mode; no separate quiz tab). Roster is refreshed from Firestore when the leaderboard loads. Optional **hide from leaderboard only** for test accounts (`excludeFromLeaderboard` or `LEADERBOARD_HIDDEN_STUDENT_EMAILS` in `constants.ts`). See `docs/technical.md` for details.
+- **Values Lab:** A learning hub with definitions, sub-values, resources, Pop Quiz, and **Speed Type** (solo + live races).
+- **Leaderboard / School:** **Students** — **`#/leaderboard`** (**School highlights**), **`#/leaderboard/year-groups`** (**Year group standings**; podium + your-year stamp), **`#/leaderboard/quiz`** (**Quiz leaderboard**; pop-quiz high scores, search/year filters, your row highlighted), **`#/leaderboard/typing`** (**Typing leaderboard**; fortnight adjusted WPM from Speed Type). **Teachers/admins** — header nav **Students** → **`#/leaderboard`** (**Wall of Fame**; includes **Quiz** as a sort mode; no separate quiz/typing tabs). Roster is refreshed from Firestore when the leaderboard loads. Optional **hide from leaderboard only** for test accounts (`excludeFromLeaderboard` or `LEADERBOARD_HIDDEN_STUDENT_EMAILS` in `constants.ts`). See `docs/technical.md` for details.
 
 ### 👨‍🏫 Teacher Console
 - **Quick Awarding:** Award stamps to individual students or bulk groups in seconds.
 - **Student attention:** A staff-only “fair recognition” view: who is due for a stamp, 7d peer context, and subject/value gaps, with a switch between whole school (capped) and one year at a time. Links open each student’s **Values Passport**; **Award** can jump over with a prefilled form when gaps suggest it. (See `docs/technical.md`.)
 - **Activity Feed:** View all recent stamps or filter to "My Activity" (stamps you awarded). Teacher avatars show initials (e.g., JK).
-- **Nomination Review:** Approve or reject self/peer nominations from students.
+- **Nomination Review:** Approve or reject student **Request Stamp** submissions. Teachers see only requests routed to them; **admins** see the full school queue. Routing: academic subjects → teachers with that subject assigned; locations/events → homeroom teachers for the nominee’s year (configured in Admin Console → Teachers).
 - **Teacher Corner:** A dedicated professional development section with:
   - **Scenario Simulator:** Practise handling classroom situations.
   - **Value Deep Dives:** Resources and discussion prompts.
@@ -44,7 +46,8 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ### Admin Console
 - **Student directory:** Search, sort (grade, name, or last login), **Last login** column with relative timestamps, bulk or single **Archive** / **Restore**, parent fields for weekly digests, reset progress, and permanent delete when required.
-- **Teachers & subjects:** Authorize staff and maintain the subject list used on stamps.
+- **Teachers & routing:** Authorize staff; set **role** (`TEACHER` | `ADMIN`); assign **Subjects taught** (academic stamp requests) and **Homeroom years** (location/event requests). The Teachers tab shows **routing coverage** and warns about subjects or year levels with no assigned teacher.
+- **Subjects list:** Maintain the dynamic subject list used on stamp forms (in addition to the built-in catalog in `constants.ts`).
 
 ## Getting Started
 
@@ -76,7 +79,8 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ## Project Structure
 - `components/`: React UI components (Dashboard, Passport, Console, Notifications, Settings, etc.)
-- `services/`: Data handling and Firebase integration (`dataService.ts`), **`emailNotificationService.ts`** (preferences + achievement email queue), **`teacherEngagement.ts`** (teacher-only metrics, copy, and badges), **`studentAttention.ts`** (teacher “student attention” dashboard metrics; no extra backend), **`avatarUrl.ts`** (safe DiceBear URLs and fallbacks for leaderboard faces).
+- `services/`: Data handling and Firebase integration (`dataService.ts`), **`nominationRouting.ts`** (stamp request routing), **`emailNotificationService.ts`** (preferences + achievement email queue), **`teacherEngagement.ts`** (teacher-only metrics, copy, and badges), **`studentAttention.ts`** (teacher “student attention” dashboard metrics; no extra backend), **`avatarUrl.ts`** (safe DiceBear URLs and fallbacks for leaderboard faces).
+- `utils/subjectCatalog.ts`: Subject partition helpers and Admin **routing gap** detection.
 - `functions/`: **Firebase Cloud Functions** (weekly digests, achievement email worker, Microsoft Graph). Built separately from the SPA; excluded from root `tsc`—see `docs/technical.md`.
 - `schoolCalendar.ts`: Shared term dates and helpers (planner week index vs **integration** week index for the 2026 calendar).
 - `valuesIntegrationCalendar2026.ts`: Whole-school integration themes by term week (2026).
@@ -85,10 +89,12 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ## Build & deploy (quick)
 - **Frontend (Vercel / static host):** `npm install` then `npm run build` → `dist/`.
-- **Firestore (engagement + rules):** After changing `firestore.rules` or `firestore.indexes.json`, deploy with  
-  `firebase deploy --only firestore:rules,firestore:indexes`  
-  (required for daily intentions, reflections, and goal check-ins to save in production).
-- **Functions:** `cd functions && npm install && npm run build`; deploy with Firebase CLI as needed.
+- **Firestore (rules + indexes):** After changing `firestore.rules` or `firestore.indexes.json`, deploy from the repo root:
+  ```bash
+  firebase deploy --only firestore:rules,firestore:indexes
+  ```
+  Required for: daily intentions, reflections, goal check-ins; **teacher stamp-request inbox** (composite index on `nominations`: `status` + `reviewerEmails`). Indexes may show **Building** in the Firebase Console for a few minutes after deploy; the app falls back to client-side filtering until **Enabled**.
+- **Functions:** `cd functions && npm install && npm run build`; deploy with `firebase deploy --only functions` when digest or email worker code changes.
 
 ## Technologies
 - **Frontend:** React, TypeScript, Tailwind CSS, Vite

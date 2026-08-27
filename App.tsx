@@ -21,6 +21,7 @@ import {
   initializeData,
   addStudent,
   isArchivedStudentEmail,
+  ensureStaffParticipationStudent,
 } from './services/dataService';
 import { Logo } from './components/Logo';
 import { StudentDetailView } from './components/StudentDetailView';
@@ -34,9 +35,10 @@ import { SettingsPage } from './components/SettingsPage';
 // Layout Component
 const Layout: React.FC<{ 
   children: React.ReactNode, 
-  userRole: UserRole, 
+  userRole: UserRole,
+  studentId?: string | null,
   onLogout: () => void
-}> = ({ children, userRole, onLogout }) => {
+}> = ({ children, userRole, studentId, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
   const location = useLocation();
@@ -45,6 +47,9 @@ const Layout: React.FC<{
 
   const leaderboardNavActive =
     location.pathname === '/leaderboard' || location.pathname.startsWith('/leaderboard/');
+
+  const isStaff = userRole === 'TEACHER' || userRole === 'ADMIN';
+  const staffCanParticipate = isStaff && !!studentId;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans relative">
@@ -105,6 +110,16 @@ const Layout: React.FC<{
 
               {(userRole === 'TEACHER' || userRole === 'ADMIN') && (
                 <>
+                  {staffCanParticipate && (
+                    <>
+                      <Link to="/learning" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/learning')}`}>
+                        <BrainCircuit size={18} /> Values Lab
+                      </Link>
+                      <Link to="/planner" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/planner')}`}>
+                        <Calendar size={18} /> My Planner
+                      </Link>
+                    </>
+                  )}
                   <Link to="/values-development" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/values-development')}`}>
                     <BrainCircuit size={18} /> Values Development
                   </Link>
@@ -223,6 +238,31 @@ const Layout: React.FC<{
             </Link>
             {(userRole === 'TEACHER' || userRole === 'ADMIN') && (
               <>
+                {staffCanParticipate && (
+                  <>
+                    <Link
+                      to="/learning"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/learning')}`}
+                    >
+                      <BrainCircuit size={20} /> Values Lab
+                    </Link>
+                    <Link
+                      to="/planner"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/planner')}`}
+                    >
+                      <Calendar size={20} /> My Planner
+                    </Link>
+                  </>
+                )}
+                <Link
+                  to="/values-development"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/values-development')}`}
+                >
+                  <BrainCircuit size={20} /> Values Development
+                </Link>
                 <Link 
                   to="/teacher" 
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -353,12 +393,19 @@ const App: React.FC = () => {
         if (currentUser.email.toLowerCase() === 'j.kakanis@sathyasai.nsw.edu.au') {
              setArchivedStudentAccount(false);
              setUserRole('ADMIN');
-             setStudentId(null);
+             const participation = await ensureStaffParticipationStudent({
+               name: currentUser.displayName || 'Admin',
+               email: currentUser.email,
+             });
+             setStudentId(participation?.id ?? null);
         } else if (teacher) {
-             // Known Teacher
              setArchivedStudentAccount(false);
              setUserRole(teacher.role || 'TEACHER');
-             setStudentId(null);
+             const participation = await ensureStaffParticipationStudent({
+               name: teacher.name,
+               email: teacher.email,
+             });
+             setStudentId(participation?.id ?? null);
         } else {
              // 3. Everyone else is assumed to be a STUDENT
              if (isArchivedStudentEmail(currentUser.email)) {
@@ -443,7 +490,8 @@ const App: React.FC = () => {
       <NotificationController studentId={studentId} />
       <Router>
         <Layout 
-          userRole={userRole!} 
+          userRole={userRole!}
+          studentId={studentId}
           onLogout={handleLogout}
         >
         <Routes>
@@ -462,21 +510,26 @@ const App: React.FC = () => {
                <Route path="/teacher" element={<TeacherConsole viewerRole={userRole} />} />
                <Route path="/values-development" element={<TeacherCorner />} />
                <Route path="/student/:id" element={<StudentDetailView />} />
+               {studentId && (
+                 <>
+                   <Route path="/learning" element={<ValuesLearning studentId={studentId} />} />
+                   <Route path="/planner" element={<StudentPlanner studentId={studentId} />} />
+                 </>
+               )}
                <Route path="/" element={<Navigate to="/admin" />} />
              </>
           ) : userRole === 'TEACHER' ? (
-            // TEACHER ROUTES
             <>
                <Route path="/teacher" element={<TeacherConsole viewerRole={userRole} />} />
-               {/* Separate route for Values Development now */}
-               <Route path="/values-development" element={<TeacherCorner />} /> 
-               {/* Redirect root to teacher console for teachers */}
+               <Route path="/values-development" element={<TeacherCorner />} />
+               {studentId && (
+                 <>
+                   <Route path="/learning" element={<ValuesLearning studentId={studentId} />} />
+                   <Route path="/planner" element={<StudentPlanner studentId={studentId} />} />
+                 </>
+               )}
                <Route path="/" element={<Navigate to="/teacher" />} />
-               
-               {/* Teacher viewing a student's details */}
                <Route path="/student/:id" element={<StudentDetailView />} />
-               
-               {/* Regular achievements route redirects to console for teachers */}
                <Route path="/achievements" element={<Navigate to="/teacher" />} />
             </>
           ) : (
@@ -486,7 +539,7 @@ const App: React.FC = () => {
           {/* Shared Route - Leaderboard needs userRole to determine behavior */}
           <Route
             path="/leaderboard/*"
-            element={<Leaderboard userRole={userRole} studentId={userRole === 'STUDENT' ? studentId : null} />}
+            element={<Leaderboard userRole={userRole} studentId={studentId} />}
           />
           <Route path="/feedback" element={<FeedbackPage userRole={userRole!} />} />
           <Route path="/email-notifications" element={<Navigate to="/settings" replace />} />
@@ -495,7 +548,7 @@ const App: React.FC = () => {
             element={
               <SettingsPage
                 preferenceRole={userRole === 'STUDENT' ? 'STUDENT' : 'TEACHER'}
-                studentId={userRole === 'STUDENT' ? studentId : null}
+                studentId={studentId}
                 userRole={userRole!}
               />
             }

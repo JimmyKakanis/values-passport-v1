@@ -13,6 +13,7 @@ import { acquireGraphAccessToken, sendMailWithGraph } from "./graphMail";
 import { escapeHtml } from "./mail";
 import { runWeeklyDigests } from "./digestWeekly";
 import { runUnseenStampsEmails } from "./unseenStampsEmail";
+import { validateTypingScore } from "./typingScoreValidation";
 
 admin.initializeApp();
 
@@ -175,3 +176,5 @@ export const sendUnseenStampsEmails = onSchedule(
     });
   }
 );
+
+export { validateTypingScore };

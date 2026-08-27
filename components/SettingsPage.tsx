@@ -8,7 +8,7 @@ import type { UserRole } from '../types';
 
 interface Props {
   preferenceRole: 'STUDENT' | 'TEACHER';
-  /** When set (signed-in student), show avatar customization. */
+  /** When set (signed-in student or linked staff profile), show avatar customization. */
   studentId?: string | null;
   userRole: UserRole;
 }
@@ -17,10 +17,9 @@ export const SettingsPage: React.FC<Props> = ({ preferenceRole, studentId, userR
   const location = useLocation();
   const feedbackAnchorRef = useRef<HTMLDivElement>(null);
 
-  const subtitle =
-    preferenceRole === 'STUDENT' && studentId
-      ? 'Account, avatar, notifications, and feedback'
-      : 'Account, notifications, and feedback';
+  const subtitle = studentId
+    ? 'Account, avatar, notifications, and feedback'
+    : 'Account, notifications, and feedback';
 
   useEffect(() => {
     const state = location.state as { focusFeedback?: boolean } | null;

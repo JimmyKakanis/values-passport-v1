@@ -268,4 +268,99 @@ export interface StudentEngagementStats {
   totalReflectionWords: number;
   coreValuesReflected: number;
   goalCheckInCount: number;
+  /** Speed Type: student has a saved fortnight score. */
+  typingHasScore: boolean;
+  /** Speed Type: best adjusted WPM this fortnight. */
+  typingBestAdjustedWpm: number;
+  /** Speed Type: best accuracy on a saved run this fortnight. */
+  typingBestAccuracy: number;
+  /** Speed Type: solo stories completed this fortnight. */
+  typingStoriesCompleted: number;
+}
+
+/** Speed typing passage (fortnightly themed content). */
+export interface TypingPassage {
+  id: string;
+  periodKey: string;
+  variantIndex: 0 | 1 | 2;
+  coreValue: CoreValue;
+  title: string;
+  text: string;
+}
+
+export interface KeystrokeLogEntry {
+  key: string;
+  at: number;
+}
+
+/** Result of a completed typing run (solo or race). */
+export interface TypingRunResult {
+  passageId: string;
+  periodKey: string;
+  wpm: number;
+  accuracy: number;
+  adjustedWpm: number;
+  durationMs: number;
+  correctCharacters: number;
+  totalTypedCharacters: number;
+  keystrokeLog: KeystrokeLogEntry[];
+  completedAt: number;
+}
+
+/** Best fortnight high score stored in Firestore. */
+export interface TypingScore {
+  studentId: string;
+  periodKey: string;
+  passageId: string;
+  wpm: number;
+  accuracy: number;
+  adjustedWpm: number;
+  durationMs: number;
+  completedAt: number;
+}
+
+export type TypingRaceStatus = 'lobby' | 'countdown' | 'active' | 'finished';
+
+export interface TypingRace {
+  raceId: string;
+  periodKey: string;
+  passageId: string;
+  status: TypingRaceStatus;
+  startsAt: number;
+  createdAt: number;
+}
+
+export type TypingRaceParticipantStatus = 'joined' | 'typing' | 'finished';
+
+export interface TypingRaceParticipant {
+  studentId: string;
+  displayName: string;
+  grade: string;
+  status: TypingRaceParticipantStatus;
+  progress: number;
+  wpm?: number;
+  accuracy?: number;
+  adjustedWpm?: number;
+  finishedAt?: number;
+  lastProgressAt?: number;
+}
+
+/** Row for the typing leaderboard UI. */
+export interface TypingLeaderboardEntry {
+  student: Student;
+  wpm: number;
+  accuracy: number;
+  adjustedWpm: number;
+  periodKey: string;
+}
+
+/** Which of the three fortnight passages a student is on (solo mode). */
+export interface TypingProgress {
+  studentId: string;
+  periodKey: string;
+  /** 0, 1, or 2 — the passage index to show next */
+  variantIndex: number;
+  /** Solo completions this fortnight (for achievements). */
+  storiesCompleted?: number;
+  updatedAt: number;
 }

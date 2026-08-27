@@ -1,11 +1,12 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { UserRole } from '../types';
 import { LeaderboardLayout } from './leaderboard/LeaderboardLayout';
 import { StudentLeaderboard } from './leaderboard/StudentLeaderboard';
 import { YearGroupStandings } from './leaderboard/YearGroupStandings';
 import { SchoolHighlights } from './leaderboard/SchoolHighlights';
 import { StudentQuizLeaderboard } from './leaderboard/StudentQuizLeaderboard';
+import { StudentTypingLeaderboard } from './leaderboard/StudentTypingLeaderboard';
 
 interface Props {
   userRole?: UserRole | null;
@@ -34,13 +35,11 @@ export const Leaderboard: React.FC<Props> = ({ userRole, studentId }) => (
       />
       <Route
         path="quiz"
-        element={
-          isStaff(userRole) ? (
-            <Navigate to="/leaderboard" replace />
-          ) : (
-            <StudentQuizLeaderboard studentId={studentId} />
-          )
-        }
+        element={<StudentQuizLeaderboard studentId={studentId} />}
+      />
+      <Route
+        path="typing"
+        element={<StudentTypingLeaderboard studentId={studentId} />}
       />
     </Route>
   </Routes>

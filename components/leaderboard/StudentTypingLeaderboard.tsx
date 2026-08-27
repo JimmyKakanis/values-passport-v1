@@ -1,20 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Loader2, Trophy, Crown, Search, X } from 'lucide-react';
-import { fetchLeaderboardData, LeaderboardEntry, getLeaderboardEntryScore, STAFF_PARTICIPANT_GRADE } from '../../services/dataService';
-import { getLeaderboardMetricUnit } from './LeaderboardShared';
+import { Loader2, Trophy, Crown, Search, X, Keyboard } from 'lucide-react';
+import { fetchTypingLeaderboard, getFortnightLabel } from '../../services/typingGame';
+import { STAFF_PARTICIPANT_GRADE } from '../../services/dataService';
+import { TypingLeaderboardEntry } from '../../types';
 import { LeaderboardFace } from './LeaderboardFace';
 
-const FILTER: 'POP_QUIZ' = 'POP_QUIZ';
-
 /**
- * Student-facing quiz high-score leaderboard (same ordering as staff “Quiz” filter).
- * No value/stamp/badges filters — quiz only.
+ * Student-facing typing high-score leaderboard (adjusted WPM for current fortnight).
  */
-export const StudentQuizLeaderboard: React.FC<{
-  /** When set, the row for this student is visually highlighted. */
+export const StudentTypingLeaderboard: React.FC<{
   studentId?: string | null;
 }> = ({ studentId }) => {
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboard, setLeaderboard] = useState<TypingLeaderboardEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<'ALL' | '7' | '8' | '9' | '10' | '11' | '12' | 'STAFF'>('ALL');
   const [loading, setLoading] = useState(true);
@@ -22,7 +19,7 @@ export const StudentQuizLeaderboard: React.FC<{
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const data = await fetchLeaderboardData('POP_QUIZ');
+      const data = await fetchTypingLeaderboard();
       setLeaderboard(data);
       setLoading(false);
     };
@@ -50,29 +47,31 @@ export const StudentQuizLeaderboard: React.FC<{
   const listToDisplay = isSearching ? filteredLeaderboard : runnersUp;
   const showPodium = !isSearching;
 
-  const getScore = (entry: LeaderboardEntry) => getLeaderboardEntryScore(entry, FILTER);
-  const unit = getLeaderboardMetricUnit(FILTER);
-
   if (loading) {
     return (
       <div className="min-h-[40vh] flex items-center justify-center">
-        <Loader2 className="animate-spin text-emerald-600 w-10 h-10" />
+        <Loader2 className="animate-spin text-violet-600 w-10 h-10" />
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
+      <div className="text-center text-sm text-gray-500">
+        <Keyboard className="w-5 h-5 inline-block mr-1 text-violet-600" />
+        {getFortnightLabel()} — ranked by adjusted WPM (speed × accuracy)
+      </div>
+
       <div className="max-w-md mx-auto relative group">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-gray-400 group-focus-within:text-emerald-500 transition-colors" />
+          <Search className="h-5 w-5 text-gray-400 group-focus-within:text-violet-500 transition-colors" />
         </div>
         <input
           type="text"
           placeholder="Search by name…"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-2xl leading-normal bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent sm:text-sm shadow-sm transition-all"
+          className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-2xl leading-normal bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent sm:text-sm shadow-sm transition-all"
         />
         {searchTerm && (
           <button
@@ -97,7 +96,7 @@ export const StudentQuizLeaderboard: React.FC<{
             onClick={() => setSelectedGrade(grade)}
             className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all border ${
               selectedGrade === grade
-                ? 'bg-emerald-600 border-emerald-600 text-white shadow-md scale-105'
+                ? 'bg-violet-600 border-violet-600 text-white shadow-md scale-105'
                 : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
             }`}
           >
@@ -122,10 +121,13 @@ export const StudentQuizLeaderboard: React.FC<{
               <div className="bg-white p-4 rounded-xl shadow-md border-t-4 border-gray-300 mt-5 w-full text-center">
                 <h3 className="font-bold text-blue-900 truncate">{topThree[1].student.name}</h3>
                 <p className="text-xs text-gray-500 mb-2">{topThree[1].student.grade}</p>
-                <div className="text-2xl font-bold text-gray-700">
-                  {getScore(topThree[1])}
-                  <span className="text-xs font-normal text-gray-400 ml-1">{unit}</span>
+                <div className="text-2xl font-bold text-gray-700 tabular-nums">
+                  {topThree[1].adjustedWpm.toFixed(1)}
+                  <span className="text-xs font-normal text-gray-400 ml-1">adj</span>
                 </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {topThree[1].wpm} wpm · {topThree[1].accuracy}%
+                </p>
               </div>
             </div>
           )}
@@ -148,10 +150,13 @@ export const StudentQuizLeaderboard: React.FC<{
                 </div>
                 <h3 className="font-bold text-xl text-blue-900 truncate">{topThree[0].student.name}</h3>
                 <p className="text-sm text-gray-500 mb-2">{topThree[0].student.grade}</p>
-                <div className="text-4xl font-bold text-yellow-600">
-                  {getScore(topThree[0])}
-                  <span className="text-sm font-normal text-gray-400 ml-1">{unit}</span>
+                <div className="text-4xl font-bold text-yellow-600 tabular-nums">
+                  {topThree[0].adjustedWpm.toFixed(1)}
+                  <span className="text-sm font-normal text-gray-400 ml-1">adj</span>
                 </div>
+                <p className="text-sm text-gray-400 mt-1">
+                  {topThree[0].wpm} wpm · {topThree[0].accuracy}%
+                </p>
               </div>
             </div>
           )}
@@ -170,10 +175,13 @@ export const StudentQuizLeaderboard: React.FC<{
               <div className="bg-white p-4 rounded-xl shadow-md border-t-4 border-orange-300 mt-5 w-full text-center">
                 <h3 className="font-bold text-blue-900 truncate">{topThree[2].student.name}</h3>
                 <p className="text-xs text-gray-500 mb-2">{topThree[2].student.grade}</p>
-                <div className="text-2xl font-bold text-gray-700">
-                  {getScore(topThree[2])}
-                  <span className="text-xs font-normal text-gray-400 ml-1">{unit}</span>
+                <div className="text-2xl font-bold text-gray-700 tabular-nums">
+                  {topThree[2].adjustedWpm.toFixed(1)}
+                  <span className="text-xs font-normal text-gray-400 ml-1">adj</span>
                 </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {topThree[2].wpm} wpm · {topThree[2].accuracy}%
+                </p>
               </div>
             </div>
           )}
@@ -185,7 +193,7 @@ export const StudentQuizLeaderboard: React.FC<{
           <h3 className="font-bold text-blue-900">
             {isSearching
               ? `Search results (${listToDisplay.length})`
-              : 'More top scores'}
+              : 'More top typists'}
           </h3>
         </div>
         <div className="divide-y divide-gray-100">
@@ -197,7 +205,7 @@ export const StudentQuizLeaderboard: React.FC<{
                 <div
                   key={entry.student.id}
                   className={`flex items-center p-4 transition-colors ${
-                    isYou ? 'bg-emerald-50/90 ring-1 ring-inset ring-emerald-200' : 'hover:bg-gray-50'
+                    isYou ? 'bg-violet-50/90 ring-1 ring-inset ring-violet-200' : 'hover:bg-gray-50'
                   }`}
                 >
                   <div className="w-8 font-bold text-gray-400 text-center">{tableRank}</div>
@@ -206,20 +214,27 @@ export const StudentQuizLeaderboard: React.FC<{
                     <div className="font-bold text-blue-900 truncate">
                       {entry.student.name}
                       {isYou && (
-                        <span className="ml-2 text-xs font-bold uppercase text-emerald-600">You</span>
+                        <span className="ml-2 text-xs font-bold uppercase text-violet-600">You</span>
                       )}
                     </div>
                     <div className="text-xs text-gray-500">{entry.student.grade}</div>
                   </div>
-                  <div className="font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full text-sm tabular-nums">
-                    {getScore(entry)} {unit}
+                  <div className="text-right tabular-nums">
+                    <div className="font-bold text-violet-600 bg-violet-50 px-3 py-1 rounded-full text-sm">
+                      {entry.adjustedWpm.toFixed(1)} adj
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      {entry.wpm} wpm · {entry.accuracy}%
+                    </div>
                   </div>
                 </div>
               );
             })
           ) : (
             <div className="p-8 text-center text-gray-400">
-              {isSearching ? 'No students match that name.' : 'No more scores in this list yet — keep learning!'}
+              {isSearching
+                ? 'No students match that name.'
+                : 'No scores yet — head to Values Lab → Speed Type to set the first record!'}
             </div>
           )}
         </div>

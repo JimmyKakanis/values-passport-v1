@@ -1,6 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, RefreshCw, Lightbulb, CheckCircle2, XCircle, BrainCircuit, GraduationCap, ArrowRight, Lock, Loader2, Save } from 'lucide-react';
+import { BookOpen, RefreshCw, Lightbulb, CheckCircle2, XCircle, BrainCircuit, GraduationCap, ArrowRight, Lock, Loader2, Save, Keyboard } from 'lucide-react';
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { CoreValue, ValueReflection } from '../types';
 import { addValueReflection, subscribeToValueReflections, updateQuizScore } from '../services/dataService';
@@ -10,6 +10,7 @@ import {
   pickStudentReflectionPrompt,
   REFLECTION_TEXT_MAX,
 } from '../services/studentEngagement';
+import { ValuesTypingGame } from './typing/ValuesTypingGame';
 
 interface Props {
   studentId?: string | null;
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export const ValuesLearning: React.FC<Props> = ({ studentId, onQuizComplete }) => {
-  const [activeTab, setActiveTab] = useState<'EXPLORE' | 'SPIN' | 'QUIZ'>('EXPLORE');
+  const [activeTab, setActiveTab] = useState<'EXPLORE' | 'SPIN' | 'QUIZ' | 'TYPING'>('EXPLORE');
 
   return (
     <div className="max-w-6xl mx-auto p-4 space-y-8">
@@ -28,13 +29,13 @@ export const ValuesLearning: React.FC<Props> = ({ studentId, onQuizComplete }) =
           The Values Lab
         </h1>
         <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-          Explore the meanings behind our core values, challenge yourself to think creatively, and test your knowledge.
+          Explore the meanings behind our core values, challenge yourself to think creatively, test your knowledge, and race your typing speed.
         </p>
       </div>
 
       {/* Navigation Tabs */}
       <div className="flex justify-center mb-8">
-        <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 inline-flex">
+        <div className="bg-white p-1 rounded-xl shadow-sm border border-gray-200 inline-flex flex-wrap justify-center">
           <button
             onClick={() => setActiveTab('EXPLORE')}
             className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all ${
@@ -59,6 +60,14 @@ export const ValuesLearning: React.FC<Props> = ({ studentId, onQuizComplete }) =
           >
             <GraduationCap size={20} /> Pop Quiz
           </button>
+          <button
+            onClick={() => setActiveTab('TYPING')}
+            className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all ${
+              activeTab === 'TYPING' ? 'bg-violet-100 text-violet-800' : 'text-gray-500 hover:bg-gray-50'
+            }`}
+          >
+            <Keyboard size={20} /> Speed Type
+          </button>
         </div>
       </div>
 
@@ -66,6 +75,7 @@ export const ValuesLearning: React.FC<Props> = ({ studentId, onQuizComplete }) =
         {activeTab === 'EXPLORE' && <ValuesExplorer studentId={studentId} />}
         {activeTab === 'SPIN' && <IdeaGenerator />}
         {activeTab === 'QUIZ' && <ValuesQuiz studentId={studentId} onComplete={onQuizComplete} />}
+        {activeTab === 'TYPING' && <ValuesTypingGame studentId={studentId} />}
       </div>
     </div>
   );

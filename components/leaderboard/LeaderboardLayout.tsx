@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Sparkles, Trophy, Users, GraduationCap } from 'lucide-react';
+import { Sparkles, Trophy, Users, GraduationCap, Keyboard } from 'lucide-react';
 import { UserRole } from '../../types';
 
 const tabClass = ({ isActive }: { isActive: boolean }) =>
@@ -18,13 +18,20 @@ export const LeaderboardLayout: React.FC<Props> = ({ userRole }) => {
   const isTeacher = userRole === 'TEACHER' || userRole === 'ADMIN';
   const { pathname } = useLocation();
 
-  const isQuizTab = !isTeacher && pathname.includes('/quiz');
-  const isYearGroupsTab = !isTeacher && pathname.includes('year-groups');
+  const isQuizTab = pathname.includes('/quiz');
+  const isTypingTab = pathname.includes('/typing');
+  const isYearGroupsTab = pathname.includes('year-groups');
+  const isWallOfFameTab = isTeacher && !isQuizTab && !isTypingTab && !isYearGroupsTab;
 
   const studentTitle = isQuizTab ? (
     <>
       <GraduationCap className="w-10 h-10 text-emerald-600" />
       Quiz leaderboard
+    </>
+  ) : isTypingTab ? (
+    <>
+      <Keyboard className="w-10 h-10 text-violet-600" />
+      Typing leaderboard
     </>
   ) : isYearGroupsTab ? (
     <>
@@ -40,6 +47,8 @@ export const LeaderboardLayout: React.FC<Props> = ({ userRole }) => {
 
   const studentSubtitle = isQuizTab
     ? 'Top scores in the Values Lab pop quiz — celebrate effort and learning.'
+    : isTypingTab
+      ? 'Fastest accurate typists this fortnight — adjusted WPM from Values Lab Speed Type.'
     : isYearGroupsTab
       ? 'How year groups line up, without individual scores in the open.'
       : 'See how the whole community is growing';
@@ -48,7 +57,7 @@ export const LeaderboardLayout: React.FC<Props> = ({ userRole }) => {
     <div className="max-w-6xl mx-auto p-4 space-y-6">
       <div className="text-center space-y-4 mb-2">
         <h1 className="text-4xl font-bold text-blue-900 flex items-center justify-center gap-3 flex-wrap">
-          {isTeacher ? (
+          {isWallOfFameTab ? (
             <>
               <Trophy className="w-10 h-10 text-yellow-500" />
               Wall of Fame
@@ -58,7 +67,7 @@ export const LeaderboardLayout: React.FC<Props> = ({ userRole }) => {
           )}
         </h1>
         <p className="text-gray-500 max-w-lg mx-auto">
-          {isTeacher ? (
+          {isWallOfFameTab ? (
             <>
               Celebrating the students who consistently embody our school values.
               <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded ml-2 font-bold">
@@ -93,14 +102,18 @@ export const LeaderboardLayout: React.FC<Props> = ({ userRole }) => {
             Year groups
           </span>
         </NavLink>
-        {!isTeacher && (
-          <NavLink to="/leaderboard/quiz" className={tabClass}>
-            <span className="inline-flex items-center justify-center gap-2">
-              <GraduationCap className="w-4 h-4 shrink-0" />
-              Quiz
-            </span>
-          </NavLink>
-        )}
+        <NavLink to="/leaderboard/quiz" className={tabClass}>
+          <span className="inline-flex items-center justify-center gap-2">
+            <GraduationCap className="w-4 h-4 shrink-0" />
+            Quiz
+          </span>
+        </NavLink>
+        <NavLink to="/leaderboard/typing" className={tabClass}>
+          <span className="inline-flex items-center justify-center gap-2">
+            <Keyboard className="w-4 h-4 shrink-0" />
+            Typing
+          </span>
+        </NavLink>
       </div>
 
       <Outlet />

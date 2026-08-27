@@ -84,6 +84,10 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
     totalReflectionWords: 0,
     coreValuesReflected: 0,
     goalCheckInCount: 0,
+    typingHasScore: false,
+    typingBestAdjustedWpm: 0,
+    typingBestAccuracy: 0,
+    typingStoriesCompleted: 0,
   });
   const [customRewardDefs, setCustomRewardDefs] = useState<AchievementDefinition[]>([]);
   const [loading, setLoading] = useState(true);

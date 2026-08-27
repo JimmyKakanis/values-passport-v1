@@ -153,6 +153,49 @@ service cloud.firestore {
       allow delete: if isAuthenticated(); // Added for progress reset
     }
 
+    // Typing high scores (fortnight adjusted WPM leaderboard)
+    match /typing_scores/{studentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOwnStudentData(studentId)
+        && request.resource.data.studentId == studentId
+        && request.resource.data.periodKey is string
+        && request.resource.data.adjustedWpm is number
+        && request.resource.data.wpm is number
+        && request.resource.data.accuracy is number
+        && request.resource.data.wpm >= 0
+        && request.resource.data.wpm <= 180
+        && request.resource.data.accuracy >= 0
+        && request.resource.data.accuracy <= 100;
+      allow delete: if isAuthenticated();
+    }
+
+    match /typing_races/{raceId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+
+      match /participants/{participantId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isAuthenticated() && isOwnStudentData(participantId);
+        allow delete: if isAuthenticated() && isOwnStudentData(participantId);
+      }
+    }
+
+    match /typing_progress/{studentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOwnStudentData(studentId)
+        && request.resource.data.studentId == studentId
+        && request.resource.data.periodKey is string
+        && request.resource.data.variantIndex is int
+        && request.resource.data.variantIndex >= 0
+        && request.resource.data.variantIndex <= 2
+        && (!('storiesCompleted' in request.resource.data)
+          || (request.resource.data.storiesCompleted is int
+            && request.resource.data.storiesCompleted >= 0
+            && request.resource.data.storiesCompleted <= 99));
+      allow delete: if isAuthenticated();
+    }
+
     // Claimed Rewards Collection
     match /claimed_rewards/{rewardId} {
       allow read: if isAuthenticated();

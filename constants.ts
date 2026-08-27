@@ -553,6 +553,15 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     type: 'CUSTOM',
     difficulty: 'BEGINNER'
   },
+  {
+    id: 'typing-first',
+    title: 'Keys of Character',
+    description: 'Complete your first Speed Type practice run.',
+    reward: 'Achievement Unlocked',
+    icon: 'Keyboard',
+    type: 'CUSTOM',
+    difficulty: 'BEGINNER'
+  },
 
   // --- EASY ---
   {
@@ -624,6 +633,24 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     description: 'Complete 5 fortnightly goal check-ins.',
     reward: 'Achievement Unlocked',
     icon: 'Target',
+    type: 'CUSTOM',
+    difficulty: 'EASY'
+  },
+  {
+    id: 'typing-wpm-20',
+    title: 'Steady Fingers',
+    description: 'Reach 20 adjusted WPM in Speed Type this fortnight.',
+    reward: 'Achievement Unlocked',
+    icon: 'Keyboard',
+    type: 'CUSTOM',
+    difficulty: 'EASY'
+  },
+  {
+    id: 'typing-accuracy-95',
+    title: 'Careful Typist',
+    description: 'Finish a Speed Type run with 95% accuracy or higher.',
+    reward: 'Achievement Unlocked',
+    icon: 'Keyboard',
     type: 'CUSTOM',
     difficulty: 'EASY'
   },
@@ -821,6 +848,24 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     difficulty: 'MEDIUM'
   },
   {
+    id: 'typing-wpm-35',
+    title: 'Quick on the Keys',
+    description: 'Reach 35 adjusted WPM in Speed Type this fortnight.',
+    reward: 'Achievement Unlocked',
+    icon: 'Keyboard',
+    type: 'CUSTOM',
+    difficulty: 'MEDIUM'
+  },
+  {
+    id: 'typing-perfect',
+    title: 'Flawless Run',
+    description: 'Finish a Speed Type run with 100% accuracy.',
+    reward: 'Achievement Unlocked',
+    icon: 'Keyboard',
+    type: 'CUSTOM',
+    difficulty: 'MEDIUM'
+  },
+  {
     id: 'guardian-of-nature',
     title: 'Guardian of Nature',
     description: 'Recognized for caring for the Environment 3 times.',
@@ -850,6 +895,24 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
     description: 'Earn 1 stamp in Academic, 1 in Creative, and 1 in Active subjects.',
     reward: 'Achievement Unlocked',
     icon: 'Shapes',
+    type: 'CUSTOM',
+    difficulty: 'CHALLENGING'
+  },
+  {
+    id: 'typing-wpm-50',
+    title: 'Speed of Truth',
+    description: 'Reach 50 adjusted WPM in Speed Type this fortnight.',
+    reward: 'Achievement Unlocked',
+    icon: 'Keyboard',
+    type: 'CUSTOM',
+    difficulty: 'CHALLENGING'
+  },
+  {
+    id: 'typing-stories-3',
+    title: 'Fortnight Reader',
+    description: 'Complete all three Speed Type stories in one fortnight.',
+    reward: 'Achievement Unlocked',
+    icon: 'Keyboard',
     type: 'CUSTOM',
     difficulty: 'CHALLENGING'
   },

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft, Calendar, ListChecks, CheckCircle2, Sunrise, BookOpen, PenLine, Target } from 'lucide-react';
+import { Trophy, Lock, CheckCircle, Gift, Medal, ShieldCheck, Heart, Sun, Scale, Hand, Calculator, FlaskConical, Pizza, Crown, Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield, Loader2, Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake, Star, ArrowLeft, Calendar, ListChecks, CheckCircle2, Sunrise, BookOpen, PenLine, Target, Keyboard } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getSignaturesForStudent, calculateStudentAchievements, getStudent, getClaimedRewards, getPlannerItems, getCustomRewardsForGrade, getEngagementDataForStudent, isRedeemableStudentReward } from '../services/dataService';
 import { StudentAchievement, AchievementDifficulty, AchievementDefinition } from '../types';
@@ -15,7 +15,7 @@ const IconMap: Record<string, React.FC<any>> = {
   Calculator, FlaskConical, Pizza, Crown, Star,
   Leaf, Users, Clock, Laptop, Palette, Zap, HandHeart, Sparkles, Shapes, Shield,
   Smile, Brain, Mountain, Handshake, UserPlus, Flag, Globe, Anchor, HeartHandshake,
-  Calendar, ListChecks, CheckCircle2, Sunrise, BookOpen, PenLine, Target
+  Calendar, ListChecks, CheckCircle2, Sunrise, BookOpen, PenLine, Target, Keyboard
 };
 
 export const Achievements: React.FC<Props> = ({ studentId, isTeacherView = false }) => {

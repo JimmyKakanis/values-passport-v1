@@ -1,12 +1,14 @@
-import { Signature, SignatureSource, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType, FeedbackSubmission, FeedbackKind, UserRole, DailyIntention, ValueReflection, GoalCheckIn, StudentEngagementStats } from '../types';
+import { Signature, SignatureSource, Student, Subject, CoreValue, StudentAchievement, Nomination, NominationType, ClaimedReward, PlannerItem, PlannerCategory, Teacher, SystemSettings, CustomReward, AchievementDefinition, AchievementType, AchievementDifficulty, Goal, GoalType, FeedbackSubmission, FeedbackKind, UserRole, DailyIntention, ValueReflection, GoalCheckIn, StudentEngagementStats, TypingScore, TypingProgress } from '../types';
 import {
   computeEngagementStats,
+  computeTypingEngagementSnapshot,
   countStampedSubValuesForCoreValue,
   countWords,
   dailyIntentionDocId,
   getDateKey,
   goalCheckInDocId,
   INTENTION_TEXT_MAX,
+  mergeTypingEngagement,
   REFLECTION_TEXT_MAX,
   GOAL_CHECKIN_TEXT_MAX,
 } from './studentEngagement';
@@ -158,6 +160,33 @@ export const addStudent = async (student: Omit<Student, 'id'>): Promise<Student 
     return null;
   }
 };
+
+/** Grade label for auto-provisioned teacher/admin participation profiles. */
+export const STAFF_PARTICIPANT_GRADE = 'Staff';
+
+export const isStaffParticipantGrade = (grade: string): boolean =>
+  grade.trim() === STAFF_PARTICIPANT_GRADE;
+
+/**
+ * Ensures a linked students/{id} doc exists so staff can use Values Lab, Planner, and game scores.
+ * Reuses an existing student doc for the same email if present.
+ */
+export async function ensureStaffParticipationStudent(teacher: {
+  name: string;
+  email: string;
+}): Promise<Student | null> {
+  const email = teacher.email.toLowerCase().trim();
+  const existing = getStudentByEmail(email);
+  if (existing) return existing;
+
+  const seed = teacher.name.replace(/\s+/g, '') || email.split('@')[0];
+  return addStudent({
+    name: teacher.name,
+    email,
+    grade: STAFF_PARTICIPANT_GRADE,
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4`,
+  });
+}
 
 /** Firestore `updateDoc` rejects `undefined` field values. */
 const omitUndefined = <T extends Record<string, unknown>>(obj: T): Partial<T> =>
@@ -350,9 +379,15 @@ export const resetStudentProgress = async (studentId: string): Promise<{ success
     const nominationsSnapshot = await getDocs(query(collection(db, "nominations"), where("studentId", "==", studentId)));
     const nomPromises = nominationsSnapshot.docs.map(doc => deleteDoc(doc.ref));
 
-    // 4. Quiz Scores
+    // Quiz Scores
     const quizDoc = await getDoc(doc(db, "quiz_scores", studentId));
     const quizPromises = quizDoc.exists() ? [deleteDoc(quizDoc.ref)] : [];
+
+    const typingDoc = await getDoc(doc(db, "typing_scores", studentId));
+    const typingPromises = typingDoc.exists() ? [deleteDoc(typingDoc.ref)] : [];
+
+    const typingProgressDoc = await getDoc(doc(db, "typing_progress", studentId));
+    const typingProgressPromises = typingProgressDoc.exists() ? [deleteDoc(typingProgressDoc.ref)] : [];
 
     // 5. Private engagement (intentions, reflections, goal check-ins)
     const intentionsSnapshot = await getDocs(query(collection(db, "daily_intentions"), where("studentId", "==", studentId)));
@@ -367,6 +402,8 @@ export const resetStudentProgress = async (studentId: string): Promise<{ success
       ...rewardPromises,
       ...nomPromises,
       ...quizPromises,
+      ...typingPromises,
+      ...typingProgressPromises,
       ...intentionPromises,
       ...reflectionPromises,
       ...checkInPromises,
@@ -400,6 +437,12 @@ export const resetAllProgress = async (): Promise<{ success: boolean; error?: st
     const quizSnapshot = await getDocs(collection(db, "quiz_scores"));
     const quizPromises = quizSnapshot.docs.map(doc => deleteDoc(doc.ref));
 
+    const typingSnapshot = await getDocs(collection(db, "typing_scores"));
+    const typingPromises = typingSnapshot.docs.map(doc => deleteDoc(doc.ref));
+
+    const typingProgressSnapshot = await getDocs(collection(db, "typing_progress"));
+    const typingProgressPromises = typingProgressSnapshot.docs.map(doc => deleteDoc(doc.ref));
+
     // 5. Private engagement
     const intentionsSnapshot = await getDocs(collection(db, "daily_intentions"));
     const intentionPromises = intentionsSnapshot.docs.map((d) => deleteDoc(d.ref));
@@ -413,6 +456,8 @@ export const resetAllProgress = async (): Promise<{ success: boolean; error?: st
       ...rewardPromises,
       ...nomPromises,
       ...quizPromises,
+      ...typingPromises,
+      ...typingProgressPromises,
       ...intentionPromises,
       ...reflectionPromises,
       ...checkInPromises,
@@ -1291,7 +1336,7 @@ export const getSchoolHighlightsPageData = async (studentId: string | null): Pro
   const [allSigs, allClaimed] = await Promise.all([getAllSignatures(), getAllClaimedRewards()]);
   const cutoff = Date.now() - HIGHLIGHTS_WINDOW_MS;
 
-  const students = getStudents();
+  const students = getStudents().filter((s) => !isStaffParticipantGrade(s.grade));
   const totalStudentsOnRoll = students.length;
 
   const studentById = new Map(students.map((s) => [s.id, s] as const));
@@ -1546,6 +1591,10 @@ export const calculateStudentAchievements = (
     totalReflectionWords: 0,
     coreValuesReflected: 0,
     goalCheckInCount: 0,
+    typingHasScore: false,
+    typingBestAdjustedWpm: 0,
+    typingBestAccuracy: 0,
+    typingStoriesCompleted: 0,
   };
   const stats = calculateStats(signatures);
   const sigs = signatures;
@@ -1873,6 +1922,42 @@ export const calculateStudentAchievements = (
                 isUnlocked = eng.goalCheckInCount >= 10;
                 break;
 
+            case 'typing-first':
+                maxProgress = 1;
+                currentProgress = eng.typingHasScore ? 1 : 0;
+                isUnlocked = eng.typingHasScore;
+                break;
+            case 'typing-wpm-20':
+                maxProgress = 20;
+                currentProgress = Math.min(eng.typingBestAdjustedWpm, 20);
+                isUnlocked = eng.typingBestAdjustedWpm >= 20;
+                break;
+            case 'typing-wpm-35':
+                maxProgress = 35;
+                currentProgress = Math.min(eng.typingBestAdjustedWpm, 35);
+                isUnlocked = eng.typingBestAdjustedWpm >= 35;
+                break;
+            case 'typing-wpm-50':
+                maxProgress = 50;
+                currentProgress = Math.min(eng.typingBestAdjustedWpm, 50);
+                isUnlocked = eng.typingBestAdjustedWpm >= 50;
+                break;
+            case 'typing-accuracy-95':
+                maxProgress = 95;
+                currentProgress = Math.min(eng.typingBestAccuracy, 95);
+                isUnlocked = eng.typingBestAccuracy >= 95;
+                break;
+            case 'typing-perfect':
+                maxProgress = 100;
+                currentProgress = Math.min(eng.typingBestAccuracy, 100);
+                isUnlocked = eng.typingBestAccuracy >= 100;
+                break;
+            case 'typing-stories-3':
+                maxProgress = 3;
+                currentProgress = Math.min(eng.typingStoriesCompleted, 3);
+                isUnlocked = eng.typingStoriesCompleted >= 3;
+                break;
+
             case 'dependable-deputy':
                 maxProgress = 3;
                 currentProgress = sigs.filter(s => s.subValue === 'Dependability').length;
@@ -2080,6 +2165,7 @@ export interface YearGroupLeaderboardRow {
 export const buildYearGroupLeaderboard = (entries: LeaderboardEntry[]): YearGroupLeaderboardRow[] => {
   const byGrade = new Map<string, LeaderboardEntry[]>();
   for (const e of entries) {
+    if (isStaffParticipantGrade(e.student.grade)) continue;
     const g = e.student.grade;
     if (!byGrade.has(g)) byGrade.set(g, []);
     byGrade.get(g)!.push(e);
@@ -2440,6 +2526,10 @@ const emptyEngagementStats = (): StudentEngagementStats => ({
   totalReflectionWords: 0,
   coreValuesReflected: 0,
   goalCheckInCount: 0,
+  typingHasScore: false,
+  typingBestAdjustedWpm: 0,
+  typingBestAccuracy: 0,
+  typingStoriesCompleted: 0,
 });
 
 /** Auth email for Firestore rules (ownerEmail field). Matches authEmailLower() in firestore.rules. */
@@ -2701,50 +2791,71 @@ export const getEngagementDataForStudent = async (studentId: string) => {
     checkIns: [] as GoalCheckIn[],
     stats: emptyEngagementStats(),
   };
-  if (!ownerEmail) {
-    return empty;
+
+  let intentions: DailyIntention[] = [];
+  let reflections: ValueReflection[] = [];
+  let checkIns: GoalCheckIn[] = [];
+
+  if (ownerEmail) {
+    try {
+      const [intentionsSnap, reflectionsSnap, checkInsSnap] = await Promise.all([
+        getDocs(
+          query(
+            collection(db, 'daily_intentions'),
+            where('studentId', '==', studentId),
+            where('ownerEmail', '==', ownerEmail)
+          )
+        ),
+        getDocs(
+          query(
+            collection(db, 'value_reflections'),
+            where('studentId', '==', studentId),
+            where('ownerEmail', '==', ownerEmail)
+          )
+        ),
+        getDocs(
+          query(
+            collection(db, 'goal_check_ins'),
+            where('studentId', '==', studentId),
+            where('ownerEmail', '==', ownerEmail)
+          )
+        ),
+      ]);
+      intentions = intentionsSnap.docs.map(
+        (d) => ({ id: d.id, ...d.data() } as DailyIntention)
+      );
+      reflections = reflectionsSnap.docs.map(
+        (d) => ({ id: d.id, ...d.data() } as ValueReflection)
+      );
+      checkIns = checkInsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GoalCheckIn));
+    } catch (error) {
+      console.error('Error loading engagement data:', error);
+      return empty;
+    }
   }
+
+  let typingScore: TypingScore | null = null;
+  let typingProgress: TypingProgress | null = null;
   try {
-    const [intentionsSnap, reflectionsSnap, checkInsSnap] = await Promise.all([
-      getDocs(
-        query(
-          collection(db, 'daily_intentions'),
-          where('studentId', '==', studentId),
-          where('ownerEmail', '==', ownerEmail)
-        )
-      ),
-      getDocs(
-        query(
-          collection(db, 'value_reflections'),
-          where('studentId', '==', studentId),
-          where('ownerEmail', '==', ownerEmail)
-        )
-      ),
-      getDocs(
-        query(
-          collection(db, 'goal_check_ins'),
-          where('studentId', '==', studentId),
-          where('ownerEmail', '==', ownerEmail)
-        )
-      ),
+    const [scoreSnap, progressSnap] = await Promise.all([
+      getDoc(doc(db, 'typing_scores', studentId)),
+      getDoc(doc(db, 'typing_progress', studentId)),
     ]);
-    const intentions = intentionsSnap.docs.map(
-      (d) => ({ id: d.id, ...d.data() } as DailyIntention)
-    );
-    const reflections = reflectionsSnap.docs.map(
-      (d) => ({ id: d.id, ...d.data() } as ValueReflection)
-    );
-    const checkIns = checkInsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as GoalCheckIn));
-    return {
-      intentions,
-      reflections,
-      checkIns,
-      stats: computeEngagementStats(intentions, reflections, checkIns),
-    };
+    typingScore = scoreSnap.exists() ? (scoreSnap.data() as TypingScore) : null;
+    typingProgress = progressSnap.exists() ? (progressSnap.data() as TypingProgress) : null;
   } catch (error) {
-    console.error('Error loading engagement data:', error);
-    return empty;
+    console.warn('Error loading typing engagement data:', error);
   }
+
+  const baseStats = computeEngagementStats(intentions, reflections, checkIns);
+  const typingStats = computeTypingEngagementSnapshot(typingScore, typingProgress);
+
+  return {
+    intentions,
+    reflections,
+    checkIns,
+    stats: mergeTypingEngagement(baseStats, typingStats),
+  };
 };
 
 // --- FEEDBACK (students & teachers → admin console) ---

@@ -11,6 +11,8 @@ interface AvatarEditorProps {
   student: Student;
   /** Total stamps earned; Randomize unlocks at >= 1, full customization at >= 5 */
   totalStamps: number;
+  /** Staff profiles skip stamp gates (full Randomize + customization from the start). */
+  forceFullCustomization?: boolean;
   onSave: (config: any) => Promise<boolean>;
 }
 
@@ -80,6 +82,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   onClose, 
   student, 
   totalStamps,
+  forceFullCustomization = false,
   onSave 
 }) => {
   const [config, setConfig] = useState<any>({
@@ -89,7 +92,8 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  const hasFullCustomization = totalStamps >= FULL_CUSTOMIZATION_STAMP_THRESHOLD;
+  const hasFullCustomization =
+    forceFullCustomization || totalStamps >= FULL_CUSTOMIZATION_STAMP_THRESHOLD;
   const stampsUntilFullCustomization = Math.max(
     0,
     FULL_CUSTOMIZATION_STAMP_THRESHOLD - totalStamps
@@ -112,7 +116,7 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({
 
   if (!isOpen) return null;
 
-  const canRandomize = totalStamps >= 1;
+  const canRandomize = forceFullCustomization || totalStamps >= 1;
 
   const handleRandomize = () => {
     const randomSeed = Math.random().toString(36).substring(7);

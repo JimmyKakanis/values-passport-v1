@@ -5,9 +5,12 @@ import type {
   DailyIntention,
   GoalCheckIn,
   StudentEngagementStats,
+  TypingProgress,
+  TypingScore,
   ValueReflection,
 } from '../types';
 import { getTermAndWeekInTerm } from '../schoolCalendar';
+import { getActivePeriodKey } from '../data/typingPassages';
 
 export const INTENTION_TEXT_MAX = 280;
 export const REFLECTION_TEXT_MAX = 2000;
@@ -87,7 +90,39 @@ export function computeEngagementStats(
     totalReflectionWords: reflections.reduce((sum, r) => sum + (r.wordCount || 0), 0),
     coreValuesReflected: valuesWithReflection.size,
     goalCheckInCount: checkIns.length,
+    typingHasScore: false,
+    typingBestAdjustedWpm: 0,
+    typingBestAccuracy: 0,
+    typingStoriesCompleted: 0,
   };
+}
+
+export type TypingEngagementSnapshot = Pick<
+  StudentEngagementStats,
+  'typingHasScore' | 'typingBestAdjustedWpm' | 'typingBestAccuracy' | 'typingStoriesCompleted'
+>;
+
+export function computeTypingEngagementSnapshot(
+  score: TypingScore | null,
+  progress: TypingProgress | null,
+  periodKey?: string
+): TypingEngagementSnapshot {
+  const key = periodKey ?? getActivePeriodKey();
+  const scoreForPeriod = score && score.periodKey === key ? score : null;
+  const progressForPeriod = progress && progress.periodKey === key ? progress : null;
+  return {
+    typingHasScore: !!scoreForPeriod,
+    typingBestAdjustedWpm: scoreForPeriod?.adjustedWpm ?? 0,
+    typingBestAccuracy: scoreForPeriod?.accuracy ?? 0,
+    typingStoriesCompleted: progressForPeriod?.storiesCompleted ?? 0,
+  };
+}
+
+export function mergeTypingEngagement(
+  base: StudentEngagementStats,
+  typing: TypingEngagementSnapshot
+): StudentEngagementStats {
+  return { ...base, ...typing };
 }
 
 export function dailyIntentionDocId(studentId: string, dateKey: string): string {

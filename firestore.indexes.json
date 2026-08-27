@@ -39,6 +39,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "reviewerEmails", "arrayConfig": "CONTAINS" }
       ]
+    },
+    {
+      "collectionGroup": "typing_scores",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "periodKey", "order": "ASCENDING" },
+        { "fieldPath": "adjustedWpm", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
