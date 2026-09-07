@@ -100,7 +100,9 @@
 ## In Progress
 
 ## Recently completed
-- [x] **Speed Type game** (2026-08) — Values Lab **Speed Type** tab: solo practice + minute-aligned live races, fortnight value-themed passages (3 variants), adjusted WPM scoring, anti-cheat, `#/leaderboard/typing`, Firestore `typing_scores` / `typing_races`, Cloud Function `validateTypingScore`
+- [x] **Speed Type game** (2026-08) — Values Lab **Speed Type** tab: solo practice + minute-aligned live races, fortnight value-themed passages (3 variants), adjusted WPM scoring, anti-cheat, `#/leaderboard/typing`, Firestore `typing_scores` / `typing_races` / `typing_progress`, Cloud Function `validateTypingScore`, typing achievements
+- [x] **Staff participation** (2026-08) — Teachers/admins keep TEACHER/ADMIN role with linked `students/{id}` (`grade: "Staff"`): Values Lab, My Planner, quiz/typing leaderboards, **Staff** filter pill; excluded from year-group cohort maths; documented in `docs/technical.md`
+- [x] **Staff avatar profiles** (2026-08) — Settings → Avatar for staff; full customization without stamp gates; avatars on quiz/typing leaderboards via `LeaderboardFace`
 - [x] **Planner My Tasks tab** — grouped Tasks / Homework / Assignments, completed collapses per section, `PlannerAddItemModal` with due date picker, `PlannerTasksView`
 - [x] **Dashboard planner tick-off** — Next Up checkboxes, urgent-first ordering, student-friendly due pills; shared `PlannerItemRow` + `utils/plannerDisplay.ts`; real-time `subscribeToPlannerItems` on dashboard
 - [x] **Student “My Rewards” visibility** (2026-05) — Dashboard banner button with pending count; Achievements **My rewards** tab; `isRedeemableStudentReward` aligned with teacher pending-claims logic.

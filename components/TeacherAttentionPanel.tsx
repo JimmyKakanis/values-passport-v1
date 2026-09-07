@@ -105,7 +105,7 @@ const AttentionSpotlightTable: React.FC<{
                     />
                     <div className="min-w-0">
                       <Link
-                        to={`/student/${row.student.id}?tab=passport`}
+                        to={`/student/${row.student.id}`}
                         title="Open this student’s Values Passport"
                         className="font-bold text-violet-800 hover:text-violet-950 hover:underline inline-flex items-center gap-1 group"
                       >

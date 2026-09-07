@@ -2,17 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { Achievements } from './Achievements';
 import { StudentPassport } from './StudentPassport';
-import { getStudent } from '../services/dataService';
-import { Student } from '../types';
+import { StampHistorySection } from './StampActivityFeed';
+import { getStudent, subscribeToSignatures } from '../services/dataService';
+import { Signature, Student } from '../types';
 import { Trophy, BookOpen, ArrowLeft, Loader2 } from 'lucide-react';
 
 export const StudentDetailView: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
   const [student, setStudent] = useState<Student | null>(null);
+  const [signatures, setSignatures] = useState<Signature[]>([]);
   const [loading, setLoading] = useState(true);
   const activeTab: 'achievements' | 'passport' =
-    searchParams.get('tab') === 'passport' ? 'passport' : 'achievements';
+    searchParams.get('tab') === 'achievements' ? 'achievements' : 'passport';
 
   useEffect(() => {
     if (id) {
@@ -20,6 +22,15 @@ export const StudentDetailView: React.FC = () => {
       setStudent(studentData || null);
     }
     setLoading(false);
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) {
+      setSignatures([]);
+      return;
+    }
+    const unsubscribe = subscribeToSignatures(id, setSignatures);
+    return () => unsubscribe();
   }, [id]);
 
   if (loading) {
@@ -57,7 +68,7 @@ export const StudentDetailView: React.FC = () => {
         <div className="flex space-x-1">
           <button
             type="button"
-            onClick={() => setSearchParams({}, { replace: true })}
+            onClick={() => setSearchParams({ tab: 'achievements' }, { replace: true })}
             className={`px-4 py-3 font-bold flex items-center gap-2 transition-all ${
               activeTab === 'achievements'
                 ? 'border-b-2 border-emerald-600 text-emerald-600'
@@ -69,7 +80,7 @@ export const StudentDetailView: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => setSearchParams({ tab: 'passport' }, { replace: true })}
+            onClick={() => setSearchParams({}, { replace: true })}
             className={`px-4 py-3 font-bold flex items-center gap-2 transition-all ${
               activeTab === 'passport'
                 ? 'border-b-2 border-emerald-600 text-emerald-600'
@@ -89,9 +100,19 @@ export const StudentDetailView: React.FC = () => {
         </Link>
       </div>
 
-      <div>
+      <div className="space-y-6">
         {id && activeTab === 'achievements' && <Achievements studentId={id} isTeacherView={true} />}
-        {id && activeTab === 'passport' && <StudentPassport studentId={id} />}
+        {id && activeTab === 'passport' && (
+          <>
+            <StudentPassport studentId={id} />
+            <StampHistorySection
+              signatures={signatures}
+              commentsOnly
+              title="Teacher comments"
+              description="All comments on this student's passport, newest first."
+            />
+          </>
+        )}
       </div>
     </div>
   );

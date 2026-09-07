@@ -108,12 +108,26 @@ export function computeTypingEngagementSnapshot(
   periodKey?: string
 ): TypingEngagementSnapshot {
   const key = periodKey ?? getActivePeriodKey();
-  const scoreForPeriod = score && score.periodKey === key ? score : null;
   const progressForPeriod = progress && progress.periodKey === key ? progress : null;
+
+  let scoreForPeriod: TypingScore | null = null;
+  if (score) {
+    if (score.fortnightPeriodKey === key) {
+      scoreForPeriod = score;
+    } else if (!score.fortnightPeriodKey && score.periodKey === key) {
+      scoreForPeriod = score;
+    }
+  }
+
+  const fortnightAdjustedWpm =
+    scoreForPeriod?.fortnightAdjustedWpm ?? scoreForPeriod?.adjustedWpm ?? 0;
+  const fortnightAccuracy =
+    scoreForPeriod?.fortnightAccuracy ?? scoreForPeriod?.accuracy ?? 0;
+
   return {
     typingHasScore: !!scoreForPeriod,
-    typingBestAdjustedWpm: scoreForPeriod?.adjustedWpm ?? 0,
-    typingBestAccuracy: scoreForPeriod?.accuracy ?? 0,
+    typingBestAdjustedWpm: fortnightAdjustedWpm,
+    typingBestAccuracy: fortnightAccuracy,
     typingStoriesCompleted: progressForPeriod?.storiesCompleted ?? 0,
   };
 }

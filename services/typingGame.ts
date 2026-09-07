@@ -6,8 +6,6 @@ import {
   onSnapshot,
   setDoc,
   deleteDoc,
-  query,
-  where,
   Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
@@ -316,27 +314,43 @@ export async function updateTypingHighScore(
   const existing = await getDoc(ref);
   const current = existing.exists() ? (existing.data() as TypingScore) : null;
 
-  if (current && current.periodKey === result.periodKey && current.adjustedWpm >= result.adjustedWpm) {
+  const isNewAllTimeHigh = !current || result.adjustedWpm > current.adjustedWpm;
+
+  const priorFortnightBest =
+    current?.fortnightPeriodKey === result.periodKey
+      ? (current.fortnightAdjustedWpm ?? 0)
+      : 0;
+  const isNewFortnightBest = result.adjustedWpm > priorFortnightBest;
+
+  if (!isNewAllTimeHigh && !isNewFortnightBest) {
     return false;
   }
 
-  if (current && current.periodKey !== result.periodKey && result.adjustedWpm <= 0) {
-    return false;
+  const payload: Partial<TypingScore> = { studentId };
+
+  if (isNewAllTimeHigh) {
+    Object.assign(payload, {
+      periodKey: result.periodKey,
+      passageId: result.passageId,
+      wpm: result.wpm,
+      accuracy: result.accuracy,
+      adjustedWpm: result.adjustedWpm,
+      durationMs: result.durationMs,
+      completedAt: result.completedAt,
+    });
   }
 
-  const score: TypingScore = {
-    studentId,
-    periodKey: result.periodKey,
-    passageId: result.passageId,
-    wpm: result.wpm,
-    accuracy: result.accuracy,
-    adjustedWpm: result.adjustedWpm,
-    durationMs: result.durationMs,
-    completedAt: result.completedAt,
-  };
+  if (isNewFortnightBest) {
+    Object.assign(payload, {
+      fortnightPeriodKey: result.periodKey,
+      fortnightAdjustedWpm: result.adjustedWpm,
+      fortnightWpm: result.wpm,
+      fortnightAccuracy: result.accuracy,
+    });
+  }
 
-  await setDoc(ref, score, { merge: true });
-  return true;
+  await setDoc(ref, payload, { merge: true });
+  return isNewAllTimeHigh;
 }
 
 export async function getTypingHighScore(studentId: string): Promise<TypingScore | null> {
@@ -476,15 +490,10 @@ export function subscribeToTypingEngagement(
   };
 }
 
-export async function fetchTypingLeaderboard(
-  periodKey?: string
-): Promise<TypingLeaderboardEntry[]> {
-  const key = periodKey ?? getActivePeriodKey();
+export async function fetchTypingLeaderboard(): Promise<TypingLeaderboardEntry[]> {
   await reloadStudentsCacheFromFirestore();
 
-  const snap = await getDocs(
-    query(collection(db, 'typing_scores'), where('periodKey', '==', key))
-  );
+  const snap = await getDocs(collection(db, 'typing_scores'));
 
   const scoreByStudent = new Map<string, TypingScore>();
   snap.forEach((d) => {

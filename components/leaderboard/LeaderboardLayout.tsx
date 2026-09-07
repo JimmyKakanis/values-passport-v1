@@ -48,7 +48,7 @@ export const LeaderboardLayout: React.FC<Props> = ({ userRole }) => {
   const studentSubtitle = isQuizTab
     ? 'Top scores in the Values Lab pop quiz — celebrate effort and learning.'
     : isTypingTab
-      ? 'Fastest accurate typists this fortnight — adjusted WPM from Values Lab Speed Type.'
+      ? 'All-time fastest accurate typists — adjusted WPM from Values Lab Speed Type.'
     : isYearGroupsTab
       ? 'How year groups line up, without individual scores in the open.'
       : 'See how the whole community is growing';

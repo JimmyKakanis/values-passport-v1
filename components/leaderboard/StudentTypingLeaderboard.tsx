@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Loader2, Trophy, Crown, Search, X, Keyboard } from 'lucide-react';
-import { fetchTypingLeaderboard, getFortnightLabel } from '../../services/typingGame';
+import { fetchTypingLeaderboard } from '../../services/typingGame';
 import { STAFF_PARTICIPANT_GRADE } from '../../services/dataService';
 import { TypingLeaderboardEntry } from '../../types';
 import { LeaderboardFace } from './LeaderboardFace';
 
 /**
- * Student-facing typing high-score leaderboard (adjusted WPM for current fortnight).
+ * Student-facing typing high-score leaderboard (all-time best adjusted WPM).
  */
 export const StudentTypingLeaderboard: React.FC<{
   studentId?: string | null;
@@ -59,7 +59,7 @@ export const StudentTypingLeaderboard: React.FC<{
     <div className="space-y-8">
       <div className="text-center text-sm text-gray-500">
         <Keyboard className="w-5 h-5 inline-block mr-1 text-violet-600" />
-        {getFortnightLabel()} — ranked by adjusted WPM (speed × accuracy)
+        All-time best scores — ranked by adjusted WPM (speed × accuracy)
       </div>
 
       <div className="max-w-md mx-auto relative group">

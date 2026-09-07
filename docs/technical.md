@@ -23,7 +23,7 @@
 - **`PlannerItem`**: Represents a task or event in the student planner. Contains `studentId`, `title`, `dueDate` (timestamp), `category` (TASK, HOMEWORK, ASSIGNMENT), and `isCompleted`.
 - **`DailyIntention`**: Private one-per-day note (`dateKey` `YYYY-MM-DD`, `text` max 280 chars, optional `coreValue` / `subValue`, `ownerEmail`, `createdAt`, `updatedAt`). Doc id `{studentId}_{dateKey}` (sanitized). **Writes only for today’s `dateKey`** ([`upsertDailyIntention`](../services/dataService.ts)).
 - **`ValueReflection`**: Private Values Lab entry (`ownerEmail`, `coreValue`, `subValue`, `text` max 2000, `wordCount`, `createdAt`). Created via `addDoc`; no client update/delete.
-- **`TypingPassage`**, **`TypingScore`**, **`TypingRunResult`**, **`TypingRace`**, **`TypingRaceParticipant`**, **`TypingLeaderboardEntry`**: Speed Type game types in [`types.ts`](../types.ts). Passage content in [`data/typingPassages.ts`](../data/typingPassages.ts); logic in [`services/typingGame.ts`](../services/typingGame.ts).
+- **`TypingPassage`**, **`TypingScore`**, **`TypingRunResult`**, **`TypingRace`**, **`TypingRaceParticipant`**, **`TypingLeaderboardEntry`**, **`TypingProgress`**: Speed Type game types in [`types.ts`](../types.ts). Passage content in [`data/typingPassages.ts`](../data/typingPassages.ts); logic in [`services/typingGame.ts`](../services/typingGame.ts). **`TypingProgress`** tracks solo story rotation per fortnight (`periodKey`, `variantIndex` 0–2, `storiesCompleted`).
 - **`GoalCheckIn`**: Private fortnightly progress note (`goalId`, `ownerEmail`, `periodKey` e.g. `2026-T1-F3`, `progressText` max 500, `createdAt`, `updatedAt`). One per goal per period.
 - **`StudentEngagementStats`**: Client-computed counts for achievement progress (not stored).
 
@@ -68,8 +68,22 @@ The notification system is designed to be unobtrusive yet celebratory.
     - Fallback mechanism handles browser "Popup Blocked" scenarios gracefully.
 - **Domain Locking**: Only emails ending in `@sathyasai.nsw.edu.au` are permitted.
 - **Role resolution** ([`App.tsx`](../App.tsx)): After `initializeData()` loads the student/teacher caches, order is: **super-admin bootstrap email** → **match in `teachers`** → otherwise treat as **student path**. **Teachers and admins** keep `userRole` `TEACHER` / `ADMIN` but also receive a linked **`students/{id}`** participation profile via [`ensureStaffParticipationStudent`](../services/dataService.ts) (`grade: "Staff"`, same email) so they can use **Values Lab**, **My Planner**, game scores, and achievements. **`studentId`** is set for staff when that profile exists. **Students** are identified by email in `students` as before.
-- **Staff avatars**: Settings → **Avatar** ([`AvatarSettingsSection`](../components/AvatarSettingsSection.tsx)) uses the linked staff `studentId`. Staff profiles skip stamp unlock gates in [`AvatarEditor`](../components/AvatarEditor.tsx) so teachers/admins can customize their leaderboard avatar immediately; saved `avatar` / `avatarConfig` appear on quiz and typing leaderboards via [`LeaderboardFace`](../components/leaderboard/LeaderboardFace.tsx).
-- **Student login**: `getStudentByEmail` returns a record only if it exists and **`archived` is not true**. If no match, the app **auto-provisions** a new `students` document (default grade, avatar) so unknown school emails can still use the student app unless blocked below.
+- **Staff avatars**: Settings → **Avatar** ([`AvatarSettingsSection`](../components/AvatarSettingsSection.tsx)) uses the linked staff `studentId`. Staff profiles skip stamp unlock gates in [`AvatarEditor`](../components/AvatarEditor.tsx) (`forceFullCustomization`) so teachers/admins can customize their leaderboard avatar immediately; saved `avatar` / `avatarConfig` appear on quiz and typing leaderboards via [`LeaderboardFace`](../components/leaderboard/LeaderboardFace.tsx).
+
+### Staff participation (dual identity)
+Teachers and admins do **not** lose console access when they play student-facing features.
+
+| Concern | Behaviour |
+|--------|-----------|
+| **Role** | `userRole` stays `TEACHER` or `ADMIN` from the `teachers` collection. |
+| **Linked profile** | [`ensureStaffParticipationStudent`](../services/dataService.ts) creates or reuses `students/{id}` with the same email and `grade: "Staff"` (`STAFF_PARTICIPANT_GRADE`). |
+| **`studentId`** | Set in [`App.tsx`](../App.tsx) after staff login when the linked doc exists. |
+| **Routes** | Staff get **Values Lab** (`#/learning`) and **My Planner** (`#/planner`) when `studentId` is set. **My Passport** and **Achievements** nav remain student-only. |
+| **Leaderboards** | Quiz and typing tabs visible to all roles; **Staff** filter pill on [`StudentQuizLeaderboard`](../components/leaderboard/StudentQuizLeaderboard.tsx) and [`StudentTypingLeaderboard`](../components/leaderboard/StudentTypingLeaderboard.tsx). Staff excluded from [`buildYearGroupLeaderboard`](../services/dataService.ts) and school highlights year snapshots. |
+| **Scores & engagement** | Pop quiz, typing scores, planner, reflections, and typing achievements write to the linked student id like any student row. |
+| **Avatar** | Settings → Avatar; full unlock for Staff grade (see **Staff avatars** above). |
+
+- **Student login**: `getStudentByEmail` returns a record only if it exists and **`archived` is not true`. If no match, the app **auto-provisions** a new `students` document (default grade, avatar) so unknown school emails can still use the student app unless blocked below.
 - **Archived students**: `isArchivedStudentEmail` detects a matching student document with `archived: true`. Those users see an **Account archived** full-screen message and cannot open student routes; this avoids treating them as “new” and creating a duplicate student row.
 - **No In-App Password Change**: With Microsoft 365 login, credential management is handled by the identity provider. The Change Password UI has been removed.
 
@@ -87,12 +101,21 @@ The notification system is designed to be unobtrusive yet celebratory.
 
 ### Speed Type (Values Lab)
 - **Location**: **Values Lab** → **Speed Type** tab ([`ValuesLearning.tsx`](../components/ValuesLearning.tsx) → [`ValuesTypingGame.tsx`](../components/typing/ValuesTypingGame.tsx)).
-- **Modes**: **Solo practice** (passage picked per student + fortnight via hash) and **live races** (minute-aligned rooms — join lobby, countdown, same passage for all racers).
-- **Scoring**: WPM = `(correctChars / 5) / minutes`; **adjusted WPM** = `WPM × (accuracy / 100)` — used for fortnight leaderboard ranking.
-- **Passages**: Three variants per school fortnight (`periodKey` e.g. `2026-T1-F2`), themed to values integration; evergreen fallback outside term. Races rotate variant by `raceId % 3`.
-- **Anti-cheat (client)**: Paste/drop blocked; sequential character entry; keystroke timeline; wrong keys count as errors without advancing. **Server**: Cloud Function [`validateTypingScore`](../functions/src/typingScoreValidation.ts) removes `typing_scores` docs that fail bounds checks (WPM ≤ 180, consistent adjusted WPM, etc.).
-- **Firestore**: `typing_scores/{studentId}` (best adjusted WPM per fortnight); `typing_races/{raceId}` + `participants/{studentId}` (live race state). Rules in [`firestore.rules`](../firestore.rules); composite index on `typing_scores` (`periodKey` + `adjustedWpm`) in [`firestore.indexes.json`](../firestore.indexes.json).
-- **Leaderboard**: Students → **School** → **Typing** tab (`#/leaderboard/typing`) via [`StudentTypingLeaderboard.tsx`](../components/leaderboard/StudentTypingLeaderboard.tsx); [`fetchTypingLeaderboard()`](../services/typingGame.ts).
+- **UI components**: [`TypingTest.tsx`](../components/typing/TypingTest.tsx) (solo typing engine), [`TypingRaceLobby.tsx`](../components/typing/TypingRaceLobby.tsx) (join next minute-aligned room), [`TypingRaceLive.tsx`](../components/typing/TypingRaceLive.tsx) (countdown + race + results).
+- **Modes**: **Solo practice** (passage per student + fortnight via progress) and **live races** (minute-aligned rooms — join lobby, 3s countdown, same passage for all racers in that room).
+- **Solo story rotation**: [`typing_progress/{studentId}`](../services/typingGame.ts) stores `periodKey`, `variantIndex` (0–2), and `storiesCompleted`. On **complete**, [`advanceTypingProgress`](../services/typingGame.ts) moves to the next variant (wraps 2 → 0). Exit without finishing keeps the same story. LocalStorage fallback (`values_passport_typing_progress`) if Firestore write fails. New fortnight resets variant tracking when `periodKey` changes.
+- **Scoring**: WPM = `(correctChars / 5) / minutes`; **adjusted WPM** = `WPM × (accuracy / 100)` — used for fortnight leaderboard ranking. Best adjusted WPM per fortnight is stored on `typing_scores/{studentId}` (merge write).
+- **Passages**: Three variants per school fortnight (`periodKey` e.g. `2026-T1-F2`), themed to values integration; evergreen fallback outside term. Live races pick variant by `raceId % 3` via [`pickRacePassage`](../data/typingPassages.ts).
+- **Anti-cheat (client)**: Paste/drop blocked; sequential character entry; keystroke timeline; wrong keys count as errors without advancing. **Server**: Cloud Function [`validateTypingScore`](../functions/src/typingScoreValidation.ts) (Firestore trigger on `typing_scores` create/update) removes docs that fail bounds checks (WPM ≤ 180, consistent adjusted WPM, etc.).
+- **Firestore**: `typing_scores/{studentId}` (best adjusted WPM per fortnight); `typing_races/{raceId}` + `participants/{studentId}` (live race state); `typing_progress/{studentId}` (solo rotation). Rules in [`firestore.rules`](../firestore.rules); composite index on `typing_scores` (`periodKey` + `adjustedWpm`) in [`firestore.indexes.json`](../firestore.indexes.json).
+- **Leaderboard**: **School** → **Typing** tab (`#/leaderboard/typing`) via [`StudentTypingLeaderboard.tsx`](../components/leaderboard/StudentTypingLeaderboard.tsx); data from [`fetchTypingLeaderboard()`](../services/typingGame.ts).
+- **Deploy**: After changing typing rules or indexes: `firebase deploy --only firestore:rules,firestore:indexes`. After changing validation logic: `cd functions && npm run build && firebase deploy --only functions:validateTypingScore` (or full functions deploy).
+
+### Avatar customization
+- **Storage**: `students/{id}.avatar` (DiceBear URL) and optional `avatarConfig` (seed, background, avataaars options). Built with [`buildAvatarUrlFromConfig`](../services/avatarUrl.ts); saved via [`updateStudentAvatarConfig`](../services/dataService.ts).
+- **Student unlock gates** ([`AvatarEditor.tsx`](../components/AvatarEditor.tsx)): **Randomize** at ≥ 1 stamp; full option grid at ≥ 5 stamps (`FULL_CUSTOMIZATION_STAMP_THRESHOLD`). Stamp count from [`calculateStats`](../services/dataService.ts) on the student’s signatures.
+- **Staff**: [`isStaffParticipantGrade`](../services/dataService.ts) → `forceFullCustomization` in AvatarEditor; no stamp requirement.
+- **Where avatars show**: Student dashboard passport banner; quiz/typing leaderboards ([`LeaderboardFace`](../components/leaderboard/LeaderboardFace.tsx)); year-group avatar walls use raw `student.avatar` on [`YearGroupStandings`](../components/leaderboard/YearGroupStandings.tsx).
 
 ### Leaderboard, School highlights, and Wall of Fame
 - **Nav**: In [`App.tsx`](../App.tsx), the link label is **School** (Building icon) for **students** and **Students** (Bar chart icon) for **teachers and admins**; both target **`/leaderboard`**. The nested route [`Leaderboard.tsx`](../components/Leaderboard.tsx) passes **`studentId`** to leaderboard views when the user has a participation profile (students and staff).
@@ -229,9 +252,10 @@ Students submit via **Request Stamp** on [`Dashboard.tsx`](../components/Dashboa
 
 ## Security Rules (Firestore)
 - **Engagement collections** (`daily_intentions`, `value_reflections`, `goal_check_ins`): Student-only read/write via `ownerEmail` and/or `isOwnStudentData(studentId)`. Field validators (`validDailyIntentionData`, etc.) enforce sizes and required keys. **`authEmailLower()`** supports Microsoft tokens where email is on `preferred_username`.
+- **Speed Type** (`typing_scores`, `typing_races`, `typing_progress`): Authenticated read; writes require `isOwnStudentData(studentId)` (or `participantId` for race participants). Score docs validate WPM/accuracy bounds on create/update. See [`firestore.rules`](../firestore.rules).
 - **General (stamps, planner, goals, etc.)**: Authenticated read/write as documented in [`firestore.rules`](../firestore.rules); teachers award stamps; students write planner/goals.
 - **Email / digest collections**: Client create rules for queues/preferences; server-only sent/digest collections denied to clients.
-- **Deploy**: After rule or index changes, run `firebase deploy --only firestore:rules,firestore:indexes` before testing in production. Current composite indexes include `signatures` (studentId + timestamp), engagement collections (studentId + ownerEmail), and **`nominations` (status + reviewerEmails)** for the teacher Review Requests inbox.
+- **Deploy**: After rule or index changes, run `firebase deploy --only firestore:rules,firestore:indexes` before testing in production. Current composite indexes include `signatures` (studentId + timestamp), engagement collections (studentId + ownerEmail), **`nominations` (status + reviewerEmails)** for the teacher Review Requests inbox, and **`typing_scores` (periodKey + adjustedWpm)** for the typing leaderboard.
 
 ## Deployment
 - The app is configured for deployment on **Vercel** or **Firebase Hosting**.

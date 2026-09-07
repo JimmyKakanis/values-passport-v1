@@ -307,7 +307,7 @@ export interface TypingRunResult {
   completedAt: number;
 }
 
-/** Best fortnight high score stored in Firestore. */
+/** Best typing high score stored in Firestore (all-time best for leaderboard; fortnight fields for achievements). */
 export interface TypingScore {
   studentId: string;
   periodKey: string;
@@ -317,6 +317,11 @@ export interface TypingScore {
   adjustedWpm: number;
   durationMs: number;
   completedAt: number;
+  /** Best adjusted WPM in the current school fortnight (achievements / engagement). */
+  fortnightPeriodKey?: string;
+  fortnightAdjustedWpm?: number;
+  fortnightWpm?: number;
+  fortnightAccuracy?: number;
 }
 
 export type TypingRaceStatus = 'lobby' | 'countdown' | 'active' | 'finished';

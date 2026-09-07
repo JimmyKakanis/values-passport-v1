@@ -394,7 +394,7 @@ const App: React.FC = () => {
              setArchivedStudentAccount(false);
              setUserRole('ADMIN');
              const participation = await ensureStaffParticipationStudent({
-               name: currentUser.displayName || 'Admin',
+               name: teacher?.name || currentUser.displayName || 'Admin',
                email: currentUser.email,
              });
              setStudentId(participation?.id ?? null);

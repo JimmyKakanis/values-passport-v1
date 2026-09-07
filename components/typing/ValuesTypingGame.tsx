@@ -73,7 +73,7 @@ export const ValuesTypingGame: React.FC<Props> = ({ studentId }) => {
   useEffect(() => {
     if (!studentId) return;
     getTypingHighScore(studentId).then((score) => {
-      if (score && score.periodKey === periodKey) {
+      if (score) {
         setBestScore(score.adjustedWpm);
       }
     });
@@ -108,7 +108,12 @@ export const ValuesTypingGame: React.FC<Props> = ({ studentId }) => {
         const isNew = await updateTypingHighScore(studentId, runResult);
         scoreSaved = true;
         setNewHighScore(isNew);
-        if (isNew) setBestScore(runResult.adjustedWpm);
+        if (isNew) {
+          setBestScore(runResult.adjustedWpm);
+        } else {
+          const latest = await getTypingHighScore(studentId);
+          if (latest) setBestScore(latest.adjustedWpm);
+        }
       } catch (e) {
         console.error('Failed to save typing score', e);
       }
@@ -218,7 +223,7 @@ export const ValuesTypingGame: React.FC<Props> = ({ studentId }) => {
           </p>
           {bestScore !== null && (
             <p className="text-sm text-blue-800">
-              Your best this fortnight: <strong>{bestScore.toFixed(1)}</strong> adjusted WPM
+              Your best score: <strong>{bestScore.toFixed(1)}</strong> adjusted WPM
             </p>
           )}
         </div>
@@ -304,7 +309,7 @@ export const ValuesTypingGame: React.FC<Props> = ({ studentId }) => {
 
           {newHighScore && !saving && !saveError && (
             <div className="bg-yellow-100 text-yellow-800 text-sm font-bold px-3 py-2 rounded-full inline-block animate-bounce">
-              New fortnight high score!
+              New personal best!
             </div>
           )}
 

@@ -14,6 +14,7 @@ import {
   subscribeToDailyIntentions,
   subscribeToValueReflections,
   subscribeToGoalCheckIns,
+  isStaffParticipantGrade,
 } from '../services/dataService';
 import { computeEngagementStats, mergeTypingEngagement } from '../services/studentEngagement';
 import { subscribeToTypingEngagement } from '../services/typingGame';
@@ -285,6 +286,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
     typingStoriesCompleted: 0,
   });
   const lastLoginRef = useRef<number | undefined>(undefined);
+  const isStaffParticipantRef = useRef(false);
   const isInitialLoad = useRef(true);
   const hasCheckedWelcomeBack = useRef(false);
 
@@ -292,6 +294,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
   useEffect(() => {
     if (!studentId) {
       setLoadingProfile(true);
+      isStaffParticipantRef.current = false;
       return;
     }
     
@@ -300,6 +303,9 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
        try {
          const profile = await getStudentProfile(studentId);
          lastLoginRef.current = profile?.lastLoginAt;
+         isStaffParticipantRef.current = profile?.grade
+           ? isStaffParticipantGrade(profile.grade)
+           : false;
          if (profile?.grade) {
            const customRewards = await getCustomRewardsForGrade(profile.grade);
            customRewardsRef.current = customRewards.map((cr) => ({
@@ -359,7 +365,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
     // it's likely a bug where prevRef was lost. Suppress it.
     const isSuspiciousUpdate = newUnlocked.length > 5 && newUnlocked.length === unlockedIds.length;
 
-    if (!isSuspiciousUpdate) {
+    if (!isSuspiciousUpdate && !isStaffParticipantRef.current) {
         newUnlocked.forEach(achId => {
            const achDef = achievements.find(a => a.id === achId && a.isUnlocked);
            if (achDef) {
@@ -411,6 +417,7 @@ export const NotificationController: React.FC<{ studentId: string | null }> = ({
       };
       isInitialLoad.current = true;
       hasCheckedWelcomeBack.current = false;
+      isStaffParticipantRef.current = false;
       return;
     }
 

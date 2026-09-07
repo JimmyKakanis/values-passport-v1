@@ -7,6 +7,8 @@ interface Props {
   signatures: Signature[];
   /** Scrollable list max height (Tailwind class). */
   maxHeight?: string;
+  /** Adjust empty-state copy when showing comments only. */
+  commentsOnly?: boolean;
 }
 
 const formatStampDate = (timestamp: number) => {
@@ -28,6 +30,7 @@ const formatStampTime = (timestamp: number) =>
 export const StampActivityFeed: React.FC<Props> = ({
   signatures,
   maxHeight = 'max-h-[32rem]',
+  commentsOnly = false,
 }) => {
   if (signatures.length === 0) {
     return (
@@ -35,9 +38,13 @@ export const StampActivityFeed: React.FC<Props> = ({
         <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300 mb-3">
           <Stamp size={28} />
         </div>
-        <p className="text-gray-600 font-medium">No stamps yet!</p>
+        <p className="text-gray-600 font-medium">
+          {commentsOnly ? 'No comments yet' : 'No stamps yet!'}
+        </p>
         <p className="text-sm text-gray-400 mt-1 max-w-sm mx-auto">
-          When teachers award stamps, they will appear here with any comments they leave for you.
+          {commentsOnly
+            ? 'When teachers leave comments on stamps, they will appear here newest first.'
+            : 'When teachers award stamps, they will appear here with any comments they leave for you.'}
         </p>
       </div>
     );
@@ -90,7 +97,9 @@ export const StampActivityFeed: React.FC<Props> = ({
                 <p className="text-sm text-gray-700 leading-relaxed">&ldquo;{sig.note}&rdquo;</p>
               </div>
             ) : (
-              <p className="text-xs text-gray-400 italic">No comment on this stamp</p>
+              !commentsOnly && (
+                <p className="text-xs text-gray-400 italic">No comment on this stamp</p>
+              )
             )}
           </li>
         );
@@ -101,31 +110,48 @@ export const StampActivityFeed: React.FC<Props> = ({
 
 interface SectionProps {
   signatures: Signature[];
+  /** When true, only stamps with a teacher comment are shown. */
+  commentsOnly?: boolean;
+  title?: string;
+  description?: string;
 }
 
-/** Full-width stamp history block for the student dashboard. */
-export const StampHistorySection: React.FC<SectionProps> = ({ signatures }) => {
-  const withComments = signatures.filter((s) => s.note?.trim()).length;
+/** Full-width stamp history block for the student dashboard or teacher student view. */
+export const StampHistorySection: React.FC<SectionProps> = ({
+  signatures,
+  commentsOnly = false,
+  title = 'Stamp history',
+  description = 'All your stamps and teacher comments in one place, newest first.',
+}) => {
+  const displayed = commentsOnly
+    ? signatures.filter((s) => s.note?.trim())
+    : signatures;
+  const withComments = displayed.filter((s) => s.note?.trim()).length;
 
   return (
     <section className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
         <h2 className="text-lg font-bold text-blue-900 flex items-center gap-2">
           <History className="text-emerald-600 w-5 h-5" />
-          Stamp history
+          {title}
         </h2>
-        {signatures.length > 0 && (
+        {displayed.length > 0 && (
           <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-            {signatures.length} stamp{signatures.length === 1 ? '' : 's'}
-            {withComments > 0 &&
-              ` · ${withComments} with comment${withComments === 1 ? '' : 's'}`}
+            {commentsOnly
+              ? `${displayed.length} comment${displayed.length === 1 ? '' : 's'}`
+              : `${displayed.length} stamp${displayed.length === 1 ? '' : 's'}${
+                  withComments > 0
+                    ? ` · ${withComments} with comment${withComments === 1 ? '' : 's'}`
+                    : ''
+                }`}
           </span>
         )}
       </div>
-      <p className="text-sm text-gray-500 mb-4">
-        All your stamps and teacher comments in one place, newest first.
-      </p>
-      <StampActivityFeed signatures={signatures} />
+      <p className="text-sm text-gray-500 mb-4">{description}</p>
+      <StampActivityFeed
+        signatures={displayed}
+        commentsOnly={commentsOnly}
+      />
     </section>
   );
 };

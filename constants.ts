@@ -29,7 +29,7 @@ export const TEACHERS: Teacher[] = [
   { name: 'Mr Keshava Inglis', email: 'k.inglis@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Ms Jaime John', email: 'j.john@sathyasai.nsw.edu.au', role: 'TEACHER' },
   { name: 'Mrs Jenna Jones', email: 'j.jones@sathyasai.nsw.edu.au', role: 'TEACHER' },
-  { name: 'Mr James Kakanis', email: 'j.kakanis@sathyasai.nsw.edu.au', role: 'ADMIN', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] },
+  { name: 'Mr Jimmy Kakanis', email: 'j.kakanis@sathyasai.nsw.edu.au', role: 'ADMIN', assignedGrades: ['Year 7', 'Year 8', 'Year 9', 'Year 10', 'Year 11', 'Year 12'] },
   { name: 'Mr Glenn Kaminski', email: 'g.kaminski@sathyasai.nsw.edu.au', role: 'TEACHER', assignedSubjects: ['Math'] },
   { name: 'Mr Gavin Kester', email: 'g.kester@sathyasai.nsw.edu.au', role: 'TEACHER', assignedSubjects: ['English'] },
   { name: 'Ms Rachael Lebeter', email: 'r.lebeter@sathyasai.nsw.edu.au', role: 'TEACHER' },
