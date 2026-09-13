@@ -11,7 +11,7 @@ import {
   Line, 
   Cell 
 } from 'recharts';
-import { getAllSignatures, getAllTeachers, getStudents, reloadStudentsCacheFromFirestore } from '../services/dataService';
+import { getAllSignatures, getAllTeachers, getSchoolStudents, reloadStudentsCacheFromFirestore } from '../services/dataService';
 import { Signature, CoreValue, Teacher, UserRole } from '../types';
 import { CORE_VALUES } from '../constants';
 import {
@@ -66,7 +66,7 @@ export const SchoolAnalytics: React.FC = () => {
   // --- CALCULATIONS ---
 
   // 1. Overview Stats
-  const rosterStudents = getStudents();
+  const rosterStudents = getSchoolStudents();
   const rosterIds = new Set(rosterStudents.map((s) => s.id));
   const rosterSize = rosterStudents.length;
 

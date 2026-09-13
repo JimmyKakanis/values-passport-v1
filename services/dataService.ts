@@ -62,17 +62,89 @@ export const getStudents = (): Student[] => cachedStudents.filter(isActiveRoster
 export const getAllStudentsFromCache = (): Student[] => [...cachedStudents];
 
 export const getStudent = (id: string): Student | undefined => cachedStudents.find(s => s.id === id);
-export const getStudentByEmail = (email: string): Student | undefined => {
-  const s = cachedStudents.find((e) => e.email.toLowerCase() === email.toLowerCase());
-  if (!s || Boolean(s.archived)) return undefined;
-  return s;
+
+export const normalizeStudentEmail = (email: string): string => email.toLowerCase().trim();
+
+const pickCanonicalStudentFromMatches = (matches: Student[]): Student | undefined => {
+  const active = matches.filter((s) => !Boolean(s.archived));
+  if (active.length === 0) return undefined;
+  return [...active].sort((a, b) => {
+    const loginDiff = (b.lastLoginAt ?? 0) - (a.lastLoginAt ?? 0);
+    if (loginDiff !== 0) return loginDiff;
+    if (a.id.length !== b.id.length) return a.id.length - b.id.length;
+    return a.id.localeCompare(b.id);
+  })[0];
 };
 
-/** For auth: true if this email belongs to an archived student record (blocks re-provisioning). */
-export const isArchivedStudentEmail = (email: string): boolean => {
-  const s = cachedStudents.find((e) => e.email.toLowerCase() === email.toLowerCase());
-  return Boolean(s?.archived);
+const upsertStudentInCache = (student: Student) => {
+  const idx = cachedStudents.findIndex((s) => s.id === student.id);
+  if (idx === -1) cachedStudents.push(student);
+  else cachedStudents[idx] = student;
 };
+
+const studentProvisionLocks = new Map<string, Promise<Student | null>>();
+
+export const getStudentByEmail = (email: string): Student | undefined => {
+  const normalized = normalizeStudentEmail(email);
+  const matches = cachedStudents.filter((e) => normalizeStudentEmail(e.email || '') === normalized);
+  return pickCanonicalStudentFromMatches(matches);
+};
+
+/** For auth: true when every roster row for this email is archived (no active profile). */
+export const isArchivedStudentEmail = (email: string): boolean => {
+  const normalized = normalizeStudentEmail(email);
+  const matches = cachedStudents.filter((e) => normalizeStudentEmail(e.email || '') === normalized);
+  if (matches.length === 0) return false;
+  return matches.every((s) => Boolean(s.archived));
+};
+
+export const findStudentByEmailInFirestore = async (email: string): Promise<Student | null> => {
+  const normalized = normalizeStudentEmail(email);
+  const snapshot = await getDocs(collection(db, 'students'));
+  const matches = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Student));
+  return pickCanonicalStudentFromMatches(
+    matches.filter((s) => normalizeStudentEmail(s.email || '') === normalized)
+  ) ?? null;
+};
+
+/**
+ * Resolve the student profile for login: cache → Firestore → optional auto-provision (deduped).
+ */
+export async function resolveStudentForAuthEmail(
+  email: string,
+  createDefaults?: Omit<Student, 'id' | 'email'>
+): Promise<Student | null> {
+  const normalized = normalizeStudentEmail(email);
+  const cached = getStudentByEmail(normalized);
+  if (cached) return cached;
+
+  const fromFirestore = await findStudentByEmailInFirestore(normalized);
+  if (fromFirestore) {
+    upsertStudentInCache(fromFirestore);
+    return fromFirestore;
+  }
+
+  if (!createDefaults) return null;
+
+  const inFlight = studentProvisionLocks.get(normalized);
+  if (inFlight) return inFlight;
+
+  const promise = (async () => {
+    const again = await findStudentByEmailInFirestore(normalized);
+    if (again) {
+      upsertStudentInCache(again);
+      return again;
+    }
+    return addStudent({ ...createDefaults, email: normalized });
+  })();
+
+  studentProvisionLocks.set(normalized, promise);
+  try {
+    return await promise;
+  } finally {
+    studentProvisionLocks.delete(normalized);
+  }
+}
 
 /**
  * Replaces `cachedStudents` with the latest `students` collection. Call after admin roster changes
@@ -95,13 +167,15 @@ export const isApprovedTeacher = (email: string): boolean => {
 };
 
 // Initialize Cache from Firestore
-export const initializeData = async () => {
+export const initializeData = async (): Promise<boolean> => {
   try {
-    await reloadStudentsCacheFromFirestore();
+    const reloaded = await reloadStudentsCacheFromFirestore();
     const teachers = await getAllTeachers();
     if (teachers.length > 0) cachedTeachers = teachers;
+    return reloaded;
   } catch (e) {
     console.error('Failed to initialize data cache', e);
+    return false;
   }
 };
 
@@ -141,10 +215,18 @@ export const getAllStudents = async (): Promise<Student[]> => {
 };
 
 export const addStudent = async (student: Omit<Student, 'id'>): Promise<Student | null> => {
+  const normalizedEmail = normalizeStudentEmail(student.email || '');
+  const existing = await findStudentByEmailInFirestore(normalizedEmail);
+  if (existing && !Boolean(existing.archived)) {
+    upsertStudentInCache(existing);
+    return existing;
+  }
+
   try {
     const newRef = doc(collection(db, "students"));
     const newStudent = { 
         ...student, 
+        email: normalizedEmail,
         id: newRef.id,
         archived: false,
         avatarConfig: {
@@ -153,7 +235,7 @@ export const addStudent = async (student: Omit<Student, 'id'>): Promise<Student 
         }
     };
     await setDoc(newRef, newStudent);
-    cachedStudents.push(newStudent); // Update cache
+    upsertStudentInCache(newStudent);
     return newStudent;
   } catch (error) {
     console.error("Error adding student:", error);
@@ -167,6 +249,17 @@ export const STAFF_PARTICIPANT_GRADE = 'Staff';
 export const isStaffParticipantGrade = (grade: string): boolean =>
   grade.trim() === STAFF_PARTICIPANT_GRADE;
 
+/** Real school students (excludes staff participation profiles). */
+export const isSchoolStudent = (s: Student): boolean =>
+  isActiveRosterStudent(s) && !isStaffParticipantGrade(s.grade);
+
+/** Active school students for pickers, analytics, and teacher tools (no staff participation profiles). */
+export const getSchoolStudents = (): Student[] => cachedStudents.filter(isSchoolStudent);
+
+/** Admin student directory: real students including archived, excluding staff participation profiles. */
+export const getAdminStudentDirectoryFromCache = (): Student[] =>
+  cachedStudents.filter((s) => !isStaffParticipantGrade(s.grade));
+
 /**
  * Ensures a linked students/{id} doc exists so staff can use Values Lab, Planner, and game scores.
  * Reuses an existing student doc for the same email if present.
@@ -175,14 +268,10 @@ export async function ensureStaffParticipationStudent(teacher: {
   name: string;
   email: string;
 }): Promise<Student | null> {
-  const email = teacher.email.toLowerCase().trim();
-  const existing = getStudentByEmail(email);
-  if (existing) return existing;
-
+  const email = normalizeStudentEmail(teacher.email);
   const seed = teacher.name.replace(/\s+/g, '') || email.split('@')[0];
-  return addStudent({
+  return resolveStudentForAuthEmail(email, {
     name: teacher.name,
-    email,
     grade: STAFF_PARTICIPANT_GRADE,
     avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4`,
   });
@@ -533,6 +622,138 @@ export const migrateTeacherName = async (oldName: string, newName: string): Prom
   } catch (error) {
     console.error("Migration failed:", error);
     return { success: false, count: 0 };
+  }
+};
+
+const reassignCollectionStudentId = async (
+  collectionName: string,
+  fromId: string,
+  toId: string
+): Promise<number> => {
+  const snapshot = await getDocs(
+    query(collection(db, collectionName), where('studentId', '==', fromId))
+  );
+  await Promise.all(snapshot.docs.map((d) => updateDoc(d.ref, { studentId: toId })));
+  return snapshot.size;
+};
+
+const mergeStep = async (label: string, fn: () => Promise<void>): Promise<void> => {
+  try {
+    await fn();
+  } catch (error) {
+    console.warn(`Merge step skipped (${label}):`, error);
+  }
+};
+
+const mergeDocIdKeyedStudentData = async (
+  collectionName: string,
+  fromId: string,
+  toId: string
+): Promise<void> => {
+  const fromRef = doc(db, collectionName, fromId);
+  const toRef = doc(db, collectionName, toId);
+  const [fromSnap, toSnap] = await Promise.all([getDoc(fromRef), getDoc(toRef)]);
+  if (!fromSnap.exists()) return;
+
+  const fromData = fromSnap.data();
+  if (!toSnap.exists()) {
+    await setDoc(toRef, { ...fromData, studentId: toId });
+  } else if (collectionName === 'quiz_scores') {
+    const toData = toSnap.data();
+    const fromHigh = typeof fromData.highScore === 'number' ? fromData.highScore : 0;
+    const toHigh = typeof toData.highScore === 'number' ? toData.highScore : 0;
+    if (fromHigh > toHigh) await updateDoc(toRef, { highScore: fromHigh });
+  } else if (collectionName === 'typing_scores') {
+    const toData = toSnap.data();
+    const fromBest = typeof fromData.bestAdjustedWpm === 'number' ? fromData.bestAdjustedWpm : 0;
+    const toBest = typeof toData.bestAdjustedWpm === 'number' ? toData.bestAdjustedWpm : 0;
+    if (fromBest > toBest) await updateDoc(toRef, { ...fromData, studentId: toId });
+  }
+  await deleteDoc(fromRef);
+};
+
+/** Move student-owned data onto the canonical profile. Non-critical steps are best-effort. */
+const reassignStudentData = async (fromId: string, toId: string): Promise<void> => {
+  await mergeStep('signatures', () => reassignCollectionStudentId('signatures', fromId, toId).then(() => undefined));
+  await mergeStep('claimed_rewards', () => reassignCollectionStudentId('claimed_rewards', fromId, toId).then(() => undefined));
+  await mergeStep('nominations', () => reassignCollectionStudentId('nominations', fromId, toId).then(() => undefined));
+  await mergeStep('planner', () => reassignCollectionStudentId('planner', fromId, toId).then(() => undefined));
+  await mergeStep('goals', () => reassignCollectionStudentId('goals', fromId, toId).then(() => undefined));
+  await mergeStep('quiz_scores', () => mergeDocIdKeyedStudentData('quiz_scores', fromId, toId));
+  await mergeStep('typing_scores', () => mergeDocIdKeyedStudentData('typing_scores', fromId, toId));
+  await mergeStep('typing_progress', () => mergeDocIdKeyedStudentData('typing_progress', fromId, toId));
+};
+
+const pickCanonicalStudentForMerge = async (group: Student[]): Promise<Student> => {
+  const scored = await Promise.all(
+    group.map(async (student) => ({
+      student,
+      sigCount: (await getSignaturesForStudent(student.id)).length,
+    }))
+  );
+  scored.sort((a, b) => {
+    if (b.sigCount !== a.sigCount) return b.sigCount - a.sigCount;
+    const loginDiff = (b.student.lastLoginAt ?? 0) - (a.student.lastLoginAt ?? 0);
+    if (loginDiff !== 0) return loginDiff;
+    if (a.student.id.length !== b.student.id.length) return a.student.id.length - b.student.id.length;
+    return a.student.id.localeCompare(b.student.id);
+  });
+  return scored[0].student;
+};
+
+/** Merge duplicate student roster rows that share the same email (keeps stamps on one profile). */
+export const mergeAllDuplicateStudentRecords = async (): Promise<{
+  success: boolean;
+  groupsMerged: number;
+  recordsRemoved: number;
+  details: string[];
+  error?: string;
+}> => {
+  try {
+    const all = (await getAllStudents()).filter((s) => !isStaffParticipantGrade(s.grade));
+    const byEmail = new Map<string, Student[]>();
+    for (const s of all) {
+      const key = normalizeStudentEmail(s.email || '');
+      if (!key) continue;
+      const group = byEmail.get(key) ?? [];
+      group.push(s);
+      byEmail.set(key, group);
+    }
+
+    let groupsMerged = 0;
+    let recordsRemoved = 0;
+    const details: string[] = [];
+
+    for (const group of byEmail.values()) {
+      if (group.length <= 1) continue;
+
+      const canonical = await pickCanonicalStudentForMerge(group);
+      const dupes = group.filter((s) => s.id !== canonical.id);
+
+      for (const dupe of dupes) {
+        await reassignStudentData(dupe.id, canonical.id);
+        const deleted = await deleteStudent(dupe.id);
+        if (!deleted) {
+          throw new Error(`Failed to delete duplicate student ${dupe.id}`);
+        }
+        recordsRemoved++;
+      }
+
+      groupsMerged++;
+      details.push(`${canonical.name}: kept ${canonical.id}, removed ${dupes.length} duplicate(s)`);
+    }
+
+    await reloadStudentsCacheFromFirestore();
+    return { success: true, groupsMerged, recordsRemoved, details };
+  } catch (error) {
+    console.error('Duplicate student merge failed:', error);
+    return {
+      success: false,
+      groupsMerged: 0,
+      recordsRemoved: 0,
+      details: [],
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 };
 
@@ -1336,7 +1557,7 @@ export const getSchoolHighlightsPageData = async (studentId: string | null): Pro
   const [allSigs, allClaimed] = await Promise.all([getAllSignatures(), getAllClaimedRewards()]);
   const cutoff = Date.now() - HIGHLIGHTS_WINDOW_MS;
 
-  const students = getStudents().filter((s) => !isStaffParticipantGrade(s.grade));
+  const students = getSchoolStudents();
   const totalStudentsOnRoll = students.length;
 
   const studentById = new Map(students.map((s) => [s.id, s] as const));
@@ -2078,7 +2299,7 @@ export const getPendingRewardsForTeacher = async (): Promise<RewardEntry[]> => {
     
     const pendingRewards: RewardEntry[] = [];
   
-    getStudents().forEach(student => {
+    getSchoolStudents().forEach(student => {
     const studentSigs = allSignatures.filter(s => s.studentId === student.id);
     const studentClaimedIds = allClaimed
         .filter(c => c.studentId === student.id)

@@ -100,6 +100,9 @@
 ## In Progress
 
 ## Recently completed
+- [x] **Teacher student passport UX** (2026-09) — `#/student/:id` defaults to **Values Passport**; **Teacher comments** feed below grid (`StampHistorySection` + `commentsOnly`, newest first); documented in `docs/technical.md` / `docs/architecture.md`
+- [x] **All-time typing leaderboard** (2026-09) — `#/leaderboard/typing` ranks by personal best adjusted WPM (no fortnight reset); fortnight fields on `typing_scores` for achievements; UI copy updated
+- [x] **Staff achievement notifications off** (2026-09) — teachers/admins with Staff profiles skip achievement toasts and achievement email enqueue
 - [x] **Speed Type game** (2026-08) — Values Lab **Speed Type** tab: solo practice + minute-aligned live races, fortnight value-themed passages (3 variants), adjusted WPM scoring, anti-cheat, `#/leaderboard/typing`, Firestore `typing_scores` / `typing_races` / `typing_progress`, Cloud Function `validateTypingScore`, typing achievements
 - [x] **Staff participation** (2026-08) — Teachers/admins keep TEACHER/ADMIN role with linked `students/{id}` (`grade: "Staff"`): Values Lab, My Planner, quiz/typing leaderboards, **Staff** filter pill; excluded from year-group cohort maths; documented in `docs/technical.md`
 - [x] **Staff avatar profiles** (2026-08) — Settings → Avatar for staff; full customization without stamp gates; avatars on quiz/typing leaderboards via `LeaderboardFace`

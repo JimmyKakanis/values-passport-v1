@@ -4,7 +4,7 @@ import { Loader2, RefreshCw, UserSearch, PenLine, ChevronRight, ExternalLink } f
 import { CoreValue, Subject, Teacher } from '../types';
 import {
   getAllSignatures,
-  getStudents,
+  getSchoolStudents,
   reloadStudentsCacheFromFirestore,
 } from '../services/dataService';
 import {
@@ -236,7 +236,7 @@ export const TeacherAttentionPanel: React.FC<TeacherAttentionPanelProps> = ({
     setLoadError(null);
     try {
       await reloadStudentsCacheFromFirestore();
-      const roster = getStudents();
+      const roster = getSchoolStudents();
       const scoped = filterStudentsByTeacherGrades(
         roster,
         currentTeacher?.assignedGrades

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent, getStudents, getAllTeachers } from '../services/dataService';
+import { addSignature, getPendingNominations, approveNomination, rejectNomination, getStudent, getSchoolStudents, getAllTeachers } from '../services/dataService';
 import { Student, Subject, CoreValue, Nomination, Teacher, UserRole } from '../types';
 import { CORE_VALUES, SUBJECTS } from '../constants';
 import { Check, X, Send, Users, Loader2, Search, Tag, Inbox, CheckCircle2, Clock, UserCheck, Gift, Activity, UserSearch } from 'lucide-react';
@@ -45,7 +45,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({
   const isAdminViewer = viewerRole === 'ADMIN' || currentTeacher?.role === 'ADMIN';
 
   useEffect(() => {
-    const studentData = getStudents();
+    const studentData = getSchoolStudents();
     setStudents(studentData);
 
     const fetchTeacher = async () => {
@@ -184,7 +184,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({
     setSelectedStudentIds([opts.studentId]);
     if (opts.subject) setSelectedSubject(opts.subject);
     if (opts.value) setSelectedValue(opts.value);
-    const s = getStudents().find((st) => st.id === opts.studentId);
+    const s = getSchoolStudents().find((st) => st.id === opts.studentId);
     if (s) {
       setSelectedGrade(s.grade);
       setStudentSearchTerm('');

@@ -19,7 +19,7 @@ import {
   addNomination,
   getNominationLimits,
   type NominationLimits, 
-  getStudents,
+  getSchoolStudents,
   getStudentClaimedRewards,
   subscribeToPlannerItems,
   updatePlannerItem,
@@ -111,7 +111,7 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
   // Avatar Editor State
   const [isAvatarEditorOpen, setIsAvatarEditorOpen] = useState(false);
   
-  const allStudents = getStudents();
+  const allStudents = getSchoolStudents();
 
   useEffect(() => {
     const loadData = async () => {

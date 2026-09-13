@@ -4,6 +4,10 @@
 
 
 ## Recently completed
+- [x] **Documentation** (2026-09) — all-time typing leaderboard, teacher student passport + comments feed, staff achievement notification skip (README, `docs/technical.md`, `docs/architecture.md`, `docs/status.md`)
+- [x] **Teacher student passport UX** — default Values Passport tab; teacher comments below passport (`StampHistorySection` commentsOnly)
+- [x] **All-time typing leaderboard** — personal best adjusted WPM persists across fortnights; fortnight score fields for achievements
+- [x] **Staff achievement notifications off** — no achievement toasts/emails for Staff grade profiles
 - [x] **Documentation** (2026-08) — Speed Type, staff participation, staff avatars, deploy notes (README, `docs/technical.md`, `docs/architecture.md`, `docs/status.md`)
 - [x] **Speed Type game** — Values Lab tab (solo + live races), fortnight passages, solo story rotation (`typing_progress`), typing leaderboard, Firestore rules/indexes, `validateTypingScore` function; **typing achievements** (see `docs/technical.md`)
 - [x] **Staff participation** — linked Staff profiles for teachers/admins: Values Lab, Planner, quiz/typing leaderboards, Staff filter (see `docs/technical.md`)

@@ -16,12 +16,11 @@ import {
   signOut 
 } from 'firebase/auth';
 import {
-  getStudentByEmail,
   getAllTeachers,
   initializeData,
-  addStudent,
   isArchivedStudentEmail,
   ensureStaffParticipationStudent,
+  resolveStudentForAuthEmail,
 } from './services/dataService';
 import { Logo } from './components/Logo';
 import { StudentDetailView } from './components/StudentDetailView';
@@ -414,37 +413,19 @@ const App: React.FC = () => {
                 setStudentId(null);
              } else {
                 setArchivedStudentAccount(false);
-                const student = getStudentByEmail(currentUser.email);
+                const newName = currentUser.displayName || currentUser.email?.split('@')[0] || 'New Student';
+                const student = await resolveStudentForAuthEmail(currentUser.email, {
+                  name: newName,
+                  grade: 'Year 7',
+                  avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newName.replace(' ', '')}&backgroundColor=b6e3f4`,
+                });
 
                 if (student) {
                   setUserRole('STUDENT');
                   setStudentId(student.id);
                 } else {
-                // 4. New User (Not in Teacher list, Not in Student list) -> Auto-provision as STUDENT
-                console.log("New user detected. Auto-provisioning as Student:", currentUser.email);
-                
-                const newName = currentUser.displayName || currentUser.email?.split('@')[0] || 'New Student';
-                
-                // Create a new student record automatically
-                try {
-                    const newStudent = await addStudent({
-                        name: newName,
-                        email: currentUser.email,
-                        grade: 'Year 7', // Default value - can be changed in Admin Console
-                        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newName.replace(' ', '')}&backgroundColor=b6e3f4`
-                    });
-
-                    if (newStudent) {
-                        setUserRole('STUDENT');
-                        setStudentId(newStudent.id);
-                    } else {
-                        console.error("Failed to auto-provision student");
-                        setUserRole('STUDENT');
-                    }
-                } catch (e) {
-                    console.error("Auto-provision error", e);
-                    setUserRole('STUDENT');
-                }
+                  console.error('Failed to resolve student profile');
+                  setUserRole('STUDENT');
                 }
              }
         }

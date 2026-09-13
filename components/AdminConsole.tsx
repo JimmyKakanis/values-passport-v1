@@ -25,7 +25,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { Student, Teacher, SystemSettings, FeedbackSubmission, UserRole, Subject } from '../types';
 import { 
   getAllStudents, 
-  getAllStudentsFromCache,
+  getAdminStudentDirectoryFromCache,
   reloadStudentsCacheFromFirestore,
   getAllTeachers, 
   getSystemSettings, 
@@ -42,6 +42,8 @@ import {
   resetAllProgress,
   resetStudentProgress,
   migrateTeacherName,
+  mergeAllDuplicateStudentRecords,
+  isStaffParticipantGrade,
   getAllFeedbackSubmissions
 } from '../services/dataService';
 import { SCHOOL_GRADES } from '../constants';
@@ -128,7 +130,10 @@ export const AdminConsole: React.FC = () => {
     try {
       if (activeTab === 'STUDENTS') {
         const ok = await reloadStudentsCacheFromFirestore();
-        setStudents(ok ? getAllStudentsFromCache() : await getAllStudents());
+        const roster = ok
+          ? getAdminStudentDirectoryFromCache()
+          : (await getAllStudents()).filter((s) => !isStaffParticipantGrade(s.grade));
+        setStudents(roster);
       } else if (activeTab === 'TEACHERS') {
         const [data, settingsData] = await Promise.all([
           getAllTeachers(),
@@ -215,6 +220,34 @@ export const AdminConsole: React.FC = () => {
         setSuccess(`Successfully migrated ${result.count} signatures to Mr Aaron Shepherd`);
     } else {
         setError('Migration failed');
+    }
+  };
+
+  const handleMergeDuplicateStudents = async () => {
+    if (
+      !window.confirm(
+        'Merge duplicate student records that share the same email? Stamps and progress will be moved onto one profile per email, then extra rows are deleted.'
+      )
+    ) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    const result = await mergeAllDuplicateStudentRecords();
+    setLoading(false);
+
+    if (result.success) {
+      setSuccess(
+        result.groupsMerged > 0
+          ? `Merged ${result.groupsMerged} duplicate group(s); removed ${result.recordsRemoved} extra record(s). ${result.details.join(' ')}`
+          : 'No duplicate student emails found.'
+      );
+      await reloadStudentsCacheFromFirestore();
+      setStudents(getAdminStudentDirectoryFromCache());
+    } else {
+      setError(result.error || 'Duplicate merge failed');
     }
   };
 
@@ -542,6 +575,18 @@ export const AdminConsole: React.FC = () => {
     }
   };
 
+  const duplicateStudentGroups = useMemo(() => {
+    const byEmail = new Map<string, Student[]>();
+    for (const s of students) {
+      const key = (s.email || '').toLowerCase().trim();
+      if (!key) continue;
+      const group = byEmail.get(key) ?? [];
+      group.push(s);
+      byEmail.set(key, group);
+    }
+    return [...byEmail.values()].filter((group) => group.length > 1);
+  }, [students]);
+
   const sortedFilteredStudents = useMemo(() => {
     const term = searchTerm.toLowerCase();
     const visible = students.filter((s) => showArchivedStudents || !s.archived);
@@ -728,6 +773,29 @@ export const AdminConsole: React.FC = () => {
                         <Plus size={20} /> Add Student
                     </button>
                 </div>
+
+                {duplicateStudentGroups.length > 0 && (
+                  <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-amber-900">
+                        {duplicateStudentGroups.length} duplicate email group(s) found
+                      </p>
+                      <p className="text-sm text-amber-800">
+                        {duplicateStudentGroups
+                          .map((group) => `${group[0].name} (${group.length} records)`)
+                          .join(' · ')}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleMergeDuplicateStudents()}
+                      disabled={loading}
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-bold whitespace-nowrap disabled:opacity-50"
+                    >
+                      Merge Duplicates
+                    </button>
+                  </div>
+                )}
 
                 {/* Add Student Form */}
                 {isAddStudentOpen && (
@@ -1401,6 +1469,20 @@ export const AdminConsole: React.FC = () => {
                         className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-bold transition-colors"
                     >
                         Seed Database from Constants
+                    </button>
+                </div>
+
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <h3 className="font-bold text-emerald-900 mb-2">Merge Duplicate Student Records</h3>
+                    <p className="text-gray-700 mb-4 text-sm">
+                        Fixes cases where the same student email appears more than once (for example after repeated auto-provisioning on login).
+                        Keeps the profile with the most stamps, moves data onto it, and deletes the extras.
+                    </p>
+                    <button
+                        onClick={handleMergeDuplicateStudents}
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold transition-colors"
+                    >
+                        Merge Duplicate Students
                     </button>
                 </div>
 
