@@ -24,7 +24,7 @@
 - [x] **Super Admin Console**
     - [x] Dynamic Data Migration (Firestore-backed Students/Teachers)
     - [x] Admin Dashboard (tabs: Analytics, Students, Teachers, Subjects & Settings, Data Migration, Feedback)
-    - [x] Manage Students (add/edit, parent fields, reset progress, **archive** / **restore**, permanent delete, **sort** by grade, first name, or **last login**, **multi-select** bulk archive/restore, **Show archived**, **Last login** column with relative time and 14-day highlight)
+    - [x] Manage Students (add/edit, **bulk import parent contacts from `.xlsx`/`.csv`**, parent fields, reset progress, **archive** / **restore**, permanent delete, **sort** by grade, first name, or **last login**, **multi-select** bulk archive/restore, **Show archived**, **Last login** column with relative time and 14-day highlight, **duplicate email merge** banner, **Staff profiles excluded** from directory)
     - [x] Manage Teachers (Add/Remove Access)
     - [x] Manage Subjects (Dynamic Settings)
     - [x] Role-Based Access Control (Admin Role)
@@ -100,6 +100,8 @@
 ## In Progress
 
 ## Recently completed
+- [x] **Duplicate student login fix** (2026-09) — `resolveStudentForAuthEmail` (cache → Firestore → deduped auto-provision); admin **Merge Duplicate Students** on Data Migration + Students tab banner; prevents repeat `students` docs per email
+- [x] **Staff excluded from student roster** (2026-09) — `getSchoolStudents` / `getAdminStudentDirectoryFromCache`; Admin student directory and Analytics participation no longer include `grade: "Staff"` participation profiles; staff still on quiz/typing leaderboards
 - [x] **Teacher student passport UX** (2026-09) — `#/student/:id` defaults to **Values Passport**; **Teacher comments** feed below grid (`StampHistorySection` + `commentsOnly`, newest first); documented in `docs/technical.md` / `docs/architecture.md`
 - [x] **All-time typing leaderboard** (2026-09) — `#/leaderboard/typing` ranks by personal best adjusted WPM (no fortnight reset); fortnight fields on `typing_scores` for achievements; UI copy updated
 - [x] **Staff achievement notifications off** (2026-09) — teachers/admins with Staff profiles skip achievement toasts and achievement email enqueue

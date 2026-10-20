@@ -19,7 +19,8 @@ import {
   ArrowDown,
   Archive,
   ArchiveRestore,
-  LogIn
+  LogIn,
+  FileSpreadsheet
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Student, Teacher, SystemSettings, FeedbackSubmission, UserRole, Subject } from '../types';
@@ -55,6 +56,7 @@ import {
 } from '../utils/subjectCatalog';
 
 import { SchoolAnalytics } from './SchoolAnalytics';
+import { ParentContactImportModal } from './ParentContactImportModal';
 
 type StudentDirectorySortKey = 'firstName' | 'grade' | 'lastLogin';
 
@@ -99,6 +101,7 @@ export const AdminConsole: React.FC = () => {
   const [studentSortKey, setStudentSortKey] = useState<StudentDirectorySortKey>('grade');
   const [studentSortDir, setStudentSortDir] = useState<'asc' | 'desc'>('asc');
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [isImportParentsOpen, setIsImportParentsOpen] = useState(false);
   const [newStudent, setNewStudent] = useState<Partial<Student>>({ name: '', email: '', grade: '' });
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [showArchivedStudents, setShowArchivedStudents] = useState(false);
@@ -764,15 +767,35 @@ export const AdminConsole: React.FC = () => {
 
             {activeTab === 'STUDENTS' && (
               <div>
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
                     <h2 className="text-xl font-bold">Student Directory</h2>
-                    <button 
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsImportParentsOpen(true)}
+                        className="bg-white border border-emerald-600 text-emerald-800 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-emerald-50 font-bold"
+                      >
+                        <FileSpreadsheet size={20} /> Import Parent Info
+                      </button>
+                      <button 
                         onClick={() => setIsAddStudentOpen(true)}
                         className="bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-emerald-700 font-bold"
-                    >
+                      >
                         <Plus size={20} /> Add Student
-                    </button>
+                      </button>
+                    </div>
                 </div>
+
+                <ParentContactImportModal
+                  isOpen={isImportParentsOpen}
+                  students={students}
+                  onClose={() => setIsImportParentsOpen(false)}
+                  onImportComplete={(updatedCount) => {
+                    setIsImportParentsOpen(false);
+                    setSuccess(`Imported parent contact details for ${updatedCount} student${updatedCount === 1 ? '' : 's'}.`);
+                    void loadData();
+                  }}
+                />
 
                 {duplicateStudentGroups.length > 0 && (
                   <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1113,8 +1136,19 @@ export const AdminConsole: React.FC = () => {
                                                     }
                                                 />
                                             </div>
+                                        ) : student.parentEmail || student.parentName ? (
+                                            <div className="flex flex-col">
+                                                {student.parentName && (
+                                                    <span className="font-medium text-gray-800 text-xs truncate" title={student.parentName}>
+                                                        {student.parentName}
+                                                    </span>
+                                                )}
+                                                <span className="text-xs text-gray-600 truncate" title={student.parentEmail}>
+                                                    {student.parentEmail || '—'}
+                                                </span>
+                                            </div>
                                         ) : (
-                                            student.parentEmail || '—'
+                                            '—'
                                         )}
                                     </td>
                                     <td className="p-3 text-sm">

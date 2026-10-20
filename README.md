@@ -46,7 +46,9 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 - **Student Details:** View any student's full profile, passport (default tab), and achievement history. **`#/student/:id`** opens the **Values Passport** with a **Teacher comments** feed below the grid (newest first). Use **`?tab=achievements`** for the achievements tab. Archived students show an explanatory banner when opened by staff.
 
 ### Admin Console
-- **Student directory:** Search, sort (grade, name, or last login), **Last login** column with relative timestamps, bulk or single **Archive** / **Restore**, parent fields for weekly digests, reset progress, and permanent delete when required.
+- **Student directory:** Real students only (staff participation profiles with `grade: "Staff"` are hidden — they remain in Firestore for Values Lab / game leaderboards). Search, sort (grade, name, or last login), **Last login** column with relative timestamps, **duplicate email** alert with **Merge Duplicates**, bulk or single **Archive** / **Restore**, **Import Parent Info** (`.xlsx` / `.csv` upload matching `STUDENT_EMAIL` to import `EMAIL1` and `TITLE`), parent fields for weekly digests, reset progress, and permanent delete when required.
+- **Analytics:** Participation and login rates count **school students only** (Staff profiles excluded).
+- **Data Migration:** Includes **Merge Duplicate Students** when the same email has multiple roster rows (moves stamps onto one profile and deletes extras).
 - **Teachers & routing:** Authorize staff; set **role** (`TEACHER` | `ADMIN`); assign **Subjects taught** (academic stamp requests) and **Homeroom years** (location/event requests). The Teachers tab shows **routing coverage** and warns about subjects or year levels with no assigned teacher.
 - **Subjects list:** Maintain the dynamic subject list used on stamp forms (in addition to the built-in catalog in `constants.ts`).
 

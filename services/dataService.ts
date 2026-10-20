@@ -32,7 +32,8 @@ import {
   orderBy,
   limit,
   deleteDoc,
-  deleteField
+  deleteField,
+  writeBatch
 } from 'firebase/firestore';
 
 // --- CACHE & SYNC HELPERS ---
@@ -290,6 +291,52 @@ export const updateStudent = async (id: string, updates: Partial<Student>): Prom
   } catch (error) {
     console.error("Error updating student:", error);
     return false;
+  }
+};
+
+/**
+ * Bulk updates parentEmail and parentName on student documents without enabling parentDigestEnabled.
+ */
+export const bulkUpdateStudentParentContacts = async (
+  updates: { id: string; parentEmail: string; parentName?: string }[]
+): Promise<{ success: boolean; updatedCount: number; error?: string }> => {
+  if (updates.length === 0) return { success: true, updatedCount: 0 };
+  try {
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
+      const chunk = updates.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      for (const item of chunk) {
+        const payload: Record<string, unknown> = {
+          parentEmail: item.parentEmail.trim(),
+        };
+        if (item.parentName && item.parentName.trim()) {
+          payload.parentName = item.parentName.trim();
+        }
+        batch.update(doc(db, 'students', item.id), payload);
+      }
+      await batch.commit();
+    }
+
+    const byId = new Map(updates.map((u) => [u.id, u]));
+    cachedStudents = cachedStudents.map((s) => {
+      const u = byId.get(s.id);
+      if (!u) return s;
+      return {
+        ...s,
+        parentEmail: u.parentEmail.trim(),
+        ...(u.parentName?.trim() ? { parentName: u.parentName.trim() } : {}),
+      };
+    });
+
+    return { success: true, updatedCount: updates.length };
+  } catch (error) {
+    console.error('Error bulk updating parent contacts:', error);
+    return {
+      success: false,
+      updatedCount: 0,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 };
 

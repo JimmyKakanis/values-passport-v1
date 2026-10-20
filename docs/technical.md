@@ -80,19 +80,23 @@ Teachers and admins do **not** lose console access when they play student-facing
 | **`studentId`** | Set in [`App.tsx`](../App.tsx) after staff login when the linked doc exists. |
 | **Routes** | Staff get **Values Lab** (`#/learning`) and **My Planner** (`#/planner`) when `studentId` is set. **My Passport** and **Achievements** nav remain student-only. |
 | **Leaderboards** | Quiz and typing tabs visible to all roles; **Staff** filter pill on [`StudentQuizLeaderboard`](../components/leaderboard/StudentQuizLeaderboard.tsx) and [`StudentTypingLeaderboard`](../components/leaderboard/StudentTypingLeaderboard.tsx). Staff excluded from [`buildYearGroupLeaderboard`](../services/dataService.ts) and school highlights year snapshots. |
+| **Admin / analytics roster** | Staff participation rows are **not** real students: excluded from **Admin Console → Students** ([`getAdminStudentDirectoryFromCache`](../services/dataService.ts)), **School Analytics** participation counts ([`getSchoolStudents`](../services/dataService.ts)), teacher stamp pickers, and peer nomination lists. Still in Firestore for game scores and leaderboard **Staff** filter via [`getStudents()`](../services/dataService.ts). |
 | **Scores & engagement** | Pop quiz, typing scores, planner, reflections, and typing achievements write to the linked student id like any student row. **Achievement unlock toasts and achievement emails are suppressed** for Staff profiles (see **Notification System**). |
 | **Avatar** | Settings → Avatar; full unlock for Staff grade (see **Staff avatars** above). |
 
-- **Student login**: `getStudentByEmail` returns a record only if it exists and **`archived` is not true`. If no match, the app **auto-provisions** a new `students` document (default grade, avatar) so unknown school emails can still use the student app unless blocked below.
-- **Archived students**: `isArchivedStudentEmail` detects a matching student document with `archived: true`. Those users see an **Account archived** full-screen message and cannot open student routes; this avoids treating them as “new” and creating a duplicate student row.
+- **Student login**: [`resolveStudentForAuthEmail`](../services/dataService.ts) resolves in order: in-memory cache ([`getStudentByEmail`](../services/dataService.ts), canonical among duplicates by latest `lastLoginAt`) → Firestore query by normalized email → optional **auto-provision** via [`addStudent`](../services/dataService.ts) (re-checks Firestore; per-email in-flight lock prevents duplicate docs on concurrent auth). Emails stored via [`normalizeStudentEmail`](../services/dataService.ts).
+- **Archived students**: `isArchivedStudentEmail` returns true only when **every** roster row for that email is archived. Those users see an **Account archived** full-screen message and cannot open student routes.
+- **Duplicate roster cleanup**: [`mergeAllDuplicateStudentRecords`](../services/dataService.ts) — Admin **Data Migration** or **Students** tab banner. Keeps the profile with the most stamps, reassigns signatures/rewards/nominations/planner/goals/quiz/typing data, deletes extra docs.
 - **No In-App Password Change**: With Microsoft 365 login, credential management is handled by the identity provider. The Change Password UI has been removed.
 
-### Archived students (data service)
-- **`archiveStudents(ids)` / `unarchiveStudents(ids)`** ([`dataService.ts`](../services/dataService.ts)): Update Firestore and the in-memory `cachedStudents` list.
-- **`getStudents()`**: Filters out `archived` (and legacy `grade` starting with `Graduated`) so **Teacher Console** pickers and any code using this helper only see active students.
-- **`getStudentByEmail()`**: Returns `undefined` for archived rows (login + student resolution).
-- **`getStudent(id)`**: Still returns the document if present (including archived) for **Student Detail** views and diagnostics.
-- **`getAllStudents()`**: Used by **Admin Console**; returns every student document so admins can toggle **Show archived** and run bulk restore.
+### Student roster helpers (data service)
+- **`getSchoolStudents()`**: Active **real** students — excludes `archived`, `Graduated*` grades, and **`grade: "Staff"`**. Use for teacher pickers, analytics participation, student attention, peer nominations, school highlights roll counts, and pending reward scans.
+- **`getStudents()`**: Active participation profiles **including Staff** — use for quiz/typing leaderboards and [`fetchLeaderboardData`](../services/dataService.ts) where the **Staff** filter is needed.
+- **`getAdminStudentDirectoryFromCache()`**: All real students including **archived**, excluding Staff — **Admin Console → Students** tab.
+- **`archiveStudents(ids)` / `unarchiveStudents(ids)`**: Update Firestore and the in-memory `cachedStudents` list.
+- **`getStudentByEmail()` / `resolveStudentForAuthEmail()`**: Login and student resolution; see **Student login** above.
+- **`getStudent(id)`**: Returns any document (including archived and Staff) for deep links and game profiles.
+- **`getAllStudents()`**: Raw Firestore read of every `students` document (admin/diagnostics).
 
 ### Real-Time Passport
 - **Subscriptions**: The `StudentPassport` component uses `onSnapshot` from Firestore. This opens a WebSocket connection that pushes changes immediately.
@@ -144,7 +148,7 @@ Teachers and admins do **not** lose console access when they play student-facing
 ### Student attention (teacher dashboard)
 - **Location**: **Teacher Console** → **Student attention** tab ([`TeacherAttentionPanel`](../components/TeacherAttentionPanel.tsx)), next to **Award** so staff can move from “who to notice” to awarding quickly.
 - **Data**: **No new collections.** On load, **`reloadStudentsCacheFromFirestore`** + **`getAllSignatures`**, then [`buildStudentAttentionRows`](../services/studentAttention.ts)(`students`, `signatures`, `now`). At ~school scale, full-signature read matches the same pattern as [`fetchLeaderboardData`](../services/dataService.ts) (client-side aggregate).
-- **Roster scope**: All active `getStudents()` by default, or only grades in the teacher’s Firestore **`assignedGrades`** when that array is non-empty.
+- **Roster scope**: All active **`getSchoolStudents()`** by default, or only grades in the teacher’s Firestore **`assignedGrades`** when that array is non-empty.
 - **Limits**: **Whole school** view shows up to **20** students; **per-year** view (Year 7, Year 8, …) shows up to **5** in that year. A **View** control switches one screen at a time. **Search** filters before the limits are applied.
 - **Sort modes**: “Needs attention” (composite: never stamped / days since last stamp / 7d count / below peer median / gaps, then name) plus alternatives (stale, peers, gaps) — all client-side.
 - **Actions**: **Award** uses current gap heuristics to prefill subject/value when possible; **student name** links to `#/student/:id` (Values Passport tab — default) — see **Student profile (deep link)** below.
@@ -248,7 +252,7 @@ Students submit via **Request Stamp** on [`Dashboard.tsx`](../components/Dashboa
 - **Admin reset**: `resetStudentProgress` / `resetAllProgress` delete engagement docs for affected students.
 
 ### School Analytics (Admin)
-- **Aggregated Stats**: Calculates school-wide metrics (total stamps, participation rate, value distribution) by fetching all signatures.
+- **Aggregated Stats**: Calculates school-wide metrics (total stamps, participation rate, value distribution) by fetching all signatures. **Roster size and participation/login rates** use [`getSchoolStudents()`](../services/dataService.ts) so **staff participation profiles** (`grade: "Staff"`) do not inflate student counts.
 - **Visualizations**: Uses `recharts` for data visualization (Bar charts for values, Line charts for trends).
 - **Performance**: Fetches all data on load. For larger datasets (>5000 signatures), this should be migrated to server-side aggregation or Firebase Extensions (e.g., "Aggregate Counters").
 
@@ -270,6 +274,8 @@ Students submit via **Request Stamp** on [`Dashboard.tsx`](../components/Dashboa
 - The output `dist` folder is static and can be deployed to any static host.
 
 ### Admin Console (student directory) — behaviour summary
+- **Roster**: Lists **real students only** ([`getAdminStudentDirectoryFromCache`](../services/dataService.ts)); staff participation profiles (`grade: "Staff"`) are hidden. **Duplicate email banner** when two or more visible rows share an email; **Merge Duplicates** runs [`mergeAllDuplicateStudentRecords`](../services/dataService.ts) (also on **Data Migration** tab).
+- **Parent contact import**: **Import Parent Info** opens [`ParentContactImportModal.tsx`](../components/ParentContactImportModal.tsx) ([`utils/studentParentImport.ts`](../utils/studentParentImport.ts) + [`bulkUpdateStudentParentContacts`](../services/dataService.ts)). Accepts school roll `.xlsx` (parsed client-side via `DecompressionStream` + `DOMParser`) or `.csv` files, matches rows by `STUDENT_EMAIL`, imports `EMAIL1` (`parentEmail`) and `TITLE` (`parentName`), ignores extra columns (`SURNAME`, `PREF_NAME`, `HOUSE`, `EMAIL2`, `DOB`, etc.), and leaves `parentDigestEnabled` off by default.
 - **Sort**: Click **Name** (first-name order), **Grade** (numeric from grade string), or **Last login** (`lastLoginAt`; students who have never signed in sort as `0`); click again to reverse. Inactive columns participate as secondary sort.
 - **Last login**: Read-only column from `Student.lastLoginAt` (Unix ms on the Firestore student doc). Updated when a student opens the app via [`updateLastLogin`](../services/dataService.ts) from [`NotificationSystem.tsx`](../components/NotificationSystem.tsx) after the Welcome Back check. Shows **Never** when unset; otherwise relative text (e.g. “3 days ago”) with full datetime on hover. **Emerald** styling when login was within the last **14 days** (same window as Analytics **logged in recently**).
 - **Selection**: Per-row checkbox; header selects/deselects all **currently visible** rows (respects search + **Show archived**). Bulk **Archive** / **Restore** counts only rows that are active vs archived.

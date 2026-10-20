@@ -4,6 +4,10 @@
 
 
 ## Recently completed
+- [x] **Parent contact Excel/CSV import** — `ParentContactImportModal`, `utils/studentParentImport.ts`, `bulkUpdateStudentParentContacts` in `AdminConsole` → Students
+- [x] **Duplicate student login fix** — `resolveStudentForAuthEmail`, Firestore dedup on `addStudent`, admin merge tool (see `docs/technical.md`)
+- [x] **Staff excluded from student directory & analytics** — `getSchoolStudents`, `getAdminStudentDirectoryFromCache` (see `docs/technical.md`)
+- [x] **Documentation** (2026-09) — duplicate login fix, staff roster filtering, typing leaderboard, teacher student passport + comments feed (README, `docs/*`)
 - [x] **Documentation** (2026-09) — all-time typing leaderboard, teacher student passport + comments feed, staff achievement notification skip (README, `docs/technical.md`, `docs/architecture.md`, `docs/status.md`)
 - [x] **Teacher student passport UX** — default Values Passport tab; teacher comments below passport (`StampHistorySection` commentsOnly)
 - [x] **All-time typing leaderboard** — personal best adjusted WPM persists across fortnights; fortnight score fields for achievements
