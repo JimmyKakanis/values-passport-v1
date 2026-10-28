@@ -4,6 +4,7 @@
 
 
 ## Recently completed
+- [x] **2026 integration sub-values in passport catalog** — added all missing 2026 values integration sub-values to `CORE_VALUES` in `constants.ts`
 - [x] **Parent contact Excel/CSV import** — `ParentContactImportModal`, `utils/studentParentImport.ts`, `bulkUpdateStudentParentContacts` in `AdminConsole` → Students
 - [x] **Duplicate student login fix** — `resolveStudentForAuthEmail`, Firestore dedup on `addStudent`, admin merge tool (see `docs/technical.md`)
 - [x] **Staff excluded from student directory & analytics** — `getSchoolStudents`, `getAdminStudentDirectoryFromCache` (see `docs/technical.md`)

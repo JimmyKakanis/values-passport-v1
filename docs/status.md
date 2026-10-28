@@ -100,6 +100,7 @@
 ## In Progress
 
 ## Recently completed
+- [x] **2026 integration sub-values in passport catalog** (2026-10) — ensured all 20 sub-values from the 2026 values integration calendar are included under their respective core values in `CORE_VALUES` (`constants.ts`)
 - [x] **Duplicate student login fix** (2026-09) — `resolveStudentForAuthEmail` (cache → Firestore → deduped auto-provision); admin **Merge Duplicate Students** on Data Migration + Students tab banner; prevents repeat `students` docs per email
 - [x] **Staff excluded from student roster** (2026-09) — `getSchoolStudents` / `getAdminStudentDirectoryFromCache`; Admin student directory and Analytics participation no longer include `grade: "Staff"` participation profiles; staff still on quiz/typing leaderboards
 - [x] **Teacher student passport UX** (2026-09) — `#/student/:id` defaults to **Values Passport**; **Teacher comments** feed below grid (`StampHistorySection` + `commentsOnly`, newest first); documented in `docs/technical.md` / `docs/architecture.md`

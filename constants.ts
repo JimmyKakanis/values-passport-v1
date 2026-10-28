@@ -55,10 +55,10 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
       'Honest Deeds'
     ],
     subValues: [
-      'Consciousness', 'Creativity', 'Curiosity', 'Discrimination', 'Equality', 
-      'Honesty', 'Integrity', 'Intuition', 'Natural environment', 'Reflection', 
-      'Quest for knowledge', 'Reason', 'Self-analysis', 'Self-knowledge', 
-      'Self-worth', 'Sense control', 'Spirit of inquiry', 'Synthesis', 
+      'Concentration', 'Consciousness', 'Creativity', 'Curiosity', 'Discrimination',
+      'Equality', 'Honesty', 'Integrity', 'Intuition', 'Natural environment',
+      'Reflection', 'Quest for knowledge', 'Reason', 'Self-analysis', 'Self-knowledge',
+      'Self-worth', 'Sense control', 'Spirit of inquiry', 'Synthesis',
       'Truthfulness', 'Unity in thought word and deed', 'Unity in diversity'
     ]
   },
@@ -74,10 +74,11 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
       'Selfless Service'
     ],
     subValues: [
-      'Bliss', 'Caring', 'Compassion', 'Dedication', 'Devotion', 'Empathy', 
-      'Friendship', 'Forgiveness', 'Generosity', 'Helping', 'Human dignity', 
-      'Inner happiness', 'Joy', 'Kindness', 'Patience', 'Purity', 'Sharing', 
-      'Sincerity', 'Sympathy', 'Tolerance', 'Wisdom'
+      'Bliss', 'Caring', 'Compassion', 'Dedication', 'Devotion', 'Empathy',
+      'Forgiveness', 'Friendliness', 'Friendship', 'Generosity', 'Helping',
+      'Human dignity', 'Inner happiness', 'Joy', 'Kindness', 'Patience',
+      'Purity', 'Sacrifice', 'Sharing', 'Sincerity', 'Sympathy', 'Tolerance',
+      'Wisdom'
     ]
   },
   [CoreValue.PEACE]: {
@@ -92,11 +93,12 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
       'Proper Uniform'
     ],
     subValues: [
-      'Attention', 'Calm', 'Concentration', 'Contentment', 'Dignity', 
-      'Discipline', 'Endurance', 'Focus', 'Happiness', 'Honesty', 'Optimism', 
-      'Humility', 'Inner silence', 'Satisfaction', 'Self-acceptance', 
-      'Self-confidence', 'Self-control', 'Self-discipline', 'Self-respect', 
-      'Understanding', 'Care for the environment', 'National responsibility'
+      'Attention', 'Calm', 'Concentration', 'Contentment', 'Dignity',
+      'Discipline', 'Doing Your Best', 'Endurance', 'Focus', 'Freedom',
+      'Happiness', 'Honesty', 'Humility', 'Inner silence', 'Optimism',
+      'Reflection', 'Satisfaction', 'Self-acceptance', 'Self-confidence',
+      'Self-control', 'Self-discipline', 'Self-respect', 'Understanding',
+      'Care for the environment', 'National responsibility'
     ]
   },
   [CoreValue.RIGHT_CONDUCT]: {
@@ -111,12 +113,12 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
       'Silent Sitting'
     ],
     subValues: [
-      'Cleanliness', 'Contentment', 'Courage', 'Dependability', 'Trust', 
-      'Duty', 'Dedication', 'Ethics', 'Gratitude', 'Goal-oriented', 
-      'Good behaviour', 'Healthy living', 'Helpfulness', 'Initiative', 
-      'Leadership', 'Perseverance', 'Time management', 'Resourcefulness', 
-      'Respect', 'Responsibility', 'Sacrifice', 'Self-sufficiency', 
-      'Self-confidence', 'Simplicity'
+      'Cleanliness', 'Contentment', 'Courage', 'Dedication', 'Dependability',
+      'Discipline', 'Duty', 'Equality', 'Ethics', 'Goal-oriented',
+      'Good behaviour', 'Gratitude', 'Healthy living', 'Helpfulness',
+      'Initiative', 'Leadership', 'Perseverance', 'Resourcefulness',
+      'Respect', 'Responsibility', 'Sacrifice', 'Self-confidence',
+      'Self-sufficiency', 'Simplicity', 'Time management', 'Trust'
     ]
   },
   [CoreValue.NON_VIOLENCE]: {
@@ -131,12 +133,13 @@ export const CORE_VALUES: Record<CoreValue, ValueDefinition> = {
       'Vegetarian foods at school'
     ],
     subValues: [
-      'Appreciation of cultures/religions', 'Brotherhood', 'Ceiling on desires', 
-      'Citizenship', 'Compassion', 'Concern for all life', 'Consideration', 
-      'Co-operation', 'Forgiveness', 'Global awareness', 'Good manners', 
-      'Inclusiveness', 'Loyalty', 'National awareness', 'Recycling', 
-      'Respect for property', 'Service to other', 'Social justice', 
-      'Sustainable growth', 'Universal love', 'Unwilling to hurt'
+      'Appreciation of cultures/religions', 'Brotherhood', 'Ceiling on desires',
+      'Citizenship', 'Compassion', 'Concern for all life', 'Consideration',
+      'Co-operation', 'Forgiveness', 'Global awareness', 'Good manners',
+      'Humility', 'Inclusiveness', 'Independence', 'Loyalty',
+      'National awareness', 'Recycling', 'Respect for property',
+      'Service to other', 'Social justice', 'Sustainable growth',
+      'Tolerance', 'Universal love', 'Unwilling to hurt'
     ]
   }
 };

@@ -185,7 +185,7 @@ Teachers and admins do **not** lose console access when they play student-facing
 - **Lookup**: `getValuesIntegrationFocus(date)` returns `null` outside 2026, in holidays between terms, or if `weekInTerm` is not covered by any segment (verify segment ranges against the printed calendar after the first term).
 - **Teachers**: Indigo **School values integration** block at the top of [`TeacherEngagementPanel.tsx`](../components/TeacherEngagementPanel.tsx). [`getWeeklyThemeLine`](../services/teacherEngagement.ts) and [`pickDailyNudge`](../services/teacherEngagement.ts) prefer this focus when non-null; the panel suppresses the extra weekly sentence in the green section when the indigo block is shown (see **Milestone strip** above).
 - **Students**: [`Dashboard.tsx`](../components/Dashboard.tsx) shows a **This week at school** card when focus exists.
-- **Stamps**: Sub-value labels on the calendar are **not** auto-applied to the award form; align dropdown sub-values in `constants.ts` separately if you want exact matches.
+- **Stamps**: Sub-value labels on the calendar are **not** auto-applied to the award form; all 20 sub-value labels from `valuesIntegrationCalendar2026.ts` are included in their respective `CORE_VALUES[...].subValues` catalogs in `constants.ts` so they can be selected when awarding/requesting stamps or setting daily intentions.
 
 ### Passport Subjects & Locations
 Catalog is defined in [`constants.ts`](../constants.ts) as **`ACADEMIC_SUBJECTS`** + **`LOCATION_SUBJECTS`** (combined into **`SUBJECTS`**). A startup check ensures every subject is in exactly one bucket.
