@@ -20,7 +20,8 @@ import {
   Archive,
   ArchiveRestore,
   LogIn,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Mail
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Student, Teacher, SystemSettings, FeedbackSubmission, UserRole, Subject } from '../types';
@@ -57,6 +58,7 @@ import {
 
 import { SchoolAnalytics } from './SchoolAnalytics';
 import { ParentContactImportModal } from './ParentContactImportModal';
+import { AdminFamilyRecapEmails } from './admin/AdminFamilyRecapEmails';
 
 type StudentDirectorySortKey = 'firstName' | 'grade' | 'lastLogin';
 
@@ -86,7 +88,7 @@ function firstNameFromFullName(fullName: string): string {
 }
 
 export const AdminConsole: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'ANALYTICS' | 'STUDENTS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION' | 'FEEDBACK'>('ANALYTICS');
+  const [activeTab, setActiveTab] = useState<'ANALYTICS' | 'STUDENTS' | 'FAMILY_EMAILS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION' | 'FEEDBACK'>('ANALYTICS');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -692,13 +694,23 @@ export const AdminConsole: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('STUDENTS')}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors ${
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
             activeTab === 'STUDENTS' 
               ? 'bg-emerald-100 text-emerald-900' 
               : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
           }`}
         >
           <GraduationCap size={20} /> Students
+        </button>
+        <button
+          onClick={() => setActiveTab('FAMILY_EMAILS')}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'FAMILY_EMAILS' 
+              ? 'bg-emerald-100 text-emerald-900' 
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <Mail size={20} /> Family Emails
         </button>
         <button
           onClick={() => setActiveTab('TEACHERS')}
@@ -763,6 +775,10 @@ export const AdminConsole: React.FC = () => {
           <>
             {activeTab === 'ANALYTICS' && (
                 <SchoolAnalytics />
+            )}
+
+            {activeTab === 'FAMILY_EMAILS' && (
+                <AdminFamilyRecapEmails />
             )}
 
             {activeTab === 'STUDENTS' && (

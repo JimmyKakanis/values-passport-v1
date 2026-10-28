@@ -346,10 +346,19 @@ export const Dashboard: React.FC<Props> = ({ studentId }) => {
           </div>
           
           <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-3">
-             <div className="bg-emerald-900/30 backdrop-blur-sm px-4 py-2 rounded-lg border border-emerald-500/30">
+             <button
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById('stamp-history')
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                }
+                title="View your stamps and teacher comments"
+                className="bg-emerald-900/30 hover:bg-emerald-900/50 backdrop-blur-sm px-4 py-2 rounded-lg border border-emerald-500/30 hover:border-emerald-400/60 transition-colors text-left cursor-pointer"
+             >
                 <span className="block text-2xl font-bold text-yellow-400">{stats.total}</span>
                 <span className="text-xs uppercase tracking-wider opacity-90">Total Stamps</span>
-             </div>
+             </button>
              
              <button 
                 onClick={() => setIsNominationModalOpen(true)}

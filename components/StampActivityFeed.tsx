@@ -109,6 +109,7 @@ export const StampActivityFeed: React.FC<Props> = ({
 };
 
 interface SectionProps {
+  id?: string;
   signatures: Signature[];
   /** When true, only stamps with a teacher comment are shown. */
   commentsOnly?: boolean;
@@ -118,6 +119,7 @@ interface SectionProps {
 
 /** Full-width stamp history block for the student dashboard or teacher student view. */
 export const StampHistorySection: React.FC<SectionProps> = ({
+  id = 'stamp-history',
   signatures,
   commentsOnly = false,
   title = 'Stamp history',
@@ -129,7 +131,10 @@ export const StampHistorySection: React.FC<SectionProps> = ({
   const withComments = displayed.filter((s) => s.note?.trim()).length;
 
   return (
-    <section className="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+    <section
+      id={id}
+      className="scroll-mt-24 bg-white p-6 rounded-xl shadow-md border border-gray-100"
+    >
       <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
         <h2 className="text-lg font-bold text-blue-900 flex items-center gap-2">
           <History className="text-emerald-600 w-5 h-5" />

@@ -100,6 +100,7 @@
 ## In Progress
 
 ## Recently completed
+- [x] **Family Year-in-Review Email Generator (Admin Console)** (2026-10) — **Admin Console → Family Emails** tab (`components/admin/AdminFamilyRecapEmails.tsx`, `components/admin/FamilyRecapEmailCard.tsx`, `utils/familyRecapEmail.ts`) with app-styled HTML preview, plain-text toggle, Tier 1/2/3 + Universal template switcher, bulk-note filtering, and one-click rich HTML / plain-text clipboard copy
 - [x] **2026 integration sub-values in passport catalog** (2026-10) — ensured all 20 sub-values from the 2026 values integration calendar are included under their respective core values in `CORE_VALUES` (`constants.ts`)
 - [x] **Duplicate student login fix** (2026-09) — `resolveStudentForAuthEmail` (cache → Firestore → deduped auto-provision); admin **Merge Duplicate Students** on Data Migration + Students tab banner; prevents repeat `students` docs per email
 - [x] **Staff excluded from student roster** (2026-09) — `getSchoolStudents` / `getAdminStudentDirectoryFromCache`; Admin student directory and Analytics participation no longer include `grade: "Staff"` participation profiles; staff still on quiz/typing leaderboards

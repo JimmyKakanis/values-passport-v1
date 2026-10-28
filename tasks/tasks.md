@@ -4,6 +4,7 @@
 
 
 ## Recently completed
+- [x] **Family Year-in-Review Email Generator (Admin Console)** — `AdminFamilyRecapEmails`, `FamilyRecapEmailCard`, and `utils/familyRecapEmail.ts` under **Admin Console → Family Emails** (styled app preview, plain-text view, tiered/universal templates, one-click rich HTML + plain-text copy)
 - [x] **2026 integration sub-values in passport catalog** — added all missing 2026 values integration sub-values to `CORE_VALUES` in `constants.ts`
 - [x] **Parent contact Excel/CSV import** — `ParentContactImportModal`, `utils/studentParentImport.ts`, `bulkUpdateStudentParentContacts` in `AdminConsole` → Students
 - [x] **Duplicate student login fix** — `resolveStudentForAuthEmail`, Firestore dedup on `addStudent`, admin merge tool (see `docs/technical.md`)
