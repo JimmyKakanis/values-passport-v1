@@ -282,7 +282,7 @@ service cloud.firestore {
 
     // Email notification preferences (one doc per auth email, lowercase id)
     match /email_preferences/{emailKey} {
-      allow read: if isOwnEmailDoc(emailKey);
+      allow read: if isAuthenticated();
       allow create, update: if isOwnEmailDoc(emailKey)
         && request.resource.data.email == emailKey
         && request.resource.data.role in ['STUDENT', 'TEACHER']
@@ -297,6 +297,7 @@ service cloud.firestore {
 
     // Student-requested achievement emails (processed by Cloud Function)
     match /achievement_email_queue/{queueId} {
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated()
         && request.resource.data.keys().hasAll(['studentId', 'achievementId', 'achievementTitle', 'requestedAt'])
         && request.resource.data.studentId is string
@@ -308,21 +309,28 @@ service cloud.firestore {
             || (request.resource.data.achievementDescription is string && request.resource.data.achievementDescription.size() <= 2000))
         && request.resource.data.requestedAt is timestamp
         && studentDocMatchesQueueStudentId(request.resource.data.studentId);
-      allow read, update, delete: if false;
+      allow update, delete: if false;
     }
 
-    // Server-only collections (Firebase Admin SDK)
+    // Server-written email audit collections (written by Cloud Functions Admin SDK; read-only in Admin Console)
     match /achievement_email_sent/{id} {
-      allow read, write: if false;
+      allow read: if isAuthenticated();
+      allow write: if false;
     }
     match /digest_stamp_events/{id} {
       allow read, write: if false;
     }
     match /digest_sent/{id} {
-      allow read, write: if false;
+      allow read: if isAuthenticated();
+      allow write: if false;
     }
     match /unseen_stamps_email_sent/{id} {
-      allow read, write: if false;
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /unseen_email_blast_requests/{reqId} {
+      allow read, create: if isAuthenticated();
+      allow update, delete: if false;
     }
   }
 }

@@ -4,11 +4,21 @@ import { CoreValue, Signature, Student } from '../types';
 
 export type RecapTier = 'HIGH' | 'MODERATE' | 'LIGHT' | 'NONE';
 export type RecapTemplateMode = 'AUTO' | 'HIGH' | 'MODERATE' | 'LIGHT' | 'UNIVERSAL';
+export type CommentNominationKind = 'TEACHER' | 'SELF' | 'PEER';
+
+export const DEFAULT_SENDER_EMAIL = 'noreply-VP@sathyasai.nsw.edu.au';
+export const DEFAULT_SECONDARY_REPLY_TO_EMAIL = 'schooloffice_d@sathyasai.nsw.edu.au';
+
+export const MAX_RECAP_COMMENTS = 10;
+export const MAX_SELF_NOMINATED_COMMENTS = 1;
+export const MAX_PEER_NOMINATED_COMMENTS = 2;
 
 export interface RecapEmailOptions {
   templateMode: RecapTemplateMode;
   includeStampCounts: boolean;
   prioritizeIndividualNotes: boolean;
+  excludedCommentIds?: Set<string>;
+  replyToEmail?: string;
 }
 
 export interface StudentRecapSummary {
@@ -16,12 +26,15 @@ export interface StudentRecapSummary {
   firstName: string;
   parentSalutation: string;
   parentEmail: string;
+  senderEmail: string;
+  replyToEmail: string;
   tier: RecapTier;
   effectiveTier: Exclude<RecapTier, 'NONE'> | 'UNIVERSAL';
   totalStamps: number;
   valueCounts: { value: CoreValue; count: number }[];
   subjects: string[];
   comments: Signature[];
+  allCommentsNewestFirst: Signature[];
   subjectLine: string;
   introParagraphs: string[];
   closingParagraphs: string[];
@@ -58,6 +71,16 @@ export function getRecapTierLabel(tier: RecapTier): string {
     case 'NONE':
       return 'No stamps yet';
   }
+}
+
+/**
+ * Detects whether a stamp note came from a Self-Advocacy request, a Peer Nomination, or directly from a Teacher.
+ */
+export function getCommentNominationKind(sig: Signature): CommentNominationKind {
+  const note = (sig.note || '').trim();
+  if (/^self-advocacy\s*:/i.test(note)) return 'SELF';
+  if (/^nominated by\s+/i.test(note)) return 'PEER';
+  return 'TEACHER';
 }
 
 function getStudentFirstName(fullName: string): string {
@@ -103,6 +126,49 @@ export function formatCommentDate(timestamp: number): string {
   return format(new Date(timestamp), 'd MMM yyyy');
 }
 
+/**
+ * Selects up to MAX_RECAP_COMMENTS (10) comments ordered newest-first,
+ * enforcing max 1 self-nominated comment and max 2 peer-nominated comments.
+ */
+export function selectRecapComments(
+  allWithNotesNewestFirst: Signature[],
+  bulkSignatureIds: Set<string>,
+  options: Pick<RecapEmailOptions, 'prioritizeIndividualNotes' | 'excludedCommentIds'>
+): Signature[] {
+  const excluded = options.excludedCommentIds ?? new Set<string>();
+  const available = allWithNotesNewestFirst.filter((s) => !excluded.has(s.id));
+
+  let candidatePool = available;
+  if (options.prioritizeIndividualNotes && available.length > 4) {
+    const individualOnly = available.filter((s) => !bulkSignatureIds.has(s.id));
+    if (individualOnly.length >= 3) {
+      // Put individual notes first (newest-first), then bulk notes if still needed to fill
+      const bulkOnly = available.filter((s) => bulkSignatureIds.has(s.id));
+      candidatePool = [...individualOnly, ...bulkOnly];
+    }
+  }
+
+  const selected: Signature[] = [];
+  let selfCount = 0;
+  let peerCount = 0;
+
+  for (const sig of candidatePool) {
+    if (selected.length >= MAX_RECAP_COMMENTS) break;
+    const kind = getCommentNominationKind(sig);
+    if (kind === 'SELF') {
+      if (selfCount >= MAX_SELF_NOMINATED_COMMENTS) continue;
+      selfCount++;
+    } else if (kind === 'PEER') {
+      if (peerCount >= MAX_PEER_NOMINATED_COMMENTS) continue;
+      peerCount++;
+    }
+    selected.push(sig);
+  }
+
+  // Keep final selected list strictly newest-first
+  return selected.sort((a, b) => b.timestamp - a.timestamp);
+}
+
 export function buildStudentRecapSummary(
   student: Student,
   studentSignatures: Signature[],
@@ -112,8 +178,11 @@ export function buildStudentRecapSummary(
   const firstName = getStudentFirstName(student.name);
   const parentSalutation = student.parentName?.trim() || `Family of ${student.name}`;
   const parentEmail = student.parentEmail?.trim() || '';
+  const senderEmail = DEFAULT_SENDER_EMAIL;
+  const replyToEmail = (options.replyToEmail || DEFAULT_SECONDARY_REPLY_TO_EMAIL).trim();
 
-  const sortedSigs = [...studentSignatures].sort((a, b) => a.timestamp - b.timestamp);
+  // Newest first
+  const sortedSigs = [...studentSignatures].sort((a, b) => b.timestamp - a.timestamp);
   const totalStamps = sortedSigs.length;
   const tier = getRecapTier(totalStamps);
 
@@ -139,15 +208,8 @@ export function buildStudentRecapSummary(
     .sort((a, b) => b.count - a.count);
 
   const subjects = [...subjectSet];
-
-  const allWithNotes = sortedSigs.filter((s) => Boolean(s.note && s.note.trim()));
-  let comments = allWithNotes;
-  if (options.prioritizeIndividualNotes && allWithNotes.length > 4) {
-    const individualOnly = allWithNotes.filter((s) => !bulkSignatureIds.has(s.id));
-    if (individualOnly.length >= 3) {
-      comments = individualOnly;
-    }
-  }
+  const allCommentsNewestFirst = sortedSigs.filter((s) => Boolean(s.note && s.note.trim()));
+  const comments = selectRecapComments(allCommentsNewestFirst, bulkSignatureIds, options);
 
   const topValuesNames = valueCounts.slice(0, 2).map((v) => v.value).join(' and ');
   const nextGrade = nextYearGradeLabel(student.grade);
@@ -200,9 +262,7 @@ export function buildStudentRecapSummary(
     ];
   }
 
-  const showCountsInSnapshot =
-    options.includeStampCounts && effectiveTier !== 'LIGHT';
-
+  const showCountsInSnapshot = options.includeStampCounts && effectiveTier !== 'LIGHT';
   const snapshotLines: string[] = [];
   if (showCountsInSnapshot) {
     snapshotLines.push(`• Total Values Stamps Earned: ${totalStamps} stamps`);
@@ -214,9 +274,7 @@ export function buildStudentRecapSummary(
       `• Values Demonstrated: ${valueCounts.map((v) => v.value).join(', ') || 'None yet'}`
     );
   }
-  snapshotLines.push(
-    `• Subjects & Settings: ${subjects.join(', ') || 'None recorded'}`
-  );
+  snapshotLines.push(`• Subjects & Settings: ${subjects.join(', ') || 'None recorded'}`);
 
   const commentLines =
     comments.length > 0
@@ -229,8 +287,10 @@ export function buildStudentRecapSummary(
       : '• No written teacher comments recorded for this period.';
 
   const plainText = [
-    `Subject: ${subjectLine}`,
+    `From: Sathya Sai College Values Passport <${senderEmail}>`,
+    `Reply-To: Sathya Sai College Secondary School <${replyToEmail}>`,
     `To: ${parentSalutation}${parentEmail ? ` <${parentEmail}>` : ''}`,
+    `Subject: ${subjectLine}`,
     '',
     `Dear ${parentSalutation},`,
     '',
@@ -238,19 +298,21 @@ export function buildStudentRecapSummary(
     `${firstName}’s 2026 Snapshot:`,
     ...snapshotLines,
     '',
-    `Teacher Comments & Recognition Notes:`,
+    `Teacher Comments & Recognition Notes (Newest First):`,
     '',
     commentLines,
     '',
     ...closingParagraphs.flatMap((p) => [p, '']),
     'Warm regards,',
     'Sathya Sai College Secondary Team',
+    `Secondary School Office: ${replyToEmail}`,
   ].join('\n');
 
   const inlineHtml = buildInlineHtmlEmail({
     firstName,
     student,
     parentSalutation,
+    replyToEmail,
     introParagraphs,
     closingParagraphs,
     showCountsInSnapshot,
@@ -265,12 +327,15 @@ export function buildStudentRecapSummary(
     firstName,
     parentSalutation,
     parentEmail,
+    senderEmail,
+    replyToEmail,
     tier,
     effectiveTier,
     totalStamps,
     valueCounts,
     subjects,
     comments,
+    allCommentsNewestFirst,
     subjectLine,
     introParagraphs,
     closingParagraphs,
@@ -291,6 +356,7 @@ function buildInlineHtmlEmail(params: {
   firstName: string;
   student: Student;
   parentSalutation: string;
+  replyToEmail: string;
   introParagraphs: string[];
   closingParagraphs: string[];
   showCountsInSnapshot: boolean;
@@ -303,6 +369,7 @@ function buildInlineHtmlEmail(params: {
     firstName,
     student,
     parentSalutation,
+    replyToEmail,
     introParagraphs,
     closingParagraphs,
     showCountsInSnapshot,
@@ -314,11 +381,7 @@ function buildInlineHtmlEmail(params: {
 
   const valuePillsHtml = valueCounts
     .map(({ value, count }) => {
-      const palette = VALUE_HEX[value] || {
-        bg: '#f3f4f6',
-        text: '#1f2937',
-        border: '#e5e7eb',
-      };
+      const palette = VALUE_HEX[value] || { bg: '#f3f4f6', text: '#1f2937', border: '#e5e7eb' };
       const label = showCountsInSnapshot ? `${value}: ${count}` : value;
       return `<span style="display:inline-block;margin:3px 6px 3px 0;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;background:${palette.bg};color:${palette.text};border:1px solid ${palette.border};">${escapeHtmlStr(label)}</span>`;
     })
@@ -326,70 +389,10 @@ function buildInlineHtmlEmail(params: {
 
   const commentsHtml = comments
     .map((c) => {
-      const palette = VALUE_HEX[c.value] || {
-        bg: '#f3f4f6',
-        text: '#1f2937',
-        border: '#e5e7eb',
-      };
-      return `
-        <div style="margin-bottom:14px;padding:14px 16px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;">
-          <div style="margin-bottom:6px;">
-            <span style="font-weight:700;color:#111827;font-size:14px;">${escapeHtmlStr(c.subject)}</span>
-            <span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:${palette.bg};color:${palette.text};border:1px solid ${palette.border};">${escapeHtmlStr(c.value)}</span>
-            ${
-              c.subValue
-                ? `<span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#eff6ff;color:#1e40af;">${escapeHtmlStr(c.subValue)}</span>`
-                : ''
-            }
-            <span style="float:right;font-size:12px;color:#6b7280;">${escapeHtmlStr(formatCommentDate(c.timestamp))}</span>
-          </div>
-          <div style="font-size:12px;color:#4b5563;margin-bottom:8px;">Awarded by <strong>${escapeHtmlStr(c.teacherName)}</strong></div>
-          <div style="background:#ffffff;border-left:3px solid #10b981;padding:10px 12px;border-radius:0 8px 8px 0;font-size:14px;color:#374151;line-height:1.5;">
-            &ldquo;${escapeHtmlStr((c.note || '').trim())}&rdquo;
-          </div>
-        </div>
-      `;
+      const palette = VALUE_HEX[c.value] || { bg: '#f3f4f6', text: '#1f2937', border: '#e5e7eb' };
+      return `<div style="margin-bottom:14px;padding:14px 16px;border-radius:12px;background:#f9fafb;border:1px solid #e5e7eb;"><div style="margin-bottom:6px;"><span style="font-weight:700;color:#111827;font-size:14px;">${escapeHtmlStr(c.subject)}</span><span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;background:${palette.bg};color:${palette.text};border:1px solid ${palette.border};">${escapeHtmlStr(c.value)}</span>${c.subValue ? `<span style="display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#eff6ff;color:#1e40af;">${escapeHtmlStr(c.subValue)}</span>` : ''}<span style="float:right;font-size:12px;color:#6b7280;">${escapeHtmlStr(formatCommentDate(c.timestamp))}</span></div><div style="font-size:12px;color:#4b5563;margin-bottom:8px;">Awarded by <strong>${escapeHtmlStr(c.teacherName)}</strong></div><div style="background:#ffffff;border-left:3px solid #10b981;padding:10px 12px;border-radius:0 8px 8px 0;font-size:14px;color:#374151;line-height:1.5;">&ldquo;${escapeHtmlStr((c.note || '').trim())}&rdquo;</div></div>`;
     })
     .join('');
 
-  return `
-<div style="max-width:680px;margin:0 auto;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;">
-  <div style="background:#065f46;color:#ffffff;padding:22px 28px;border-bottom:4px solid #facc15;">
-    <div style="font-size:20px;font-weight:800;letter-spacing:-0.01em;">Sathya Sai College</div>
-    <div style="font-size:11px;color:#a7f3d0;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-top:2px;">Values Passport &bull; 2026 Family Year-in-Review</div>
-  </div>
-  <div style="padding:28px;">
-    <p style="font-size:15px;margin:0 0 16px 0;">Dear <strong>${escapeHtmlStr(parentSalutation)}</strong>,</p>
-    ${introParagraphs
-      .map(
-        (p) =>
-          `<p style="font-size:15px;line-height:1.6;color:#374151;margin:0 0 14px 0;">${escapeHtmlStr(p)}</p>`
-      )
-      .join('')}
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin:20px 0;">
-      <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#065f46;margin-bottom:10px;">
-        ${escapeHtmlStr(firstName)}’s 2026 Values Passport (${escapeHtmlStr(student.grade)})
-      </div>
-      ${
-        showCountsInSnapshot
-          ? `<div style="font-size:14px;color:#1f2937;margin-bottom:10px;"><strong>Total Stamps Earned:</strong> ${totalStamps}</div>`
-          : ''
-      }
-      <div style="margin-bottom:10px;">${valuePillsHtml}</div>
-      <div style="font-size:13px;color:#4b5563;"><strong>Settings Recognised:</strong> ${escapeHtmlStr(subjects.join(', ') || 'None recorded')}</div>
-    </div>
-    <h3 style="font-size:16px;font-weight:800;color:#1e3a8a;margin:24px 0 12px 0;">Teacher Comments &amp; Recognition Notes</h3>
-    ${commentsHtml}
-    ${closingParagraphs
-      .map(
-        (p) =>
-          `<p style="font-size:15px;line-height:1.6;color:#374151;margin:16px 0 0 0;">${escapeHtmlStr(p)}</p>`
-      )
-      .join('')}
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:14px;color:#374151;">
-      Warm regards,<br/>
-      <strong style="color:#065f46;">Sathya Sai College Secondary Team</strong>
-    </div>
-  </div>
-</div>`.trim();
+  return `<div style="max-width:680px;margin:0 auto;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;overflow:hidden;"><div style="background:#065f46;color:#ffffff;padding:22px 28px;border-bottom:4px solid #facc15;"><div style="font-size:20px;font-weight:800;letter-spacing:-0.01em;">Sathya Sai College</div><div style="font-size:11px;color:#a7f3d0;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-top:2px;">Values Passport &bull; 2026 Family Year-in-Review</div></div><div style="padding:28px;"><p style="font-size:15px;margin:0 0 16px 0;">Dear <strong>${escapeHtmlStr(parentSalutation)}</strong>,</p>${introParagraphs.map((p) => `<p style="font-size:15px;line-height:1.6;color:#374151;margin:0 0 14px 0;">${escapeHtmlStr(p)}</p>`).join('')}<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin:20px 0;"><div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#065f46;margin-bottom:10px;">${escapeHtmlStr(firstName)}’s 2026 Values Passport (${escapeHtmlStr(student.grade)})</div>${showCountsInSnapshot ? `<div style="font-size:14px;color:#1f2937;margin-bottom:10px;"><strong>Total Stamps Earned:</strong> ${totalStamps}</div>` : ''}<div style="margin-bottom:10px;">${valuePillsHtml}</div><div style="font-size:13px;color:#4b5563;"><strong>Settings Recognised:</strong> ${escapeHtmlStr(subjects.join(', ') || 'None recorded')}</div></div><h3 style="font-size:16px;font-weight:800;color:#1e3a8a;margin:24px 0 12px 0;">Teacher Comments &amp; Recognition Notes</h3>${commentsHtml}${closingParagraphs.map((p) => `<p style="font-size:15px;line-height:1.6;color:#374151;margin:16px 0 0 0;">${escapeHtmlStr(p)}</p>`).join('')}<div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:14px;color:#374151;">Warm regards,<br/><strong style="color:#065f46;">Sathya Sai College Secondary Team</strong><div style="font-size:12px;color:#6b7280;margin-top:6px;">Replies to this email are directed to the Secondary School office: <a href="mailto:${escapeHtmlStr(replyToEmail)}" style="color:#065f46;">${escapeHtmlStr(replyToEmail)}</a></div></div></div></div>`;
 }

@@ -1,34 +1,45 @@
 import React, { useState } from 'react';
 import {
-  Calendar,
   Check,
   Copy,
   ExternalLink,
   FileText,
   Mail,
   MessageSquare,
+  Reply,
+  RotateCcw,
   Sparkles,
   Stamp,
-  Tag,
-  User,
 } from 'lucide-react';
 import { CORE_VALUES, SCHOOL_LOGO_URL } from '../../constants';
 import { defaultAvatarUrlForName, resolveStudentAvatarUrl } from '../../services/avatarUrl';
+import { Signature } from '../../types';
 import {
-  formatCommentDate,
   getRecapTierLabel,
+  MAX_PEER_NOMINATED_COMMENTS,
+  MAX_RECAP_COMMENTS,
+  MAX_SELF_NOMINATED_COMMENTS,
   StudentRecapSummary,
 } from '../../utils/familyRecapEmail';
 import { Logo } from '../Logo';
+import { FamilyRecapCommentItem } from './FamilyRecapCommentItem';
 
 interface Props {
   summary: StudentRecapSummary;
   includeStampCounts: boolean;
+  excludedCount: number;
+  onSaveNote: (sig: Signature, newNote: string) => Promise<boolean>;
+  onExcludeComment: (sigId: string) => void;
+  onResetExcluded: () => void;
 }
 
 export const FamilyRecapEmailCard: React.FC<Props> = ({
   summary,
   includeStampCounts,
+  excludedCount,
+  onSaveNote,
+  onExcludeComment,
+  onResetExcluded,
 }) => {
   const [viewMode, setViewMode] = useState<'STYLED' | 'PLAIN'>('STYLED');
   const [copiedKind, setCopiedKind] = useState<'STYLED' | 'PLAIN' | null>(null);
@@ -39,12 +50,15 @@ export const FamilyRecapEmailCard: React.FC<Props> = ({
     firstName,
     parentSalutation,
     parentEmail,
+    senderEmail,
+    replyToEmail,
     tier,
     effectiveTier,
     totalStamps,
     valueCounts,
     subjects,
     comments,
+    allCommentsNewestFirst,
     subjectLine,
     introParagraphs,
     closingParagraphs,
@@ -157,25 +171,42 @@ export const FamilyRecapEmailCard: React.FC<Props> = ({
 
       {/* Email Envelope Metadata */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-2 text-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-gray-700">
-            <Mail size={16} className="text-emerald-700 shrink-0" />
-            <span className="font-semibold text-gray-500">To:</span>
-            <span className="font-bold text-gray-900">{parentSalutation}</span>
-            {parentEmail ? (
-              <span className="text-xs bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full font-mono border border-emerald-200">
-                {parentEmail}
-              </span>
-            ) : (
-              <span className="text-xs bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full font-medium border border-amber-200">
-                No parent email on file
-              </span>
-            )}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600 pb-2 border-b border-gray-100">
+          <div className="flex flex-wrap items-center gap-3">
+            <span>
+              <strong className="text-gray-500">From:</strong>{' '}
+              <code className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded font-mono">
+                {senderEmail}
+              </code>
+            </span>
+            <span className="flex items-center gap-1">
+              <Reply size={13} className="text-emerald-700" />
+              <strong className="text-gray-500">Reply-To (Secondary):</strong>{' '}
+              <code className="bg-emerald-50 text-emerald-900 border border-emerald-200 px-2 py-0.5 rounded font-mono font-semibold">
+                {replyToEmail}
+              </code>
+            </span>
           </div>
           <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${tierBadgeClass}`}>
             {getRecapTierLabel(tier)}
           </span>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-gray-700 pt-0.5">
+          <Mail size={16} className="text-emerald-700 shrink-0" />
+          <span className="font-semibold text-gray-500">To:</span>
+          <span className="font-bold text-gray-900">{parentSalutation}</span>
+          {parentEmail ? (
+            <span className="text-xs bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full font-mono border border-emerald-200">
+              {parentEmail}
+            </span>
+          ) : (
+            <span className="text-xs bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full font-medium border border-amber-200">
+              No parent email on file
+            </span>
+          )}
+        </div>
+
         <div className="flex items-start gap-2 pt-1 border-t border-gray-100">
           <span className="font-semibold text-gray-500 shrink-0">Subject:</span>
           <span className="font-bold text-gray-900">{subjectLine}</span>
@@ -189,7 +220,6 @@ export const FamilyRecapEmailCard: React.FC<Props> = ({
       ) : (
         /* Styled App-Like Email Canvas */
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-          {/* App-styled Emerald Header with Gold Accent */}
           <div className="bg-emerald-800 text-white px-6 py-5 border-b-4 border-yellow-400 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <div className="bg-white p-1.5 rounded-full shadow-md h-12 w-12 flex items-center justify-center shrink-0 overflow-hidden">
@@ -231,7 +261,6 @@ export const FamilyRecapEmailCard: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Email Body */}
           <div className="p-6 sm:p-8 space-y-6 text-gray-800">
             <div className="space-y-3 text-sm sm:text-base leading-relaxed">
               <p className="font-semibold text-gray-900">Dear {parentSalutation},</p>
@@ -256,7 +285,6 @@ export const FamilyRecapEmailCard: React.FC<Props> = ({
                 )}
               </div>
 
-              {/* Core Values Pills */}
               {valueCounts.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {valueCounts.map(({ value, count }) => {
@@ -282,7 +310,6 @@ export const FamilyRecapEmailCard: React.FC<Props> = ({
                 <p className="text-xs text-gray-500 italic">No stamps recorded yet for 2026.</p>
               )}
 
-              {/* Settings / Subjects */}
               {subjects.length > 0 && (
                 <div className="pt-2 border-t border-emerald-100/80">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1.5">
@@ -304,11 +331,33 @@ export const FamilyRecapEmailCard: React.FC<Props> = ({
 
             {/* Teacher Comments Section */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-base font-bold text-blue-900 flex items-center gap-2">
-                  <MessageSquare size={18} className="text-emerald-600" />
-                  Highlights from Teacher Comments ({comments.length})
-                </h4>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-base font-bold text-blue-900 flex items-center gap-2">
+                    <MessageSquare size={18} className="text-emerald-600" />
+                    Highlights from Teacher Comments ({comments.length}
+                    {allCommentsNewestFirst.length > comments.length
+                      ? ` of ${allCommentsNewestFirst.length}`
+                      : ''}
+                    )
+                  </h4>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Newest first &bull; Max {MAX_RECAP_COMMENTS} comments &bull; Max{' '}
+                    {MAX_SELF_NOMINATED_COMMENTS} self-nominated &amp; {MAX_PEER_NOMINATED_COMMENTS}{' '}
+                    peer-nominated &bull; Click any comment to edit
+                  </p>
+                </div>
+
+                {excludedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={onResetExcluded}
+                    className="text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1"
+                  >
+                    <RotateCcw size={12} /> Restore {excludedCount} hidden comment
+                    {excludedCount === 1 ? '' : 's'}
+                  </button>
+                )}
               </div>
 
               {comments.length === 0 ? (
@@ -317,62 +366,38 @@ export const FamilyRecapEmailCard: React.FC<Props> = ({
                 </div>
               ) : (
                 <ul className="space-y-3">
-                  {comments.map((sig) => {
-                    const valueDef = CORE_VALUES[sig.value];
-                    return (
-                      <li
-                        key={sig.id}
-                        className="rounded-xl border border-gray-100 bg-gray-50/80 p-4 hover:bg-white transition-colors"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-bold text-gray-900">{sig.subject}</span>
-                            <span
-                              className={`text-xs font-bold px-2 py-0.5 rounded border ${
-                                valueDef?.color || 'bg-gray-100 text-gray-800'
-                              }`}
-                            >
-                              {sig.value}
-                            </span>
-                            {sig.subValue && (
-                              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-blue-100">
-                                <Tag size={10} /> {sig.subValue}
-                              </span>
-                            )}
-                          </div>
-                          <span className="flex items-center gap-1 text-xs text-gray-500">
-                            <Calendar size={12} />
-                            {formatCommentDate(sig.timestamp)}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-2">
-                          <User size={12} className="text-emerald-700" />
-                          <span className="font-semibold">{sig.teacherName}</span>
-                        </div>
-
-                        <div className="bg-white border-l-4 border-emerald-500 pl-3.5 py-2.5 pr-3 rounded-r-lg shadow-sm">
-                          <p className="text-sm text-gray-700 leading-relaxed">
-                            &ldquo;{(sig.note || '').trim()}&rdquo;
-                          </p>
-                        </div>
-                      </li>
-                    );
-                  })}
+                  {comments.map((sig) => (
+                    <FamilyRecapCommentItem
+                      key={sig.id}
+                      sig={sig}
+                      onSaveNote={onSaveNote}
+                      onExcludeFromEmail={onExcludeComment}
+                    />
+                  ))}
                 </ul>
               )}
             </div>
 
-            {/* Closing */}
             <div className="space-y-3 text-sm sm:text-base leading-relaxed pt-2">
               {closingParagraphs.map((paragraph, idx) => (
                 <p key={idx} className="text-gray-700">
                   {paragraph}
                 </p>
               ))}
-              <div className="pt-4 border-t border-gray-100">
-                <p className="text-gray-600 text-sm">Warm regards,</p>
-                <p className="font-bold text-emerald-900">Sathya Sai College Secondary Team</p>
+              <div className="pt-4 border-t border-gray-100 flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <p className="text-gray-600 text-sm">Warm regards,</p>
+                  <p className="font-bold text-emerald-900">Sathya Sai College Secondary Team</p>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Secondary School Office:{' '}
+                  <a
+                    href={`mailto:${replyToEmail}`}
+                    className="text-emerald-800 font-semibold underline"
+                  >
+                    {replyToEmail}
+                  </a>
+                </p>
               </div>
             </div>
           </div>

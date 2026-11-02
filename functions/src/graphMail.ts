@@ -3,11 +3,14 @@
  * Requires Entra app registration with Mail.Send application permission + admin consent.
  */
 
+export const DEFAULT_SECONDARY_REPLY_TO = "schooloffice_d@sathyasai.nsw.edu.au";
+
 export type GraphMailConfig = {
   tenantId: string;
   clientId: string;
   clientSecret: string;
   senderUpn: string;
+  replyTo?: string;
 };
 
 type TokenResult =
@@ -75,13 +78,15 @@ export async function sendMailWithGraph(
   senderUpn: string,
   to: string,
   subject: string,
-  htmlBody: string
+  htmlBody: string,
+  replyTo: string = DEFAULT_SECONDARY_REPLY_TO
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!senderUpn) {
     return { ok: false, error: "MICROSOFT_GRAPH_SENDER_UPN is not configured" };
   }
 
   const url = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(senderUpn)}/sendMail`;
+  const effectiveReplyTo = (replyTo || DEFAULT_SECONDARY_REPLY_TO).trim();
 
   let res: Response;
   try {
@@ -99,6 +104,18 @@ export async function sendMailWithGraph(
             content: htmlBody,
           },
           toRecipients: [{ emailAddress: { address: to } }],
+          ...(effectiveReplyTo
+            ? {
+                replyTo: [
+                  {
+                    emailAddress: {
+                      address: effectiveReplyTo,
+                      name: "Sathya Sai College Secondary School",
+                    },
+                  },
+                ],
+              }
+            : {}),
         },
         saveToSentItems: false,
       }),

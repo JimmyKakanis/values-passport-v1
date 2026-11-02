@@ -17,7 +17,7 @@ export const FeedbackSettingsSection: React.FC<Props> = ({ userRole }) => {
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
-  if (userRole !== 'STUDENT' && userRole !== 'TEACHER' && userRole !== 'ADMIN') {
+  if (userRole !== 'STUDENT' && userRole !== 'TEACHER' && userRole !== 'ADMIN' && userRole !== 'VIEWER') {
     return null;
   }
 

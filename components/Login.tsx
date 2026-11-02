@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
+  deleteUser,
   signInWithPopup, 
   getRedirectResult,
   signOut,
@@ -15,7 +16,7 @@ import {
 import { auth, microsoftProvider } from '../firebaseConfig';
 import { Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN, TEACHER_TEMP_PASSWORD, STUDENT_TEMP_PASSWORD } from '../constants';
-import { isApprovedTeacher, getStudentByEmail } from '../services/dataService';
+import { isApprovedTeacher, getAllTeachers, getStudentByEmail } from '../services/dataService';
 import { Logo } from './Logo';
 
 // #region agent log
@@ -70,12 +71,21 @@ export const Login: React.FC = () => {
 
   // Shared Logic: Handle Successful Microsoft Login (Popup or Redirect)
   const handleMicrosoftSuccess = async (user: any) => {
-      if (user.email && user.email.toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN)) {
-        setSuccessMsg('Microsoft account verified! Logging you in...');
+      const userEmail = (user.email || '').toLowerCase().trim();
+      const isSchoolDomain = userEmail.endsWith(SCHOOL_EMAIL_DOMAIN);
+      let isAuthorizedUser = isSchoolDomain || isApprovedTeacher(userEmail);
+
+      if (!isAuthorizedUser && userEmail) {
+        const teachers = await getAllTeachers();
+        isAuthorizedUser = teachers.some(t => t.email.toLowerCase().trim() === userEmail);
+      }
+
+      if (isAuthorizedUser) {
+        setSuccessMsg('Account verified! Logging you in...');
       } else {
-        // Domain mismatch - sign out immediately
+        // Domain mismatch and not an approved external viewer/teacher - sign out immediately
         await signOut(auth);
-        setError(`Access denied. Please use your @${SCHOOL_EMAIL_DOMAIN} account.`);
+        setError(`Access denied. Please use your @${SCHOOL_EMAIL_DOMAIN} account or an approved board viewer email.`);
       }
   };
 
@@ -227,8 +237,8 @@ export const Login: React.FC = () => {
   const sendPasswordResetFromForm = async () => {
     setError('');
     setSuccessMsg('');
-    if (!email.toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN)) {
-      setError(`Only emails ending in @${SCHOOL_EMAIL_DOMAIN} are allowed.`);
+    if (!email.trim() || !email.includes('@')) {
+      setError('Please enter a valid email address.');
       return;
     }
     setLoading(true);
@@ -323,9 +333,9 @@ export const Login: React.FC = () => {
     setError('');
     setSuccessMsg('');
 
-    // Basic Validation
-    if (!email.toLowerCase().endsWith(SCHOOL_EMAIL_DOMAIN)) {
-      setError(`Only emails ending in @${SCHOOL_EMAIL_DOMAIN} are allowed.`);
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      setError('Please enter a valid email address.');
       return;
     }
 
@@ -335,7 +345,7 @@ export const Login: React.FC = () => {
       if (pendingCred) {
         // LINKING FLOW:
         // 1. Sign in with the Email/Password first
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
         
         // 2. Link the pending Microsoft credential
         await linkWithCredential(userCredential.user, pendingCred);
@@ -346,16 +356,17 @@ export const Login: React.FC = () => {
       }
 
       // 1. Try to login normally first
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, normalizedEmail, password);
     } catch (err: any) {
       // 2. If login fails, check if we should auto-provision a new account
       // This happens if the user is in our "approved list" and uses the CORRECT TEMP PASSWORD for their role
-      const isTeacher = isApprovedTeacher(email);
-      const isStudent = !!getStudentByEmail(email);
+      const isTeacher = isApprovedTeacher(normalizedEmail);
+      const isStudent = !!getStudentByEmail(normalizedEmail);
+      const isExternalCandidate = !normalizedEmail.endsWith(SCHOOL_EMAIL_DOMAIN);
 
       let canProvision = false;
 
-      if (isTeacher && password === TEACHER_TEMP_PASSWORD) {
+      if ((isTeacher || isExternalCandidate) && password === TEACHER_TEMP_PASSWORD) {
         canProvision = true;
       } else if (isStudent && password === STUDENT_TEMP_PASSWORD) {
         canProvision = true;
@@ -363,7 +374,17 @@ export const Login: React.FC = () => {
 
       if (canProvision) {
          try {
-            await createUserWithEmailAndPassword(auth, email, password);
+            const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+            if (!isTeacher && isExternalCandidate) {
+              const allTeachers = await getAllTeachers();
+              const matched = allTeachers.some(t => t.email.toLowerCase().trim() === normalizedEmail);
+              if (!matched) {
+                await deleteUser(cred.user).catch(() => {});
+                await signOut(auth).catch(() => {});
+                setError('Invalid email or password.');
+                return;
+              }
+            }
             setSuccessMsg('Account activated! Logging you in...');
             // Login happens automatically after creation
             return;

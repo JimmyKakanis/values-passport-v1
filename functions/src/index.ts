@@ -7,6 +7,7 @@ import {
   graphTenantId,
   graphClientId,
   graphSenderUpn,
+  graphReplyToEmail,
   appPublicUrl,
 } from "./config";
 import { acquireGraphAccessToken, sendMailWithGraph } from "./graphMail";
@@ -25,6 +26,7 @@ function graphConfigFromEnv() {
     clientId: graphClientId.value(),
     clientSecret: graphClientSecret.value(),
     senderUpn: graphSenderUpn.value(),
+    replyTo: graphReplyToEmail.value(),
   };
 }
 
@@ -104,13 +106,19 @@ export const onAchievementEmailQueued = onDocumentCreated(
       g.senderUpn,
       toEmail,
       subject,
-      html
+      html,
+      g.replyTo
     );
 
     if (result.ok) {
       await sentRef.set({
         studentId,
+        studentName: student.name || "",
+        toEmail,
         achievementId,
+        achievementTitle,
+        subject,
+        htmlBody: html,
         sentAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       await queueRef.delete().catch(() => undefined);
@@ -174,6 +182,63 @@ export const sendUnseenStampsEmails = onSchedule(
       graph: g,
       appUrl: appPublicUrl.value(),
     });
+  }
+);
+
+/** Admin-triggered school-wide blast for all students with 5+ unseen stamps (ignores opt-in). */
+export const onUnseenEmailBlastRequested = onDocumentCreated(
+  {
+    document: "unseen_email_blast_requests/{reqId}",
+    secrets: [graphClientSecret],
+    timeoutSeconds: 300,
+  },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const data = snap.data() as {
+      status?: string;
+      requireOptIn?: boolean;
+    };
+    if (data.status && data.status !== "PENDING") return;
+
+    await snap.ref.set(
+      {
+        status: "PROCESSING",
+        startedAt: Date.now(),
+      },
+      { merge: true }
+    );
+
+    try {
+      const g = graphConfigFromEnv();
+      const result = await runUnseenStampsEmails(
+        {
+          graph: g,
+          appUrl: appPublicUrl.value(),
+        },
+        { requireOptIn: data.requireOptIn === true }
+      );
+
+      await snap.ref.set(
+        {
+          status: "COMPLETED",
+          result,
+          completedAt: Date.now(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("onUnseenEmailBlastRequested error:", msg);
+      await snap.ref.set(
+        {
+          status: "FAILED",
+          error: msg,
+          completedAt: Date.now(),
+        },
+        { merge: true }
+      );
+    }
   }
 );
 

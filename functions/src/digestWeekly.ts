@@ -117,10 +117,21 @@ export async function runWeeklyDigests(ctx: WeeklyDigestContext): Promise<void> 
       senderUpn,
       String(student.email),
       "Your weekly Values Passport summary",
-      html
+      html,
+      ctx.graph.replyTo
     );
     if (result.ok) {
-      await sentRef.doc(sentId).set({ sentAt: now, kind: "student_digest", studentId });
+      await sentRef.doc(sentId).set({
+        sentAt: now,
+        kind: "student_digest",
+        studentId,
+        studentName: String(student.name || ""),
+        toEmail: String(student.email),
+        subject: "Your weekly Values Passport summary",
+        stampCount: stamps.length,
+        periodId: ctx.periodId,
+        htmlBody: html,
+      });
     }
   }
 
@@ -164,10 +175,22 @@ export async function runWeeklyDigests(ctx: WeeklyDigestContext): Promise<void> 
       senderUpn,
       email,
       "Weekly Values Passport digest (teacher)",
-      html
+      html,
+      ctx.graph.replyTo
     );
     if (result.ok) {
-      await sentRef.doc(sentId).set({ sentAt: now, kind: "teacher_digest", email });
+      await sentRef.doc(sentId).set({
+        sentAt: now,
+        kind: "teacher_digest",
+        email,
+        toEmail: email,
+        recipientName: teacherName,
+        subject: "Weekly Values Passport digest (teacher)",
+        stampCount: myStamps,
+        pendingNominationsCount: myPendingNoms,
+        periodId: ctx.periodId,
+        htmlBody: html,
+      });
     }
   }
 
@@ -195,10 +218,22 @@ export async function runWeeklyDigests(ctx: WeeklyDigestContext): Promise<void> 
       senderUpn,
       String(s.parentEmail),
       `Values Passport weekly update for ${childName}`,
-      html
+      html,
+      ctx.graph.replyTo
     );
     if (result.ok) {
-      await sentRef.doc(sentId).set({ sentAt: now, kind: "parent_digest", studentId });
+      await sentRef.doc(sentId).set({
+        sentAt: now,
+        kind: "parent_digest",
+        studentId,
+        studentName: childName,
+        recipientName: s.parentName ? String(s.parentName) : "",
+        toEmail: String(s.parentEmail),
+        subject: `Values Passport weekly update for ${childName}`,
+        stampCount: stamps.length,
+        periodId: ctx.periodId,
+        htmlBody: html,
+      });
     }
   }
 

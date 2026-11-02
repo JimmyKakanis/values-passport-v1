@@ -81,7 +81,7 @@ export interface EmailNotificationPreferences {
   updatedAt: number;
 }
 
-export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
+export type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN' | 'VIEWER';
 
 export type FeedbackKind = 'feedback' | 'suggestion';
 
@@ -369,3 +369,77 @@ export interface TypingProgress {
   storiesCompleted?: number;
   updatedAt: number;
 }
+
+export type SentEmailKind =
+  | 'UNSEEN_STAMPS'
+  | 'ACHIEVEMENT'
+  | 'STUDENT_DIGEST'
+  | 'TEACHER_DIGEST'
+  | 'PARENT_DIGEST';
+
+export interface SentEmailLogEntry {
+  id: string;
+  kind: SentEmailKind;
+  sentAt: number;
+  recipientEmail: string;
+  recipientName: string;
+  recipientRoleLabel: string;
+  studentId?: string;
+  studentName?: string;
+  studentGrade?: string;
+  subject: string;
+  summary: string;
+  htmlPreview: string;
+  isSchoolBlast?: boolean;
+  periodId?: string;
+  achievementId?: string;
+  unseenCount?: number;
+}
+
+export interface QueuedAchievementEmailEntry {
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  achievementId: string;
+  achievementTitle: string;
+  requestedAt: number;
+}
+
+export interface EligibleUnseenRecipient {
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  studentGrade: string;
+  lastLoginAt: number;
+  unseenCount: number;
+  unseenCommentsCount: number;
+  alreadySentForLoginWindow: boolean;
+  subjectLine: string;
+  htmlBody: string;
+}
+
+export interface UnseenBlastRunSummary {
+  sent: number;
+  skippedAlreadySent: number;
+  skippedBelowThreshold: number;
+  skippedNoEmail: number;
+  skippedNotOptedIn: number;
+  skippedArchived: number;
+  failed: number;
+}
+
+export interface SentEmailsAdminOverview {
+  sentEmails: SentEmailLogEntry[];
+  queuedEmails: QueuedAchievementEmailEntry[];
+  eligibleUnseenRecipients: EligibleUnseenRecipient[];
+  optInStats: {
+    achievementOptInCount: number;
+    unseenStampsOptInCount: number;
+    studentDigestOptInCount: number;
+    teacherDigestOptInCount: number;
+    parentDigestEnabledCount: number;
+  };
+  permissionDenied?: boolean;
+}
+

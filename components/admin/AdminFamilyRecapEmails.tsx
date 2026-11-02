@@ -3,6 +3,7 @@ import {
   Filter,
   Loader2,
   Mail,
+  Reply,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -14,11 +15,13 @@ import {
   getAllSignatures,
   getSchoolStudents,
   reloadStudentsCacheFromFirestore,
+  updateSignatureAsStaff,
 } from '../../services/dataService';
 import { Signature, Student } from '../../types';
 import {
   buildBulkSignatureIdSet,
   buildStudentRecapSummary,
+  DEFAULT_SECONDARY_REPLY_TO_EMAIL,
   getRecapTier,
   RecapTemplateMode,
   RecapTier,
@@ -39,6 +42,8 @@ export const AdminFamilyRecapEmails: React.FC = () => {
   const [templateMode, setTemplateMode] = useState<RecapTemplateMode>('AUTO');
   const [includeStampCounts, setIncludeStampCounts] = useState(true);
   const [prioritizeIndividualNotes, setPrioritizeIndividualNotes] = useState(true);
+  const [replyToEmail, setReplyToEmail] = useState(DEFAULT_SECONDARY_REPLY_TO_EMAIL);
+  const [excludedByStudent, setExcludedByStudent] = useState<Record<string, string[]>>({});
 
   // Selected student id
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
@@ -99,7 +104,6 @@ export const AdminFamilyRecapEmails: React.FC = () => {
       });
   }, [students, signaturesByStudent]);
 
-  // Pick a sensible initial student once loaded
   useEffect(() => {
     if (!selectedStudentId && studentRows.length > 0) {
       const firstWithStamps = studentRows.find((r) => r.totalStamps > 0) ?? studentRows[0];
@@ -121,7 +125,6 @@ export const AdminFamilyRecapEmails: React.FC = () => {
     });
   }, [studentRows, searchTerm, selectedGrade, selectedTier]);
 
-  // Showcase exemplars for quick committee demonstration
   const showcaseExemplars = useMemo(() => {
     const high =
       studentRows.find((r) => r.student.name.toLowerCase().includes('charlie robinson')) ??
@@ -143,6 +146,11 @@ export const AdminFamilyRecapEmails: React.FC = () => {
     );
   }, [studentRows, filteredRows, selectedStudentId]);
 
+  const activeExcludedIds = useMemo(() => {
+    if (!activeRow) return new Set<string>();
+    return new Set(excludedByStudent[activeRow.student.id] ?? []);
+  }, [activeRow, excludedByStudent]);
+
   const activeSummary = useMemo(() => {
     if (!activeRow) return null;
     return buildStudentRecapSummary(
@@ -153,6 +161,8 @@ export const AdminFamilyRecapEmails: React.FC = () => {
         templateMode,
         includeStampCounts,
         prioritizeIndividualNotes,
+        excludedCommentIds: activeExcludedIds,
+        replyToEmail,
       }
     );
   }, [
@@ -161,7 +171,49 @@ export const AdminFamilyRecapEmails: React.FC = () => {
     templateMode,
     includeStampCounts,
     prioritizeIndividualNotes,
+    activeExcludedIds,
+    replyToEmail,
   ]);
+
+  const handleSaveCommentNote = async (sig: Signature, newNote: string): Promise<boolean> => {
+    const res = await updateSignatureAsStaff(
+      sig.id,
+      { role: 'ADMIN', teacherName: sig.teacherName },
+      {
+        subject: sig.subject,
+        value: sig.value,
+        subValue: sig.subValue || '',
+        note: newNote,
+      }
+    );
+    if (res.ok) {
+      setSignatures((prev) =>
+        prev.map((item) => (item.id === sig.id ? { ...item, note: newNote } : item))
+      );
+      return true;
+    }
+    return false;
+  };
+
+  const handleExcludeComment = (sigId: string) => {
+    if (!activeRow) return;
+    const sid = activeRow.student.id;
+    setExcludedByStudent((prev) => {
+      const current = prev[sid] ?? [];
+      if (current.includes(sigId)) return prev;
+      return { ...prev, [sid]: [...current, sigId] };
+    });
+  };
+
+  const handleResetExcludedForStudent = () => {
+    if (!activeRow) return;
+    const sid = activeRow.student.id;
+    setExcludedByStudent((prev) => {
+      const next = { ...prev };
+      delete next[sid];
+      return next;
+    });
+  };
 
   const selectShowcaseStudent = (row?: (typeof studentRows)[number]) => {
     if (!row) return;
@@ -182,7 +234,6 @@ export const AdminFamilyRecapEmails: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header & Quick Committee Showcase Bar */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 pb-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -190,11 +241,10 @@ export const AdminFamilyRecapEmails: React.FC = () => {
             Family Year-in-Review Email Generator
           </h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            Preview, customize, and copy styled year-end Values Passport recap emails with real student stamps and teacher comments.
+            Shows up to 10 newest comments per student (max 1 self-nominated, max 2 peer-nominated). Click any comment to edit or swap it out.
           </p>
         </div>
 
-        {/* One-Click Tier Showcase Buttons */}
         <div className="flex flex-wrap items-center gap-2 bg-emerald-50/80 px-3 py-2 rounded-xl border border-emerald-200">
           <span className="text-xs font-bold text-emerald-900 flex items-center gap-1 mr-1">
             <Sparkles size={14} className="text-emerald-700" /> Sample Tiers:
@@ -246,7 +296,7 @@ export const AdminFamilyRecapEmails: React.FC = () => {
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
             <SlidersHorizontal size={14} className="text-emerald-700" />
-            Template Style:
+            Template:
           </span>
           <select
             value={templateMode}
@@ -259,6 +309,18 @@ export const AdminFamilyRecapEmails: React.FC = () => {
             <option value="LIGHT">Force Tier 3 (Gentle / Quality-Focused Copy)</option>
             <option value="UNIVERSAL">Single Universal Template (All Students)</option>
           </select>
+
+          <div className="flex items-center gap-1.5 text-xs">
+            <Reply size={14} className="text-emerald-700" />
+            <span className="font-bold text-gray-600">Reply-To:</span>
+            <input
+              type="email"
+              value={replyToEmail}
+              onChange={(e) => setReplyToEmail(e.target.value)}
+              className="text-xs font-mono bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-gray-800 w-60 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+              title="Replies to automated emails will be directed to this Secondary School email address"
+            />
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-5 text-xs font-semibold text-gray-700">
@@ -278,21 +340,17 @@ export const AdminFamilyRecapEmails: React.FC = () => {
               onChange={(e) => setPrioritizeIndividualNotes(e.target.checked)}
               className="rounded border-gray-300 text-emerald-700 focus:ring-emerald-600 h-4 w-4"
             />
-            Prioritize personal notes over whole-class bulk stamps
+            Prioritize personal notes over bulk class stamps
           </label>
         </div>
       </div>
 
-      {/* Main Split Layout: Student Picker (Left) + Styled Email Preview (Right) */}
+      {/* Main Split Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Roster Filter & Picker */}
         <div className="lg:col-span-4 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="p-3.5 bg-gray-50 border-b border-gray-200 space-y-2.5">
             <div className="relative">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search student or parent..."
@@ -399,12 +457,15 @@ export const AdminFamilyRecapEmails: React.FC = () => {
           </ul>
         </div>
 
-        {/* Right Column: Generated Email Preview */}
         <div className="lg:col-span-8">
           {activeSummary ? (
             <FamilyRecapEmailCard
               summary={activeSummary}
               includeStampCounts={includeStampCounts}
+              excludedCount={activeExcludedIds.size}
+              onSaveNote={handleSaveCommentNote}
+              onExcludeComment={handleExcludeComment}
+              onResetExcluded={handleResetExcludedForStudent}
             />
           ) : (
             <div className="p-12 text-center text-gray-500 bg-gray-50 rounded-xl border border-gray-200">

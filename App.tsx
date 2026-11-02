@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, Building2, LogOut, ShieldAlert, BrainCircuit, Calendar, Shield, Settings, Archive } from 'lucide-react';
+import { LayoutDashboard, PenTool, Menu, X, Trophy, BarChart2, Building2, LogOut, ShieldAlert, BrainCircuit, Calendar, Shield, Settings, Archive, MessageSquareHeart } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { TeacherConsole } from './components/TeacherConsole';
 import { AdminConsole } from './components/AdminConsole';
@@ -30,6 +30,7 @@ import { UserRole } from './types';
 import { TeacherCorner } from './components/TeacherCorner/TeacherCorner';
 import { FeedbackPage } from './components/FeedbackPage';
 import { SettingsPage } from './components/SettingsPage';
+import { ViewerCommentsFeed } from './components/ViewerCommentsFeed';
 
 // Layout Component
 const Layout: React.FC<{ 
@@ -95,10 +96,16 @@ const Layout: React.FC<{
                 </>
               )}
               
+              {userRole === 'VIEWER' && (
+                <Link to="/comments" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${isActive('/comments')}`}>
+                  <MessageSquareHeart size={18} /> Student Comments
+                </Link>
+              )}
+
               <Link to="/leaderboard" className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${leaderboardNavActive ? 'bg-emerald-900 text-white shadow-md' : 'text-emerald-100 hover:bg-emerald-700 hover:text-white'}`}>
-                {userRole === 'STUDENT' ? (
+                {userRole === 'STUDENT' || userRole === 'VIEWER' ? (
                   <>
-                    <Building2 size={18} /> School
+                    <Building2 size={18} /> {userRole === 'VIEWER' ? 'School Highlights' : 'School'}
                   </>
                 ) : (
                   <>
@@ -220,14 +227,23 @@ const Layout: React.FC<{
                 </Link>
               </>
             )}
+            {userRole === 'VIEWER' && (
+              <Link 
+                to="/comments" 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${isActive('/comments')}`}
+              >
+                <MessageSquareHeart size={20} /> Student Comments
+              </Link>
+            )}
             <Link 
               to="/leaderboard" 
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block px-3 py-3 rounded-md text-base font-bold flex items-center gap-3 ${leaderboardNavActive ? 'bg-emerald-900 text-white shadow-md' : 'text-emerald-100 hover:bg-emerald-700 hover:text-white'}`}
             >
-              {userRole === 'STUDENT' ? (
+              {userRole === 'STUDENT' || userRole === 'VIEWER' ? (
                 <>
-                  <Building2 size={20} /> School
+                  <Building2 size={20} /> {userRole === 'VIEWER' ? 'School Highlights' : 'School'}
                 </>
               ) : (
                 <>
@@ -371,8 +387,16 @@ const App: React.FC = () => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
       if (currentUser && currentUser.email) {
-        // 1. Check Domain Security
-        if (!currentUser.email.endsWith(SCHOOL_EMAIL_DOMAIN)) {
+        const userEmailLower = currentUser.email.toLowerCase().trim();
+        const isSchoolDomain = userEmailLower.endsWith(SCHOOL_EMAIL_DOMAIN);
+
+        // Initialize Data and check TEACHER / VIEWER list first
+        await initializeData();
+        const teachers = await getAllTeachers();
+        const teacher = teachers.find(t => t.email.toLowerCase().trim() === userEmailLower);
+
+        // 1. Check Domain or Explicit Authorization Security
+        if (!isSchoolDomain && !teacher) {
            setIsAuthorizedDomain(false);
            setUser(currentUser);
            setLoading(false);
@@ -380,16 +404,8 @@ const App: React.FC = () => {
         }
         setIsAuthorizedDomain(true);
 
-        // Initialize Data
-        await initializeData();
-
-        // 2. Check Role Priority: Check TEACHER list first
-        // If they are explicitly in the teacher list, give them teacher access.
-        const teachers = await getAllTeachers();
-        const teacher = teachers.find(t => t.email.toLowerCase() === currentUser.email?.toLowerCase());
-        
         // HARDCODED BOOTSTRAP FOR SUPER ADMIN
-        if (currentUser.email.toLowerCase() === 'j.kakanis@sathyasai.nsw.edu.au') {
+        if (userEmailLower === 'j.kakanis@sathyasai.nsw.edu.au') {
              setArchivedStudentAccount(false);
              setUserRole('ADMIN');
              const participation = await ensureStaffParticipationStudent({
@@ -399,12 +415,17 @@ const App: React.FC = () => {
              setStudentId(participation?.id ?? null);
         } else if (teacher) {
              setArchivedStudentAccount(false);
-             setUserRole(teacher.role || 'TEACHER');
-             const participation = await ensureStaffParticipationStudent({
-               name: teacher.name,
-               email: teacher.email,
-             });
-             setStudentId(participation?.id ?? null);
+             const resolvedRole = teacher.role || 'TEACHER';
+             setUserRole(resolvedRole);
+             if (resolvedRole === 'VIEWER') {
+               setStudentId(null);
+             } else {
+               const participation = await ensureStaffParticipationStudent({
+                 name: teacher.name,
+                 email: teacher.email,
+               });
+               setStudentId(participation?.id ?? null);
+             }
         } else {
              // 3. Everyone else is assumed to be a STUDENT
              if (isArchivedStudentEmail(currentUser.email)) {
@@ -490,6 +511,7 @@ const App: React.FC = () => {
                <Route path="/admin" element={<AdminConsole />} />
                <Route path="/teacher" element={<TeacherConsole viewerRole={userRole} />} />
                <Route path="/values-development" element={<TeacherCorner />} />
+               <Route path="/comments" element={<ViewerCommentsFeed />} />
                <Route path="/student/:id" element={<StudentDetailView />} />
                {studentId && (
                  <>
@@ -503,6 +525,7 @@ const App: React.FC = () => {
             <>
                <Route path="/teacher" element={<TeacherConsole viewerRole={userRole} />} />
                <Route path="/values-development" element={<TeacherCorner />} />
+               <Route path="/comments" element={<ViewerCommentsFeed />} />
                {studentId && (
                  <>
                    <Route path="/learning" element={<ValuesLearning studentId={studentId} />} />
@@ -512,6 +535,14 @@ const App: React.FC = () => {
                <Route path="/" element={<Navigate to="/teacher" />} />
                <Route path="/student/:id" element={<StudentDetailView />} />
                <Route path="/achievements" element={<Navigate to="/teacher" />} />
+            </>
+          ) : userRole === 'VIEWER' ? (
+            <>
+               <Route path="/comments" element={<ViewerCommentsFeed />} />
+               <Route path="/" element={<Navigate to="/comments" replace />} />
+               <Route path="/teacher" element={<Navigate to="/comments" replace />} />
+               <Route path="/admin" element={<Navigate to="/comments" replace />} />
+               <Route path="/achievements" element={<Navigate to="/comments" replace />} />
             </>
           ) : (
             <Route path="*" element={<div className="p-8 text-center bg-white m-4 rounded-lg shadow">Account setup in progress... If this persists, please contact support.</div>} />

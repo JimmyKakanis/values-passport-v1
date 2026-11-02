@@ -21,7 +21,8 @@ import {
   ArchiveRestore,
   LogIn,
   FileSpreadsheet,
-  Mail
+  Mail,
+  Send
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Student, Teacher, SystemSettings, FeedbackSubmission, UserRole, Subject } from '../types';
@@ -49,6 +50,7 @@ import {
   getAllFeedbackSubmissions
 } from '../services/dataService';
 import { SCHOOL_GRADES } from '../constants';
+import { provisionAuthUserWithPassword } from '../firebaseConfig';
 import {
   getEffectiveSubjectCatalog,
   getAcademicSubjectsForCatalog,
@@ -59,6 +61,7 @@ import {
 import { SchoolAnalytics } from './SchoolAnalytics';
 import { ParentContactImportModal } from './ParentContactImportModal';
 import { AdminFamilyRecapEmails } from './admin/AdminFamilyRecapEmails';
+import { AdminSentEmailsTab } from './admin/AdminSentEmailsTab';
 
 type StudentDirectorySortKey = 'firstName' | 'grade' | 'lastLogin';
 
@@ -88,7 +91,7 @@ function firstNameFromFullName(fullName: string): string {
 }
 
 export const AdminConsole: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'ANALYTICS' | 'STUDENTS' | 'FAMILY_EMAILS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION' | 'FEEDBACK'>('ANALYTICS');
+  const [activeTab, setActiveTab] = useState<'ANALYTICS' | 'STUDENTS' | 'FAMILY_EMAILS' | 'SENT_EMAILS' | 'TEACHERS' | 'SETTINGS' | 'MIGRATION' | 'FEEDBACK'>('ANALYTICS');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -111,7 +114,8 @@ export const AdminConsole: React.FC = () => {
   const selectAllStudentsRef = useRef<HTMLInputElement>(null);
 
   // Teacher Management State
-  const [newTeacher, setNewTeacher] = useState<Partial<Teacher>>({ name: '', email: '' });
+  const [newTeacher, setNewTeacher] = useState<Partial<Teacher>>({ name: '', email: '', role: 'TEACHER' });
+  const [newTeacherPassword, setNewTeacherPassword] = useState('');
   const [isAddTeacherOpen, setIsAddTeacherOpen] = useState(false);
   const [editingTeacherId, setEditingTeacherId] = useState<string | null>(null);
   const [assignmentDraft, setAssignmentDraft] = useState<{
@@ -437,22 +441,50 @@ export const AdminConsole: React.FC = () => {
   const handleAddTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTeacher.name || !newTeacher.email) return;
-    
+
+    const trimmedPassword = newTeacherPassword.trim();
+    if (trimmedPassword && trimmedPassword.length < 6) {
+      setError('Initial password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
+    setError('');
+    setSuccess('');
+
+    const roleToSave: UserRole =
+      newTeacher.role === 'ADMIN' || newTeacher.role === 'VIEWER' ? newTeacher.role : 'TEACHER';
+
+    let authProvisionNote = '';
+    if (trimmedPassword) {
+      const authResult = await provisionAuthUserWithPassword(newTeacher.email, trimmedPassword);
+      if (!authResult.ok) {
+        setLoading(false);
+        setError(authResult.error || 'Could not create initial password for this email.');
+        return;
+      }
+      authProvisionNote = authResult.alreadyExisted
+        ? ' (Login account already existed; existing password kept.)'
+        : ' with custom initial password.';
+    }
+
     const result = await addTeacher({
         name: newTeacher.name,
-        email: newTeacher.email,
-        role: 'TEACHER'
+        email: newTeacher.email.trim(),
+        role: roleToSave
     } as Teacher);
     setLoading(false);
 
     if (result) {
-        setSuccess('Teacher added successfully');
-        setNewTeacher({ name: '', email: '' });
+        setSuccess(
+          `${roleToSave === 'VIEWER' ? 'Viewer' : 'Teacher'} added successfully${authProvisionNote}`
+        );
+        setNewTeacher({ name: '', email: '', role: 'TEACHER' });
+        setNewTeacherPassword('');
         setIsAddTeacherOpen(false);
         loadData();
     } else {
-        setError('Failed to add teacher');
+        setError('Failed to add user');
     }
   };
 
@@ -713,6 +745,16 @@ export const AdminConsole: React.FC = () => {
           <Mail size={20} /> Family Emails
         </button>
         <button
+          onClick={() => setActiveTab('SENT_EMAILS')}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'SENT_EMAILS' 
+              ? 'bg-emerald-100 text-emerald-900' 
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+          }`}
+        >
+          <Send size={20} /> Sent Emails
+        </button>
+        <button
           onClick={() => setActiveTab('TEACHERS')}
           className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-colors ${
             activeTab === 'TEACHERS' 
@@ -779,6 +821,10 @@ export const AdminConsole: React.FC = () => {
 
             {activeTab === 'FAMILY_EMAILS' && (
                 <AdminFamilyRecapEmails />
+            )}
+
+            {activeTab === 'SENT_EMAILS' && (
+                <AdminSentEmailsTab />
             )}
 
             {activeTab === 'STUDENTS' && (
@@ -1253,18 +1299,18 @@ export const AdminConsole: React.FC = () => {
             {activeTab === 'TEACHERS' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold">Authorized Teachers</h2>
+                    <h2 className="text-xl font-bold">Authorized Teachers &amp; Viewers</h2>
                     <button 
                         onClick={() => setIsAddTeacherOpen(true)}
                         className="bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-emerald-700 font-bold"
                     >
-                        <Plus size={20} /> Add Teacher
+                        <Plus size={20} /> Add Staff / Viewer
                     </button>
                 </div>
                 <p className="text-sm text-gray-600 mb-4">
-                  Configure who receives stamp requests: academic subjects go to teachers listed under{' '}
+                  Configure staff access and stamp request routing: academic subjects go to teachers listed under{' '}
                   <strong>Subjects taught</strong>; playground, assembly, and other locations go to{' '}
-                  <strong>Homeroom years</strong>.
+                  <strong>Homeroom years</strong>. Set role to <strong>VIEWER</strong> for board members (external emails supported; read-only access to student comments and school highlights).
                 </p>
 
                 {(nominationRoutingGaps.academicWithoutTeachers.length > 0 ||
@@ -1304,8 +1350,8 @@ export const AdminConsole: React.FC = () => {
                 {/* Add Teacher Form */}
                 {isAddTeacherOpen && (
                     <div className="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
-                        <h3 className="font-bold text-gray-800 mb-3">Add New Teacher</h3>
-                        <form onSubmit={handleAddTeacher} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <h3 className="font-bold text-gray-800 mb-3">Add New Staff or Board Viewer</h3>
+                        <form onSubmit={handleAddTeacher} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                             <input 
                                 type="text" 
                                 placeholder="Full Name" 
@@ -1316,16 +1362,46 @@ export const AdminConsole: React.FC = () => {
                             />
                             <input 
                                 type="email" 
-                                placeholder="Email Address" 
+                                placeholder="Email (school or external for Viewer)" 
                                 className="p-2 border rounded"
                                 value={newTeacher.email}
                                 onChange={e => setNewTeacher({...newTeacher, email: e.target.value})}
                                 required
                             />
+                            <select
+                                value={newTeacher.role || 'TEACHER'}
+                                onChange={e => setNewTeacher({...newTeacher, role: e.target.value as UserRole})}
+                                className="p-2 border rounded bg-white font-medium text-gray-800"
+                                aria-label="Role for new user"
+                            >
+                                <option value="TEACHER">TEACHER (Standard Staff)</option>
+                                <option value="ADMIN">ADMIN (Full Access)</option>
+                                <option value="VIEWER">VIEWER (Board Read-Only)</option>
+                            </select>
+                            <input
+                                type="text"
+                                placeholder="Initial password (optional, min 6)"
+                                className="p-2 border rounded bg-white text-gray-800"
+                                value={newTeacherPassword}
+                                onChange={e => setNewTeacherPassword(e.target.value)}
+                                minLength={6}
+                            />
                             <div className="flex gap-2">
                                 <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded font-bold flex-1">Save</button>
-                                <button type="button" onClick={() => setIsAddTeacherOpen(false)} className="bg-gray-300 text-gray-700 px-4 py-2 rounded font-bold">Cancel</button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsAddTeacherOpen(false);
+                                    setNewTeacherPassword('');
+                                  }}
+                                  className="bg-gray-300 text-gray-700 px-4 py-2 rounded font-bold"
+                                >
+                                  Cancel
+                                </button>
                             </div>
+                            <p className="text-xs text-gray-500 md:col-span-2 lg:col-span-5">
+                              If you set an <strong>Initial password</strong>, their login account is created immediately with that password. If left blank, they can sign in with Microsoft 365 or activate on first login using the default staff temporary password.
+                            </p>
                         </form>
                     </div>
                 )}
@@ -1351,7 +1427,13 @@ export const AdminConsole: React.FC = () => {
                                     <td className="p-3 text-gray-600">{teacher.email}</td>
                                     <td className="p-3">
                                         <select
-                                            value={teacher.role === 'ADMIN' ? 'ADMIN' : 'TEACHER'}
+                                            value={
+                                              teacher.role === 'ADMIN'
+                                                ? 'ADMIN'
+                                                : teacher.role === 'VIEWER'
+                                                  ? 'VIEWER'
+                                                  : 'TEACHER'
+                                            }
                                             onChange={(e) =>
                                               handleTeacherRoleChange(teacher, e.target.value as UserRole)
                                             }
@@ -1360,27 +1442,40 @@ export const AdminConsole: React.FC = () => {
                                         >
                                             <option value="TEACHER">TEACHER</option>
                                             <option value="ADMIN">ADMIN</option>
+                                            <option value="VIEWER">VIEWER</option>
                                         </select>
                                     </td>
                                     <td className="p-3 text-sm text-gray-700 max-w-[12rem]">
-                                      {teacher.assignedSubjects?.length
-                                        ? teacher.assignedSubjects.join(', ')
-                                        : <span className="text-gray-400">None</span>}
+                                      {teacher.role === 'VIEWER' ? (
+                                        <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
+                                          Read-only viewer
+                                        </span>
+                                      ) : teacher.assignedSubjects?.length ? (
+                                        teacher.assignedSubjects.join(', ')
+                                      ) : (
+                                        <span className="text-gray-400">None</span>
+                                      )}
                                     </td>
                                     <td className="p-3 text-sm text-gray-700">
-                                      {teacher.homeroomGrades?.length
-                                        ? teacher.homeroomGrades.join(', ')
-                                        : <span className="text-gray-400">None</span>}
+                                      {teacher.role === 'VIEWER' ? (
+                                        <span className="text-gray-400">—</span>
+                                      ) : teacher.homeroomGrades?.length ? (
+                                        teacher.homeroomGrades.join(', ')
+                                      ) : (
+                                        <span className="text-gray-400">None</span>
+                                      )}
                                     </td>
                                     <td className="p-3 text-right">
                                         <div className="flex justify-end gap-1">
-                                          <button
-                                            onClick={() => openTeacherAssignments(teacher)}
-                                            className="text-emerald-700 hover:bg-emerald-50 p-1 rounded"
-                                            title="Edit stamp request routing"
-                                          >
-                                            <Edit2 size={18} />
-                                          </button>
+                                          {teacher.role !== 'VIEWER' && (
+                                            <button
+                                              onClick={() => openTeacherAssignments(teacher)}
+                                              className="text-emerald-700 hover:bg-emerald-50 p-1 rounded"
+                                              title="Edit stamp request routing"
+                                            >
+                                              <Edit2 size={18} />
+                                            </button>
+                                          )}
                                           <button 
                                               onClick={() => teacher.id && handleRemoveTeacher(teacher.id)} 
                                               className="text-red-600 hover:bg-red-50 p-1 rounded" 
@@ -1600,7 +1695,9 @@ export const AdminConsole: React.FC = () => {
                                     ? 'bg-blue-100 text-blue-800'
                                     : row.submitterRole === 'ADMIN'
                                       ? 'bg-purple-100 text-purple-800'
-                                      : 'bg-amber-100 text-amber-900'
+                                      : row.submitterRole === 'VIEWER'
+                                        ? 'bg-teal-100 text-teal-800'
+                                        : 'bg-amber-100 text-amber-900'
                                 }`}
                               >
                                 {row.submitterRole}

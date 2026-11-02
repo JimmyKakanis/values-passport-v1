@@ -13,10 +13,16 @@ export const graphClientId = defineString("MICROSOFT_GRAPH_CLIENT_ID", {
   description: "App registration application (client) ID",
 });
 
-/** User or shared mailbox UPN that is allowed to send (e.g. noreply@school.edu.au) */
+/** User or shared mailbox UPN that is allowed to send (e.g. noreply-VP@sathyasai.nsw.edu.au) */
 export const graphSenderUpn = defineString("MICROSOFT_GRAPH_SENDER_UPN", {
-  default: "",
+  default: "noreply-VP@sathyasai.nsw.edu.au",
   description: "Sender mailbox UPN in your Microsoft 365 tenant",
+});
+
+/** Secondary school office Reply-To address so replies to automated emails come back to Secondary */
+export const graphReplyToEmail = defineString("MICROSOFT_GRAPH_REPLY_TO", {
+  default: "schooloffice_d@sathyasai.nsw.edu.au",
+  description: "Reply-To address for outbound emails (Secondary School office)",
 });
 
 export const appPublicUrl = defineString("APP_PUBLIC_URL", {

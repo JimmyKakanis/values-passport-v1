@@ -4,6 +4,9 @@
 
 
 ## Recently completed
+- [x] **Styled Unseen Stamps Re-Engagement Email & Admin Blast** — app-styled HTML template with teaser teacher comments (`utils/unseenStampsEmailTemplate.ts`, `functions/src/unseenStampsEmail.ts`), `onUnseenEmailBlastRequested` Cloud Function, `UnseenStampsCampaignCard.tsx` preview & send UI, and school-wide blast sent to 15 eligible students
+- [x] **Admin Sent Emails tab** — `AdminSentEmailsTab` (`components/admin/AdminSentEmailsTab.tsx`) and `fetchSentEmailsAdminOverview` (`services/sentEmailsService.ts`) under **Admin Console → Sent Emails**; read-only Firestore rules deployed for `achievement_email_sent`, `unseen_stamps_email_sent`, `digest_sent`, `achievement_email_queue`, and `email_preferences`
+- [x] **Family Emails refinements & Secondary Reply-To** — newest-first comments, max 10 cap, max 1 self-nomination & max 2 peer-nomination cap, inline comment editing + swap/hide (`FamilyRecapCommentItem.tsx`), and Secondary School `replyTo` (`schooloffice_d@sathyasai.nsw.edu.au`) in `functions/src/graphMail.ts`
 - [x] **Family Year-in-Review Email Generator (Admin Console)** — `AdminFamilyRecapEmails`, `FamilyRecapEmailCard`, and `utils/familyRecapEmail.ts` under **Admin Console → Family Emails** (styled app preview, plain-text view, tiered/universal templates, one-click rich HTML + plain-text copy)
 - [x] **2026 integration sub-values in passport catalog** — added all missing 2026 values integration sub-values to `CORE_VALUES` in `constants.ts`
 - [x] **Parent contact Excel/CSV import** — `ParentContactImportModal`, `utils/studentParentImport.ts`, `bulkUpdateStudentParentContacts` in `AdminConsole` → Students

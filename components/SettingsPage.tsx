@@ -28,8 +28,10 @@ export const SettingsPage: React.FC<Props> = ({ preferenceRole, studentId, userR
     }
   }, [location.state]);
 
-  const showFeedback =
+  const showEmailNotifications =
     userRole === 'STUDENT' || userRole === 'TEACHER' || userRole === 'ADMIN';
+  const showFeedback =
+    userRole === 'STUDENT' || userRole === 'TEACHER' || userRole === 'ADMIN' || userRole === 'VIEWER';
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -44,7 +46,9 @@ export const SettingsPage: React.FC<Props> = ({ preferenceRole, studentId, userR
       </header>
       <div className="space-y-8">
         {studentId ? <AvatarSettingsSection studentId={studentId} /> : null}
-        <EmailNotificationsSettings preferenceRole={preferenceRole} />
+        {showEmailNotifications ? (
+          <EmailNotificationsSettings preferenceRole={preferenceRole} />
+        ) : null}
         {showFeedback ? (
           <div ref={feedbackAnchorRef}>
             <FeedbackSettingsSection userRole={userRole} />
