@@ -35,7 +35,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
 
 ### 👨‍🏫 Teacher Console & staff participation
 - **Staff game profile:** Teachers and admins keep their **Teacher** / **Admin** role but get a linked **`students/{id}`** doc (`grade: "Staff"`) on login so they can use **Values Lab** (Pop Quiz, Speed Type), **My Planner**, and appear on **Quiz** / **Typing** leaderboards. **Settings → Avatar** lets staff customize their leaderboard face immediately (no stamp unlock gates). Staff are excluded from year-group cohort maths. See `docs/technical.md` (**Authentication & roles**, **Staff participation**).
-- **Quick Awarding:** Award stamps to individual students or bulk groups in seconds.
+- **Quick Awarding:** Award stamps to individual students or bulk groups in seconds. Teachers must choose a **sub-value** (the specific quality recognised) before the stamp is saved.
 - **Student attention:** A staff-only “fair recognition” view: who is due for a stamp, 7d peer context, and subject/value gaps, with a switch between whole school (capped) and one year at a time. Links open each student’s **Values Passport**; **Award** can jump over with a prefilled form when gaps suggest it. (See `docs/technical.md`.)
 - **Activity Feed:** View all recent stamps or filter to "My Activity" (stamps you awarded). Teacher avatars show initials (e.g., JK).
 - **Nomination Review:** Approve or reject student **Request Stamp** submissions. Teachers see only requests routed to them; **admins** see the full school queue. Routing: academic subjects → teachers with that subject assigned; locations/events → homeroom teachers for the nominee’s year (configured in Admin Console → Teachers).

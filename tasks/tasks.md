@@ -4,6 +4,7 @@
 
 
 ## Recently completed
+- [x] **Required sub-value on teacher stamp awards** — Award Stamps cannot be submitted without a sub-value; `addSignature` rejects empty tags (fixes silent Firestore `undefined` write failures); Edit stamp modal also requires a sub-value
 - [x] **Styled Unseen Stamps Re-Engagement Email & Admin Blast** — app-styled HTML template with teaser teacher comments (`utils/unseenStampsEmailTemplate.ts`, `functions/src/unseenStampsEmail.ts`), `onUnseenEmailBlastRequested` Cloud Function, `UnseenStampsCampaignCard.tsx` preview & send UI, and school-wide blast sent to 15 eligible students
 - [x] **Admin Sent Emails tab** — `AdminSentEmailsTab` (`components/admin/AdminSentEmailsTab.tsx`) and `fetchSentEmailsAdminOverview` (`services/sentEmailsService.ts`) under **Admin Console → Sent Emails**; read-only Firestore rules deployed for `achievement_email_sent`, `unseen_stamps_email_sent`, `digest_sent`, `achievement_email_queue`, and `email_preferences`
 - [x] **Family Emails refinements & Secondary Reply-To** — newest-first comments, max 10 cap, max 1 self-nomination & max 2 peer-nomination cap, inline comment editing + swap/hide (`FamilyRecapCommentItem.tsx`), and Secondary School `replyTo` (`schooloffice_d@sathyasai.nsw.edu.au`) in `functions/src/graphMail.ts`

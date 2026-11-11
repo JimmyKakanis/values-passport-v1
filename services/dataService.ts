@@ -877,13 +877,19 @@ export const addSignature = async (
   subValue?: string,
   source?: SignatureSource
 ): Promise<Signature | null> => {
+  const trimmedSub = (subValue || '').trim();
+  if (!trimmedSub) {
+    console.error('addSignature: a sub-value is required');
+    return null;
+  }
+
   try {
-    const newSig = {
+    const newSig: Omit<Signature, 'id'> = {
       studentId,
       teacherName,
       subject,
       value,
-      subValue: subValue || undefined, // Changed from null to undefined
+      subValue: trimmedSub,
       timestamp: Date.now(),
       note: note || '',
       ...(source ? { source } : {}),
@@ -944,7 +950,7 @@ export type SignatureStaffActor = {
 export interface SignatureTeacherEditable {
   subject: Subject;
   value: CoreValue;
-  /** Empty string clears the optional tag on the stamp. */
+  /** Required on new stamps. Empty string clears the tag on a legacy stamp (e.g. comment-only admin edits). */
   subValue: string;
   note: string;
 }
@@ -1143,6 +1149,11 @@ export const addNomination = async (
       return { ok: false, message: 'Could not find the student for this request.' };
     }
 
+    const trimmedSub = (subValue || '').trim();
+    if (!trimmedSub) {
+      return { ok: false, message: 'Please choose a sub-value for this stamp request.' };
+    }
+
     const teachers = await getAllTeachers();
     const reviewerEmails = resolveNominationReviewers(
       { subject, studentGrade: nominee.grade },
@@ -1156,7 +1167,7 @@ export const addNomination = async (
       type,
       subject,
       value,
-      subValue: subValue || undefined,
+      subValue: trimmedSub,
       reason,
       status: 'PENDING',
       timestamp: Date.now(),
@@ -1173,6 +1184,10 @@ export const addNomination = async (
 
 export const approveNomination = async (nomination: Nomination, teacherName: string) => {
   try {
+    if (!(nomination.subValue || '').trim()) {
+      console.error('approveNomination: a sub-value is required before the stamp can be created');
+      return;
+    }
     const nomRef = doc(db, "nominations", nomination.id);
     await updateDoc(nomRef, { status: 'APPROVED' });
     

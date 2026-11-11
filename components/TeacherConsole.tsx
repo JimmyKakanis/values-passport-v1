@@ -35,6 +35,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({
   const [selectedSubValue, setSelectedSubValue] = useState<string>(''); // New sub-value state
   const [note, setNote] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentTeacher, setCurrentTeacher] = useState<Teacher | null>(null);
 
@@ -144,29 +145,49 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedStudentIds.length > 0 && selectedSubject && selectedValue) {
-      setIsSubmitting(true);
-      // Award to all selected students
-      const teacherName = currentTeacher?.name || 'Current Teacher';
-      const promises = selectedStudentIds.map(id => 
-        addSignature(id, teacherName, selectedSubject, selectedValue, note, selectedSubValue)
-      );
-      
-      await Promise.all(promises);
-      setIsSubmitting(false);
-
-      const count = selectedStudentIds.length;
-      setSuccessMsg(`Awarded ${selectedValue} stamp to ${count} student${count > 1 ? 's' : ''}!`);
-      
-      // Reset form
-      setNote('');
-      setSelectedValue('');
-      setSelectedSubValue('');
-      setSelectedStudentIds([]);
-      setStudentSearchTerm('');
-      
-      setTimeout(() => setSuccessMsg(''), 3000);
+    if (
+      selectedStudentIds.length === 0 ||
+      !selectedSubject ||
+      !selectedValue ||
+      !selectedSubValue.trim()
+    ) {
+      setFormError('Choose a student, subject, value, and sub-value before awarding a stamp.');
+      return;
     }
+
+    setIsSubmitting(true);
+    setFormError('');
+    setSuccessMsg('');
+    const teacherName = currentTeacher?.name || 'Current Teacher';
+    const results = await Promise.all(
+      selectedStudentIds.map((id) =>
+        addSignature(id, teacherName, selectedSubject, selectedValue, note, selectedSubValue)
+      )
+    );
+    setIsSubmitting(false);
+
+    const okCount = results.filter(Boolean).length;
+    const failCount = results.length - okCount;
+    if (failCount > 0) {
+      setFormError(
+        okCount === 0
+          ? 'Could not save the stamp. Choose a sub-value and try again.'
+          : `Awarded ${okCount} stamp${okCount === 1 ? '' : 's'}, but ${failCount} could not be saved.`
+      );
+    }
+    if (okCount === 0) return;
+
+    setSuccessMsg(
+      `Awarded ${selectedValue} (${selectedSubValue}) stamp to ${okCount} student${okCount > 1 ? 's' : ''}!`
+    );
+
+    setNote('');
+    setSelectedValue('');
+    setSelectedSubValue('');
+    setSelectedStudentIds([]);
+    setStudentSearchTerm('');
+
+    setTimeout(() => setSuccessMsg(''), 3000);
   };
 
   const handleApprove = async (nomination: Nomination) => {
@@ -264,6 +285,11 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({
               <div className="bg-green-50 text-green-700 p-4 rounded-lg flex items-center gap-2 animate-pulse border border-green-200">
                 <Check className="w-5 h-5" />
                 {successMsg}
+              </div>
+            )}
+            {formError && (
+              <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200">
+                {formError}
               </div>
             )}
 
@@ -471,21 +497,25 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({
               </div>
             </div>
 
-            {/* Sub-Value "Tagging" System */}
+            {/* Sub-value tagging — required so the stamp is saved and visible */}
             {selectedValue && (
                <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
-                 <h4 className="font-bold text-blue-900 mb-3 text-sm uppercase tracking-wide flex items-center gap-2">
-                   <Tag size={16} /> Sub-value (Optional Tag)
+                 <h4 className="font-bold text-blue-900 mb-1 text-sm uppercase tracking-wide flex items-center gap-2">
+                   <Tag size={16} /> Sub-value <span className="text-red-600">*</span>
                  </h4>
+                 <p className="text-xs text-blue-800 mb-3">
+                   Choose the specific quality this stamp recognises. A stamp cannot be awarded without one.
+                 </p>
                  
-                 <div className="flex flex-wrap gap-2">
+                 <div className="flex flex-wrap gap-2" role="group" aria-label="Sub-value">
                    {CORE_VALUES[selectedValue].subValues.map((sv) => {
                      const isSelected = selectedSubValue === sv;
                      return (
                        <button
                          type="button"
                          key={sv}
-                         onClick={() => setSelectedSubValue(isSelected ? '' : sv)}
+                         aria-pressed={isSelected}
+                         onClick={() => setSelectedSubValue(sv)}
                          className={`text-sm px-3 py-1.5 rounded-full border transition-all ${
                             isSelected 
                               ? 'bg-blue-600 text-white border-blue-600 shadow-md transform scale-105' 
@@ -513,7 +543,7 @@ export const TeacherConsole: React.FC<TeacherConsoleProps> = ({
 
             <button 
               type="submit" 
-              disabled={selectedStudentIds.length === 0 || !selectedSubject || !selectedValue || isSubmitting}
+              disabled={selectedStudentIds.length === 0 || !selectedSubject || !selectedValue || !selectedSubValue.trim() || isSubmitting}
               className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg shadow transition-all flex items-center justify-center gap-2"
             >
               {isSubmitting ? <Loader2 className="animate-spin" /> : <Send className="w-5 h-5" />}

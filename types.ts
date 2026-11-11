@@ -140,7 +140,7 @@ export interface Signature {
   teacherName: string;
   subject: Subject;
   value: CoreValue;
-  subValue?: string; // Added optional sub-value tag
+  subValue?: string; // Required on new stamps; older rows may omit it
   timestamp: number;
   note?: string;
   /** Set for new stamps; older rows may omit (use note heuristics for nominations). */
@@ -158,7 +158,7 @@ export interface Nomination {
   type: NominationType;
   subject: Subject;
   value: CoreValue;
-  subValue?: string;
+  subValue?: string; // Required on new requests; older rows may omit it
   reason: string;
   status: NominationStatus;
   timestamp: number;
