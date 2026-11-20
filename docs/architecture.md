@@ -11,6 +11,7 @@ The application's UI is built from a set of modular React components located in 
 - **`App.tsx`**: The root component that handles routing, authentication state, and the main layout.
 - **`Layout` (within `App.tsx`)**: A wrapper component that provides the consistent navigation bar and footer across the application.
 - **`Login.tsx`**: The sign-in page, which handles user authentication against Firebase Auth.
+- **`VercelAnalytics.tsx`**: Injects Vercel Web Analytics inside `HashRouter`. Pageviews use React Router pathnames (`/teacher`, `/leaderboard/quiz`, …). `/student/:id` is grouped so Firestore student ids are not sent. The login screen uses a standalone `<Analytics />` because it renders outside the router.
 
 ### Student Views
 - **`Dashboard.tsx`**: The main view for students, showing their progress and passport. Profile banner includes **Request Stamp** (routed self/peer nominations with rate limits), **My Rewards** (links to Achievements rewards tab; badge when unclaimed tangible rewards exist). Includes **`DailyIntentionCard`** (private daily intention with value/sub-value pickers and polished saved state), **Next Up** planner widget (tick-off checkboxes, urgent-first tasks, due-date pills via [`PlannerItemRow`](../components/PlannerItemRow.tsx)), and **`StampHistorySection`** from [`StampActivityFeed.tsx`](../components/StampActivityFeed.tsx) — scrollable list of all stamps and teacher comments below the grid.

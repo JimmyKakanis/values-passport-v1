@@ -83,7 +83,7 @@ The **Values Passport** is a gamified positive behaviour support system for Sath
     ```
 
 ## Project Structure
-- `components/`: React UI components (Dashboard, Passport, Console, Notifications, Settings, ViewerCommentsFeed, etc.) and `components/admin/` (`AdminFamilyRecapEmails`, `FamilyRecapEmailCard`, `FamilyRecapCommentItem`, `AdminSentEmailsTab`, `UnseenStampsCampaignCard`).
+- `components/`: React UI components (Dashboard, Passport, Console, Notifications, Settings, ViewerCommentsFeed, **VercelAnalytics**, etc.) and `components/admin/` (`AdminFamilyRecapEmails`, `FamilyRecapEmailCard`, `FamilyRecapCommentItem`, `AdminSentEmailsTab`, `UnseenStampsCampaignCard`).
 - `services/`: Data handling and Firebase integration (`dataService.ts`), **`sentEmailsService.ts`** (sent email audit log + unseen stamps blast trigger), **`typingGame.ts`** (Speed Type scores, races, solo progress), **`nominationRouting.ts`** (stamp request routing), **`emailNotificationService.ts`** (preferences + achievement email queue), **`teacherEngagement.ts`** (teacher-only metrics, copy, and badges), **`studentAttention.ts`** (teacher “student attention” dashboard metrics; no extra backend), **`avatarUrl.ts`** (safe DiceBear URLs and fallbacks for leaderboard faces).
 - `components/typing/`: Speed Type UI (solo practice, live race lobby/live test, Values Lab shell).
 - `utils/`: **`subjectCatalog.ts`** (subject partition helpers and Admin routing gap detection), **`familyRecapEmail.ts`** (year-end family email builder), **`unseenStampsEmailTemplate.ts`** (app-styled 5+ unseen stamps & teaser comments email builder), **`studentParentImport.ts`** (`.xlsx`/`.csv` parent contact parser).

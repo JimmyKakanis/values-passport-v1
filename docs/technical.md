@@ -269,6 +269,7 @@ Students submit via **Request Stamp** on [`Dashboard.tsx`](../components/Dashboa
 ## Deployment
 - The app is configured for deployment on **Vercel** or **Firebase Hosting**.
 - **Build Command**: `npm run build` (runs `tsc && vite build`).
+- **Vercel Web Analytics**: Enabled on the `values-passport-v1` project. The SPA injects `@vercel/analytics` via [`VercelAnalytics`](../components/VercelAnalytics.tsx) (authenticated routes) and a bare `<Analytics />` on [`Login.tsx`](../components/Login.tsx). Student detail URLs are sent as `/student/:id`. Events are production-only; after deploy, a `/_vercel/insights/view` request should return 2xx.
 - **Root TypeScript scope**: [`tsconfig.json`](../tsconfig.json) **`exclude`s `functions/`**. The SPA does not type-check Firebase Cloud Functions; those use [`functions/tsconfig.json`](../functions/tsconfig.json) and dependencies under **`functions/package.json`**. This prevents Vercel (or any root `tsc`) from failing on `firebase-admin` / `firebase-functions` imports.
 - **Cloud Functions**: From `functions/`, run `npm run build` before `firebase deploy --only functions` (see **Email notifications** above).
 - **Configuration**:

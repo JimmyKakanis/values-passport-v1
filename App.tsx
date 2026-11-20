@@ -31,6 +31,7 @@ import { TeacherCorner } from './components/TeacherCorner/TeacherCorner';
 import { FeedbackPage } from './components/FeedbackPage';
 import { SettingsPage } from './components/SettingsPage';
 import { ViewerCommentsFeed } from './components/ViewerCommentsFeed';
+import { VercelAnalytics } from './components/VercelAnalytics';
 
 // Layout Component
 const Layout: React.FC<{ 
@@ -491,6 +492,7 @@ const App: React.FC = () => {
     <NotificationProvider>
       <NotificationController studentId={studentId} />
       <Router>
+        <VercelAnalytics />
         <Layout 
           userRole={userRole!}
           studentId={studentId}

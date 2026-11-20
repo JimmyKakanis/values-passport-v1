@@ -18,6 +18,7 @@ import { Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { SCHOOL_LOGO_URL, SCHOOL_EMAIL_DOMAIN, TEACHER_TEMP_PASSWORD, STUDENT_TEMP_PASSWORD } from '../constants';
 import { isApprovedTeacher, getAllTeachers, getStudentByEmail } from '../services/dataService';
 import { Logo } from './Logo';
+import { Analytics } from '@vercel/analytics/react';
 
 // #region agent log
 const agentDebugLog = (payload: {
@@ -441,6 +442,8 @@ export const Login: React.FC = () => {
   };
 
   return (
+    <>
+    <Analytics />
     <div className="min-h-screen bg-emerald-900 flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
         
@@ -665,5 +668,6 @@ export const Login: React.FC = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
